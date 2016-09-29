@@ -9,13 +9,14 @@ class Application(object):
     pid = 0           # type: int
     tstart = 0        # type: int
     tend = 0          # type: int
-    windows = []
-    documents = []
-    states = []
-    uris = []
-    ipc = []
-    parent = None
-    children = []
+    events = []       # type: list
+    windows = []      # type: list
+    documents = []    # type: list
+    states = []       # type: list
+    uris = []         # type: list
+    ipc = []          # type: list
+    parent = None     # type: Application
+    children = []     # type: list
 
     """ The representation of a Linux Desktop app, identified by its Desktop
         id, or by the path to its executable. """
@@ -106,5 +107,13 @@ class Application(object):
                                 self.getTimeOfStart()))
         self.setTimeOfEnd(max(other.getTimeOfEnd(),
                               self.getTimeOfEnd()))
-        # TODO merge all event links
-        pass
+        self.events += list(set(other.events) - set(self.events))
+
+    """ Adds an event to this Application for future modelling. """
+    def addEvent(self, event):
+        if event not in self.events:
+            self.events.append(event)
+
+    """ Clears all events to be modellined for this Application. """
+    def clearEvents(self):
+        self.events = []

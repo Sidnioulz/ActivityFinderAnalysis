@@ -2,7 +2,7 @@ import sqlite3 as lite
 import sys
 import re
 from Application import Application
-from utils import timestampZgPrint
+from AppInstanceStore import AppInstanceStore
 
 
 EV_ID = 0
@@ -78,7 +78,8 @@ class SqlLoader(object):
 
     """ Go through the SQLite database and create all the relevant app instances
         and events. """
-    def loadDb(self):
+    def loadDb(self, store: AppInstanceStore = None):
+        # Load up our events from the Zeitgeist database
         self.cur = self.con.cursor()
         self.cur.execute('SELECT ev.*, (SELECT value \
                                      FROM interpretation \
@@ -93,12 +94,14 @@ class SqlLoader(object):
                           FROM event_view AS ev \
                           WHERE ev.subj_uri LIKE "activity://%"')
 
-        nopids = []
-        zeropids = []
-        eventsPerPid = dict()
-        data = self.cur.fetchone()
-        count = 0
+        nopids = []            # Matching events without a PID (file IO events)
+        zeropids = []          # Events with a n/a PID (maybe winId is set)
+        eventsPerPid = dict()  # Storage for our events
+        count = 0              # Counter of fetched events, for stats
+        instanceCount = 0      # Count of distinct app instances in the dataset
 
+        # Sort all events based on the PID of the subject who emitted it
+        data = self.cur.fetchone()
         while data:
             count += 1
             if "pid://" not in data[EV_SUBJ_URI]:
@@ -115,25 +118,56 @@ class SqlLoader(object):
                     zeropids.append(data)
             data = self.cur.fetchone()
 
-        # for (pkey, pevent) in eventsPerPid:
-        #     print(type(plist), plist)
-        #     pevent.sort()
+        # For each PID, we'll now identify the successive Application instances
+        for (pkey, pevent) in eventsPerPid.items():
+            pevent = sorted(pevent, key=lambda x: x[EV_TIMESTAMP])
+            currentActorUri = ''  # currently matched actor URI
+            currentApp = None  # currently matched Application
+            apps = []          # temp storage for found Applications
 
-        print("Summary of events: %d events seen, %d accepted, %d rejected "
-              "as having no PID. In total, %.02f%% rejected." % (
+            for ev in pevent:
+                if ev[EV_ACTOR_URI] != currentActorUri:
+                    # TODO validate that currentApp and the new event's app
+                    # don't actually have the same desktop id in the end, once
+                    # aliases are resolved TODO
+                    currentActorUri = ev[EV_ACTOR_URI]
+                    currentApp = Application(desktopid=ev[EV_ACTOR_URI],
+                                             pid=int(pkey),
+                                             tstart=ev[EV_TIMESTAMP],
+                                             tend=ev[EV_TIMESTAMP])
+                    apps.append(currentApp)
+                else:
+                    currentApp.setTimeOfStart(min(ev[EV_TIMESTAMP],
+                                                  currentApp.getTimeOfStart()))
+
+                    currentApp.setTimeOfEnd(max(ev[EV_TIMESTAMP],
+                                                currentApp.getTimeOfEnd()))
+                currentApp.addEvent(ev)
+
+            # Insert into the AppInstanceStore if one was given to us
+            if store:
+                for app in apps:
+                    store.insert(app)
+
+            instanceCount += len(apps)
+
+            """ DEBUG STUFF """
+            # print(pkey, ":", len(apps), apps[0].getDesktopId())
+            # if len(apps) > 1:
+            #     print("PID %s" % pkey)
+            #     for app in apps:
+            #         print("%s to %s: %s" % (
+            #             timestampZgPrint(app.getTimeOfStart()),
+            #             timestampZgPrint(app.getTimeOfEnd()),
+            #             app.getDesktopId()))
+            #     print("\n\n\n\n")
+
+        print("Finished loading DB.\n%d events seen, %d accepted, %d rejected "
+              "as having no PID.\nIn total, %.02f%% events accepted." % (
                count-len(nopids),
                count-len(nopids)-len(zeropids),
                len(zeropids),
-               100*len(zeropids) / (count-len(nopids))))
+               100-100*len(zeropids) / (count-len(nopids))))
+        print("Instance count: %d" % instanceCount)
 
-        # TODO handle zeropids
-        interpretations = []
-        dates = []
-        [interpretations.append(e[EV_ACTOR_URI]) for e in zeropids if
-         e[EV_ACTOR_URI] not in interpretations]
-        [dates.append(e[EV_SUBJ_URI]) for e in zeropids if
-         e[EV_SUBJ_URI] not in dates]
-        print(interpretations)
-        print(dates)
-
-        # TODO app = Application(desktopid=data[0][1])
+        return zeropids

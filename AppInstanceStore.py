@@ -1,4 +1,5 @@
 from utils import timestampZgPrint
+import sys
 
 
 class AppInstanceStore(object):
@@ -11,7 +12,7 @@ class AppInstanceStore(object):
         super(AppInstanceStore, self).__init__()
 
     def insert(self, app):
-        print("Insert %s:%d into store" % (app.getDesktopId(), app.getPid()))
+        # print("Insert %s:%d into store" % (app.getDesktopId(), app.getPid()))
         if app.getPid() == 0:
             return  # TODO except
 
@@ -45,7 +46,8 @@ class AppInstanceStore(object):
                     pids[index] = bpp
                 else:
                     print("Error: Applications %s and %s overlap on PID %d" % (
-                         app.getDesktopId(), bpp.getDesktopId(), app.getPid()))
+                         app.getDesktopId(), bpp.getDesktopId(), app.getPid()),
+                         file=sys.stderr)
 
                     raise ValueError("Applications %s and %s have the same PID"
                                      " (%d) and their runtimes (%s-%s and "
@@ -65,7 +67,6 @@ class AppInstanceStore(object):
             pids.append(app)
 
         self.pidStore[app.getPid()] = pids
-        print(pids)
 
         # si liste vide, rajoute
 
