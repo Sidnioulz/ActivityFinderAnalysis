@@ -6,3 +6,15 @@ DATABASENAME = "activity.sqlite"
 DESKTOPPATHS = ['/usr/share/applications/',
                 '../applications/usr/share/applications/',
                 '~/.local/share/applications/']
+
+PYTHONRE = "^(/usr/bin/)?python([23](.\d)?)?$"
+PYTHONNAMER = "^(?:[^/]*/)*(.*?)(?:\.py.?)?$"
+PYTHONPROCNAME = "^(.*?)(?:\.py.?)?$"
+JAVARE = "^(?:[^/]*/)*java$"
+JAVANAMER = "^(?:[^/]*/)*(.*?)(?:\.jar)?$"
+JAVAPROCNAME = "^(.*?)(?:\.jar)?$"
+PERLRE = "^(?:[^/]*/)*perl$"
+PERLNAMER = "^(?:[^/]*/)*(.*?)$"
+MONORE = "^(?:[^/]*/)*mono-sgen$"
+MONONAMER = "^(?:[^/]*/)*(.*?)(?:\.exe)?$"
+MONOPROCNAME = "^(.*?)(?:\.exe)?$"

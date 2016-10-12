@@ -9,7 +9,9 @@ class Application(object):
     pid = 0           # type: int
     tstart = 0        # type: int
     tend = 0          # type: int
+    cmdline = ''      # type: str
     events = []       # type: list
+    syscalls = []     # type: list
     windows = []      # type: list
     documents = []    # type: list
     states = []       # type: list
@@ -96,6 +98,7 @@ class Application(object):
 
     """ Sets the Application's time of end to the passed value  """
     def setTimeOfEnd(self, val):
+
 
         self.tend = val
     """ Merges another application with the current one. """
