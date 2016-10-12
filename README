@@ -1,0 +1,24 @@
+## BEFORE RUNNING THESE SCRIPTS
+
+You must create a folder at the path ../applications/usr/share/applications/.
+This folder must contain all the .desktop files of the apps used by your users.
+The Application class will match the desktopid given to it to an exact name in
+that folder. If you have an app with multiple binaries (e.g. app and appd) and
+you want all those binaries to be recognised as the same app by this code, you
+must create a symbolic link from app.desktop (the "main" desktop for the app)
+to appd.desktop (the name of the additional binary for it).
+
+The script find-wrong-symlink.sh can then be run to ensure that all symbolic
+links have absolute paths and will be properly interpreted regardless of the
+working directory from which this code is run.
+
+
+You must create a folder at the path ../data/. This folder must contain a child
+called current/ which either contains or links to the data to be analysed. It
+is assumed that ../data/current/ will have a "data" subfolder with all the .log
+files created by PreloadLogger and the activity.sqlite file created by the
+Zeitgeist infrastructure. Thus, the paths:
+ ../data/current/data/activity.sqlite
+ ../data/current/data/*.log
+Are assumed to exist. Note you will manually have to extract the .log.gz files
+made by PreloadLogger into .log files, using gunzip.
