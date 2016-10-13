@@ -30,6 +30,7 @@ store = AppInstanceStore()
 
 # Load up the PreloadLogger file parser
 pll = PreloadLoggerLoader(DATAPATH)
+pll.listMissingActors()
 print("Loaded the PreloadLogger logs in: %s" % DATAPATH)
 
 # Use the parser to load up all the log files

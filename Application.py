@@ -3,22 +3,23 @@ from constants import DESKTOPPATHS
 
 
 class Application(object):
-    init = False      # type: bool
-    desktopid = None  # type: str
-    path = None       # type: str
-    pid = 0           # type: int
-    tstart = 0        # type: int
-    tend = 0          # type: int
-    cmdline = ''      # type: str
-    events = []       # type: list
-    syscalls = []     # type: list
-    windows = []      # type: list
-    documents = []    # type: list
-    states = []       # type: list
-    uris = []         # type: list
-    ipc = []          # type: list
-    parent = None     # type: Application
-    children = []     # type: list
+    init = False              # type: bool
+    desktopid = None          # type: str
+    desktopidoriginal = None  # type: str
+    path = None               # type: str
+    pid = 0                   # type: int
+    tstart = 0                # type: int
+    tend = 0                  # type: int
+    cmdline = ''              # type: str
+    events = []               # type: list
+    syscalls = []             # type: list
+    windows = []              # type: list
+    documents = []            # type: list
+    states = []               # type: list
+    uris = []                 # type: list
+    ipc = []                  # type: list
+    parent = None             # type: Application
+    children = []             # type: list
 
     """ The representation of a Linux Desktop app, identified by its Desktop
         id, or by the path to its executable. """
@@ -53,6 +54,11 @@ class Application(object):
         else:
             defile = self.desktopid
 
+        if not self.desktopid.endswith(".desktop"):
+            defile += ".desktop"
+
+        self.desktopidoriginal = defile
+
         foundPath = False
         for path in DESKTOPPATHS:
             depath = path + defile
@@ -66,11 +72,24 @@ class Application(object):
 
         if not foundPath:
             self.desktopid = None
-            # TODO print error?
             return
+
+        if not self.path:
+            # TODO get path from Exec/TryExec for de entry
+            pass
 
         # TODO continue
         self.init = True
+
+    """ Initialise an application based on the path of its executable, by
+    scanning the XDG desktop entries' Exec and TryExec paths. """
+    def __initFromPath(self):
+        raise NotImplementedError
+        # TODO
+        # first, literal pass through Exec
+        # second, resolve PATH to only get the executable name
+        # third, TryExec, literal
+        # forth, TryExec, name
 
     """ Check if an Application is initialised. """
     def isInitialised(self):

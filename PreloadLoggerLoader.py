@@ -148,9 +148,18 @@ class PreloadLoggerLoader(object):
         else:
             return g
 
+    """ Go through the logs and print the list of .desktop files that are
+        missing on the system used for analysis. Exits if some apps are
+        missing. """
+    def listMissingActors(self):
+        self.loadDb(store=None, checkInitialised=True)
+
     """ Go through the directory and create all the relevant app instances
-    and events. """
-    def loadDb(self, store: AppInstanceStore = None):
+    and events. Can be made to insert all found apps into an AppInstanceStore,
+    or to exit if some Application instances are not properly initialised. """
+    def loadDb(self,
+               store: AppInstanceStore = None,
+               checkInitialised: bool = False):
 
         count = 0              # Counter of fetched files, for stats
         actors = set()         # Apps that logged anything at all
@@ -159,6 +168,7 @@ class PreloadLoggerLoader(object):
         nosyscalls = []        # Logs with zero syscalls logged (not a bug)
         nosyscallactors = set()  # Apps that logged zero syscalls
         instanceCount = 0      # Count of distinct app instances in the dataset
+        hasErrors = False      # Whether some uninitialised apps were found
 
         # List all log files that match the PreloadLogger syntax
         for file in os.listdir(self.path):
@@ -301,10 +311,18 @@ class PreloadLoggerLoader(object):
                     # actors.add(app.getDesktopId())  # FIXME
                     actors.add(g[0])
 
+                    if checkInitialised and not app.isInitialised():
+                        print("MISSING: %s" % g[0],
+                              file=sys.stderr)
+                        hasErrors = True
+
                     # Insert into the AppInstanceStore if one is available
                     if store:
                         store.insert(app)
                         instanceCount += 1
+
+        if checkInitialised and hasErrors:
+            sys.exit(-1)
 
         print("Apps that logged valid files:")
         for act in sorted(actors):
