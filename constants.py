@@ -3,9 +3,11 @@ DATAPATH = "../data/current/"
 DATABASENAME = "activity.sqlite"
 
 # Application constants
-DESKTOPPATHS = ['/usr/share/applications/',
-                '../applications/usr/share/applications/',
+DESKTOPPATHS = ['../applications/usr/share/applications/',
+                '/usr/share/applications/',
                 '~/.local/share/applications/']
+
+DESKTOPIDRE = "^(?:[^/]*/)*(.*?)(?:\.desktop)?$"
 
 PYTHONRE = "^(/usr/bin/)?python([23](.\d)?)?$"
 PYTHONNAMER = "^(?:[^/]*/)*(.*?)(?:\.py.?)?$"

@@ -230,24 +230,29 @@ class PreloadLoggerLoader(object):
                     # Filter interpreters, and rewrite them to get the identity
                     # of the app they launched instead. #TODO
                     items = self.space.split(g[2])
+                    interpreterid = None
 
                     # Python
                     if (self.pyre.match(g[0])):
+                        interpreterid = g[0]
                         g = self.parsePython(g, items)
                         # print("PYTHON APP: %s" % g[2])
 
                     # Java
                     if (self.javare.match(g[0])):
+                        interpreterid = g[0]
                         g = self.parseJava(g, items)
                         # print("JAVA APP: %s" % g[2])
 
                     # Perl
                     if (self.perlre.match(g[0])):
+                        interpreterid = g[0]
                         g = self.parsePerl(g, items)
                         # print("PERL APP: %s" % g[2])
 
                     # Mono
                     if (self.monore.match(g[0])):
+                        interpreterid = g[0]
                         g = self.parseMono(g, items)
                         # print("MONO APP: %s" % g[2])
 
@@ -304,7 +309,8 @@ class PreloadLoggerLoader(object):
                     app = Application(desktopid=g[0],
                                       pid=int(g[1]),
                                       tstart=tstart,
-                                      tend=tend)
+                                      tend=tend,
+                                      interpreterid=interpreterid)
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
