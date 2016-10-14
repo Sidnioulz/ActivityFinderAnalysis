@@ -14,15 +14,16 @@ class AppInstanceStore(object):
     def insert(self, app):
         # print("Insert %s:%d into store" % (app.getDesktopId(), app.getPid()))
         if app.getPid() == 0:
-            return  # TODO except
+            raise ValueError("Applications must have a valid PID.")
 
         if not app.getDesktopId():
-            return  # TODO except
+            raise ValueError("Applications must have a Desktop identifier.")
 
         tstart = app.getTimeOfStart()
         tend = app.getTimeOfEnd()
         if tstart > tend:
-            return  # TODO except
+            raise ValueError("Applications must have valid times of start and "
+                             "end.")
 
         pids = self.pidStore.get(app.getPid(), list())  # type: list
 
@@ -41,19 +42,21 @@ class AppInstanceStore(object):
 
             # time period conflict, merge apps if same id or alert of a problem
             if (bend >= tstart) or (bstart <= tend):
-                if (app.getDesktopId() == bpp.getDesktopId()):
+                if app.hasSameDesktopId(bpp, resolveInterpreter=True):
                     bpp.merge(app)
                     pids[index] = bpp
                 else:
+                    # TODO: split the larger Application, if there is one, else
+                    # abandon the ship.
                     print("Error: Applications %s and %s overlap on PID %d" % (
                          app.getDesktopId(), bpp.getDesktopId(), app.getPid()),
                          file=sys.stderr)
 
                     raise ValueError("Applications %s and %s have the same PID"
-                                     " (%d) and their runtimes (%s-%s and "
-                                     " %s-%s) overlap, but they have different"
-                                     " identities. This is a bug in the "
-                                     "collected data." % (
+                                     " (%d) and their runtimes overlap:\n"
+                                     "\t%s \t %s\n\t%s \t %s\nbut they have"
+                                     " different identities. This is a bug in"
+                                     " the collected data." % (
                                        bpp.getDesktopId(),
                                        app.getDesktopId(),
                                        app.getPid(),
@@ -67,15 +70,6 @@ class AppInstanceStore(object):
             pids.append(app)
 
         self.pidStore[app.getPid()] = pids
-
-        # si liste vide, rajoute
-
-        # si inst. av. autre acteur au milieu du range de newapp, THROW Error
-        # situation compliquee : evenements exacts doivent etre recuperes de
-        # toutes les sources pour recalculer les instances
-
-        # si instance avec meme acteur overlap: mettre a jour instance dans le
-        # store, puis "informer" le caller que l'objet est mis a jour
 
     def lookupPid(self, pid):
         return self.pidStore[pid]
