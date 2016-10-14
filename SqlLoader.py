@@ -135,6 +135,12 @@ class SqlLoader(object):
                                              pid=int(pkey),
                                              tstart=ev[EV_TIMESTAMP],
                                              tend=ev[EV_TIMESTAMP])
+                    if not currentApp.hasSameDesktopId(currentActorUri):
+                        print("Warning: App's id %s was translated to %s when "
+                              "reading Desktop files." % (
+                               currentActorUri,
+                               currentApp.getDesktopId()),
+                              file=sys.stderr)
                     apps.append(currentApp)
                 else:
                     currentApp.setTimeOfStart(min(ev[EV_TIMESTAMP],
