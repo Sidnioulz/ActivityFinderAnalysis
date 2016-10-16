@@ -11,29 +11,27 @@ from constants import PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
 
 class PreloadLoggerLoader(object):
     path = ""
-    pattern = None
-    delpattern = None
+    pattern = re.compile("^\d{4}-\d{2}-\d{2}_\d+_\d+.log$")
+    header = re.compile("^@(.*?)[|](\d+)[|](.*)$")
+    syscall = re.compile("^(\d+)[|](.*)$")
+    space = re.compile(r'(?<!\\) ')
+    pyre = re.compile(PYTHONRE)
+    pynamer = re.compile(PYTHONNAMER)
+    pyprocname = re.compile(PYTHONPROCNAME)
+    javare = re.compile(JAVARE)
+    javanamer = re.compile(JAVANAMER)
+    javaprocname = re.compile(JAVAPROCNAME)
+    perlre = re.compile(PERLRE)
+    perlnamer = re.compile(PERLNAMER)
+    monore = re.compile(MONORE)
+    mononamer = re.compile(MONONAMER)
+    monoprocname = re.compile(MONOPROCNAME)
+    delpattern = None  # TODO
 
     """ PreloadLoggerLoader loads all PreloadLogger log files from a user
         directory, and parses them into appropriate events. """
     def __init__(self, path):
         self.path = path
-        self.pattern = re.compile("^\d{4}-\d{2}-\d{2}_\d+_\d+.log$")
-        self.header = re.compile("^@(.*?)[|](\d+)[|](.*)$")
-        self.syscall = re.compile("^(\d+)[|](.*)$")
-        self.space = re.compile(r'(?<!\\) ')
-        self.pyre = re.compile(PYTHONRE)
-        self.pynamer = re.compile(PYTHONNAMER)
-        self.pyprocname = re.compile(PYTHONPROCNAME)
-        self.javare = re.compile(JAVARE)
-        self.javanamer = re.compile(JAVANAMER)
-        self.javaprocname = re.compile(JAVAPROCNAME)
-        self.perlre = re.compile(PERLRE)
-        self.perlnamer = re.compile(PERLNAMER)
-        self.monore = re.compile(MONORE)
-        self.mononamer = re.compile(MONONAMER)
-        self.monoprocname = re.compile(MONOPROCNAME)
-        self.delpattern = None  # TODO
         super(PreloadLoggerLoader, self).__init__()
 
     """ Get the proper app identity out of a Python execution, by parsing the
@@ -51,11 +49,11 @@ class PreloadLoggerLoader(object):
         if len(items) == 1:
             return g
 
-        res = self.pynamer.match(items[1])
+        res = PreloadLoggerLoader.pynamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            procres = self.pyprocname.match(name)
+            procres = PreloadLoggerLoader.pyprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             newcmd = ' '.join(items[1:])
             return (newproc, g[1], newcmd)
@@ -81,11 +79,11 @@ class PreloadLoggerLoader(object):
         if len(items) == 1:
             return g
 
-        res = self.javanamer.match(items[1])
+        res = PreloadLoggerLoader.javanamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            procres = self.javaprocname.match(name)
+            procres = PreloadLoggerLoader.javaprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             newcmd = ' '.join(items[1:])
             return (newproc, g[1], newcmd)
@@ -101,7 +99,7 @@ class PreloadLoggerLoader(object):
             return g
 
         if not items:
-            items = self.space.split(g[2])
+            items = PreloadLoggerLoader.space.split(g[2])
 
         # Remove -w if present
         if len(items) > 1 and items[1] == "-w":
@@ -111,7 +109,7 @@ class PreloadLoggerLoader(object):
         if len(items) == 1:
             return g
 
-        res = self.perlnamer.match(items[1])
+        res = PreloadLoggerLoader.perlnamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
 
         if name:
@@ -138,11 +136,11 @@ class PreloadLoggerLoader(object):
         # Mono apps in our logs seem to log the command-line properly, e.g. our
         # mono-sgen actor has a command-line starting with "banshee" when the
         # Banshee app is launched. Thus, we only update the process name
-        res = self.mononamer.match(items[0])
+        res = PreloadLoggerLoader.mononamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            procres = self.monoprocname.match(name)
+            procres = PreloadLoggerLoader.monoprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             return (newproc, g[1], g[2])
         else:
@@ -173,7 +171,7 @@ class PreloadLoggerLoader(object):
         # List all log files that match the PreloadLogger syntax
         for file in os.listdir(self.path):
             # Ignore files that don't match
-            if not self.pattern.match(file):
+            if not PreloadLoggerLoader.pattern.match(file):
                 continue
 
             count += 1
@@ -205,7 +203,7 @@ class PreloadLoggerLoader(object):
                                    str(e)),
                                   file=sys.stderr)
                             continue
-                        result = self.header.match(line)
+                        result = PreloadLoggerLoader.header.match(line)
                         if result:
                             headerLocation = idx
                             break
@@ -233,25 +231,25 @@ class PreloadLoggerLoader(object):
                     interpreterid = None
 
                     # Python
-                    if (self.pyre.match(g[0])):
+                    if (PreloadLoggerLoader.pyre.match(g[0])):
                         interpreterid = g[0]
                         g = self.parsePython(g, items)
                         # print("PYTHON APP: %s" % g[2])
 
                     # Java
-                    if (self.javare.match(g[0])):
+                    if (PreloadLoggerLoader.javare.match(g[0])):
                         interpreterid = g[0]
                         g = self.parseJava(g, items)
                         # print("JAVA APP: %s" % g[2])
 
                     # Perl
-                    if (self.perlre.match(g[0])):
+                    if (PreloadLoggerLoader.perlre.match(g[0])):
                         interpreterid = g[0]
                         g = self.parsePerl(g, items)
                         # print("PERL APP: %s" % g[2])
 
                     # Mono
-                    if (self.monore.match(g[0])):
+                    if (PreloadLoggerLoader.monore.match(g[0])):
                         interpreterid = g[0]
                         g = self.parseMono(g, items)
                         # print("MONO APP: %s" % g[2])
@@ -275,8 +273,8 @@ class PreloadLoggerLoader(object):
                             syscalls[-1] = syscalls[-1] + '\n' + line
                             continue
 
-                        # Check that line is a syntactically vlaid system call
-                        result = self.syscall.match(line)
+                        # Check that line is a syntactically valid system call
+                        result = PreloadLoggerLoader.syscall.match(line)
                         if result is None:
                             print("%s has a corrupted line: %s" % (
                                    file,

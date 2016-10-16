@@ -10,28 +10,31 @@ import sys
 store = AppInstanceStore()
 
 # # Load up and check the SQLite database
-# sql = None
-# try:
-#     sql = SqlLoader(DATAPATH+DATABASENAME)
-# except ValueError as e:
-#     print("Failed to parse SQL: %s" % e.args[0], file=sys.stderr)
-#     sys.exit(-1)
+sql = None
+print("Loading the SQLite database: %s" % (DATAPATH+DATABASENAME))
+try:
+    sql = SqlLoader(DATAPATH+DATABASENAME)
+except ValueError as e:
+    print("Failed to parse SQL: %s" % e.args[0], file=sys.stderr)
+    sys.exit(-1)
 # sql.listMissingActors()
-# print("Loaded the SQLite database: %s" % DATABASENAME)
-#
-# # Read the database now that we know we can work with it
-# sql.loadDb(store)
-# try:
-#     pids = store.lookupPid(5283)
-# except KeyError as e:
-#     pass
-# else:
-#     print(5283, pids)
+sql.loadDb(store)
+print("Loaded the SQLite database.")
+
 
 # Load up the PreloadLogger file parser
 pll = PreloadLoggerLoader(DATAPATH)
-pll.listMissingActors()
-print("Loaded the PreloadLogger logs in: %s" % DATAPATH)
+# pll.listMissingActors()
 
-# Use the parser to load up all the log files
+print("Loading the PreloadLogger logs in: %s" % DATAPATH)
 pll.loadDb(store)
+print("Loaded the PreloadLogger logs.")
+
+
+# Read the database now that we know we can work with it
+try:
+    pids = store.lookupPid(5283)
+except KeyError as e:
+    pass
+else:
+    print(5283, pids)

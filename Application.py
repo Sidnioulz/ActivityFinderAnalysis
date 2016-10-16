@@ -1,4 +1,4 @@
-"""Represents a runtime instance of an application."""
+"""A runtime instance of a Linux Desktop application."""
 
 from xdg import DesktopEntry
 from constants import DESKTOPPATHS, DESKTOPIDRE
@@ -6,7 +6,7 @@ import re
 
 
 class Application(object):
-    """Represents a runtime instance of an application.
+    """A runtime instance of a Linux Desktop application.
 
     Representation of a UNIX process, along with information on the Desktop
     application it is expected to belong to (using XDG Desktop Specification).

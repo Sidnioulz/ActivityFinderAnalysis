@@ -1,17 +1,26 @@
+"""A place to store and merge fragments of Application instances."""
 from utils import timestampZgPrint
+from Application import Application
 import sys
 
 
 class AppInstanceStore(object):
-    pidStore = dict()   # type: dict
-    nameStore = dict()  # type: dict
+    """A place to store Applications as they are being built from multiple sources.
 
-    """ AppInstanceStore is a store for AppInstance objects. It detects issues
-    when inserting a new AppInstance, and provides lookup methods."""
+    AppInstanceStore is a store for Application objects. When inserting a new
+    Application which is already present, both instances will be merged in the
+    store, ensuring all events are kept. The store  provides lookup methods to
+    retrieve the actual applications once all data sources have been inserted
+    into the store.
+    """
+
     def __init__(self):
+        """Construct an AppInstanceStore."""
         super(AppInstanceStore, self).__init__()
+        self.clear()
 
-    def insert(self, app):
+    def insert(self, app: Application):
+        """Insert an Application in the store."""
         # print("Insert %s:%d into store" % (app.getDesktopId(), app.getPid()))
         if app.getPid() == 0:
             raise ValueError("Applications must have a valid PID.")
@@ -71,10 +80,18 @@ class AppInstanceStore(object):
 
         self.pidStore[app.getPid()] = pids
 
+    def clear(self):
+        self.pidStore = dict()   # type: dict
+        self.nameStore = dict()  # type: dict
+
     def lookupPid(self, pid):
+        """TODO."""
+        # TODO
         return self.pidStore[pid]
 
     def lookupPidTimestamp(self, pid, timestamp):
+        """TODO."""
+        # TODO
         pids = self.pidStore[pid]
         for app in pids:
             if (timestamp >= app.getTimeOfStart() and
@@ -84,4 +101,6 @@ class AppInstanceStore(object):
         return None
 
     def lookupPidActor(self, pid, actor):
+        """TODO."""
+        # TODO
         pass
