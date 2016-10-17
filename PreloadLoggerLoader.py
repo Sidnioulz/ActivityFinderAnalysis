@@ -309,10 +309,11 @@ class PreloadLoggerLoader(object):
                                       tstart=tstart,
                                       tend=tend,
                                       interpreterid=interpreterid)
+                    app.setSyscallsBulk(syscalls)
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
-                    # actors.add(app.getDesktopId())  # FIXME
+                    # actors.add(app.getDesktopId())  # FIXME TODO
                     actors.add(g[0])
 
                     if checkInitialised and not app.isInitialised():
