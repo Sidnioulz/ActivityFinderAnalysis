@@ -329,13 +329,13 @@ class PreloadLoggerLoader(object):
         if checkInitialised and hasErrors:
             sys.exit(-1)
 
-        print("Apps that logged valid files:")
-        for act in sorted(actors):
-            print(act)
+        # print("Apps that logged valid files:")
+        # for act in sorted(actors):
+        #     print(act)
 
-        print("\nApps that logged files without a single system call:")
-        for act in sorted(nosyscallactors):
-            print(act)
+        # print("\nApps that logged files without a single system call:")
+        # for act in sorted(nosyscallactors):
+        #     print(act)
 
         print("\nFinished loading DB.\n%d files seen, %d valid from %d apps, "
               "%d empty files, "
