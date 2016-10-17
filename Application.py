@@ -223,25 +223,28 @@ class Application(object):
 
     def addEvent(self, event):
         """Add an event to this Application for future modelling."""
-        # FIXME: review API
         self.events.append(event)
+
+    def getAllEvents(self):
+        """Return this Application's events."""
+        return self.events
 
     def clearEvents(self):
         """Clear all events to be modellined for this Application."""
-        # FIXME: review API
         self.events = []
 
     def addSyscall(self, syscall):
         """Add an event to this Application for future modelling."""
-        # FIXME: review API
         self.syscalls.append(syscall)
 
     def setSyscallsBulk(self, syscalls):
-        """Replace the Application's syscalls with a whole set."""
-        # FIXME: review API
+        """Replace the Application's current system calls with a new list."""
         self.syscalls = syscalls
+
+    def getAllSyscalls(self):
+        """Return this Application's system calls."""
+        return self.syscalls
 
     def clearSyscalls(self):
         """Clear all events to be modellined for this Application."""
-        # FIXME: review API
         self.syscalls = []
