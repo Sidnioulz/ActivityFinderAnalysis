@@ -2,7 +2,8 @@
 
 from enum import Enum
 from Application import Application
-from constants import timestampZgPrint, EV_TIMESTAMP, EV_INTERPRETATION_URI
+from utils import timestampZgPrint
+from constants import EV_TIMESTAMP, EV_INTERPRETATION_URI
 
 
 class EventType(Enum):
@@ -27,16 +28,14 @@ class Event(object):
     target subjects (e.g. Files or other Applications).
     """
 
-    # TODO re
-
     time = 0       # type: int; when the event occurred
     evtype = None  # type: EventType; type of the event
     actor = None   # type: list; actor responsible for performing the event
     subjects = []  # type: list; other entities affected by the event
 
     def __init__(self,
-                 time: int=0,
                  actor: Application,
+                 time: int=0,
                  zgEvent: list=None,
                  syscallStr: str=None):
         """Construct an Event, using a Zeitgeist or PreloadLogger log entry."""
