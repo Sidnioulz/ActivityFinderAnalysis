@@ -2,6 +2,7 @@
 
 from enum import Enum
 from Application import Application
+from constants import timestampZgPrint, EV_TIMESTAMP, EV_INTERPRETATION_URI
 
 
 class EventType(Enum):
@@ -26,30 +27,31 @@ class Event(object):
     target subjects (e.g. Files or other Applications).
     """
 
+    # TODO re
+
     time = 0       # type: int; when the event occurred
     evtype = None  # type: EventType; type of the event
     actor = None   # type: list; actor responsible for performing the event
     subjects = []  # type: list; other entities affected by the event
 
     def __init__(self,
-                 time: int,
+                 time: int=0,
                  actor: Application,
-                 zgStr: str=None,
+                 zgEvent: list=None,
                  syscallStr: str=None):
         """Construct an Event, using a Zeitgeist or PreloadLogger log entry."""
         super(Event, self).__init__()
 
-        if not time:
-            raise ValueError("Events must have a valid time of occurrence.")
         if not actor:
             raise ValueError("Events must be performed by a valid "
                              "Application.")
 
-        if not zgStr and not syscallStr:
+        if not zgEvent and not syscallStr:
             raise ValueError("Events cannot be empty: please provide a log "
                              "entry from Zeitgeist or PreloadLogger to "
                              "analyse.")
-        if zgStr and syscallStr:
+
+        if zgEvent and syscallStr:
             raise ValueError("Events can only be parsed from a single log "
                              "entry: please provide either a Zeitgeist or a "
                              "PreloadLogger entry, but not both.")
@@ -57,7 +59,28 @@ class Event(object):
         self.time = time
         self.actor = actor
 
-        # TODO parse sources, get type and subjects this way
+        if zgEvent:
+            self.time = zgEvent[EV_TIMESTAMP] if not self.time else self.time
+            # TODO Parse event! woop woop
+            print("NEW EVENT: AT %s -- %s from ZG" % (
+                   timestampZgPrint(self.time), zgEvent[EV_INTERPRETATION_URI])
+                  )
+
+        elif syscallStr:
+            syscall = None
+            content = None
+            bits = syscallStr.split(sep='|')
+            try:
+                self.time = bits[0] * 100-100 if not self.time else self.time
+                syscall = bits[1]
+                content = bits[2]
+            except(TypeError, KeyError) as e:
+                raise ValueError("An invalid system call was passed to Event, "
+                                 "aborting: %s" % syscallStr)
+            # TODO pass syscall and content to a dispatcher for handlers
+            print("NEW EVENT: AT %s -- %s from PL" % (
+                   timestampZgPrint(self.time), syscall)
+                  )
 
     def getTime(self):
         """Return the Event's time of occurrence."""
