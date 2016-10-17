@@ -1,3 +1,6 @@
+# General constants
+USAGE_STRING = '__main__.py [--check-missing]'
+
 # Data location constants
 DATAPATH = "../data/current/"
 DATABASENAME = "activity.sqlite"
