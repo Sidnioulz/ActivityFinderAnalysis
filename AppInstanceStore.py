@@ -1,6 +1,7 @@
 """A place to store and merge fragments of Application instances."""
 from utils import timestampZgPrint
 from Application import Application
+from Event import Event
 import sys
 
 
@@ -83,6 +84,18 @@ class AppInstanceStore(object):
     def clear(self):
         self.pidStore = dict()   # type: dict
         self.nameStore = dict()  # type: dict
+
+    def parseAllEvents(self, eventStore):
+        for pid, apps in self.pidStore.items():
+            for app in apps:
+                for zgEvent in app.getAllEvents():
+                    event = Event(actor=app, zgEvent=zgEvent)
+                    eventStore.append(event)
+                for plStr in app.getAllSyscalls():
+                    event = Event(actor=app, syscallStr=plStr)
+                    eventStore.append(event)
+
+        eventStore.sort()
 
     def lookupPid(self, pid):
         """TODO."""
