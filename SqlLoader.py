@@ -2,7 +2,7 @@ import sqlite3 as lite
 import sys
 import re
 from Application import Application
-from AppInstanceStore import AppInstanceStore
+from ApplicationStore import ApplicationStore
 from constants import EV_TIMESTAMP, EV_SUBJ_URI, EV_ACTOR_URI
 
 
@@ -50,7 +50,7 @@ class SqlLoader(object):
 
     """ Go through the SQLite database and create all the relevant app instances
         and events. """
-    def loadDb(self, store: AppInstanceStore = None):
+    def loadDb(self, store: ApplicationStore = None):
         # Load up our events from the Zeitgeist database
         self.cur = self.con.cursor()
         self.cur.execute('SELECT ev.*, (SELECT value \
@@ -122,7 +122,7 @@ class SqlLoader(object):
                                                 currentApp.getTimeOfEnd()))
                 currentApp.addEvent(ev)
 
-            # Insert into the AppInstanceStore if one was given to us
+            # Insert into the ApplicationStore if one was given to us
             if store:
                 for app in apps:
                     store.insert(app)

@@ -2,7 +2,7 @@ import sys
 import os
 import re
 from Application import Application
-from AppInstanceStore import AppInstanceStore
+from ApplicationStore import ApplicationStore
 from constants import PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, \
                       PERLRE, PERLNAMER, \
@@ -153,10 +153,10 @@ class PreloadLoggerLoader(object):
         self.loadDb(store=None, checkInitialised=True)
 
     """ Go through the directory and create all the relevant app instances
-    and events. Can be made to insert all found apps into an AppInstanceStore,
+    and events. Can be made to insert all found apps into an ApplicationStore,
     or to exit if some Application instances are not properly initialised. """
     def loadDb(self,
-               store: AppInstanceStore = None,
+               store: ApplicationStore = None,
                checkInitialised: bool = False):
 
         count = 0              # Counter of fetched files, for stats
@@ -321,7 +321,7 @@ class PreloadLoggerLoader(object):
                               file=sys.stderr)
                         hasErrors = True
 
-                    # Insert into the AppInstanceStore if one is available
+                    # Insert into the ApplicationStore if one is available
                     if store:
                         store.insert(app)
                         instanceCount += 1

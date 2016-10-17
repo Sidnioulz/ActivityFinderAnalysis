@@ -5,10 +5,10 @@ from Event import Event
 import sys
 
 
-class AppInstanceStore(object):
+class ApplicationStore(object):
     """A place to store Applications as they are being built from multiple sources.
 
-    AppInstanceStore is a store for Application objects. When inserting a new
+    ApplicationStore is a store for Application objects. When inserting a new
     Application which is already present, both instances will be merged in the
     store, ensuring all events are kept. The store  provides lookup methods to
     retrieve the actual applications once all data sources have been inserted
@@ -16,8 +16,8 @@ class AppInstanceStore(object):
     """
 
     def __init__(self):
-        """Construct an AppInstanceStore."""
-        super(AppInstanceStore, self).__init__()
+        """Construct an ApplicationStore."""
+        super(ApplicationStore, self).__init__()
         self.clear()
 
     def insert(self, app: Application):

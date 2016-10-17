@@ -2,7 +2,7 @@
 
 from SqlLoader import SqlLoader
 from PreloadLoggerLoader import PreloadLoggerLoader
-from AppInstanceStore import AppInstanceStore
+from ApplicationStore import ApplicationStore
 from EventStore import EventStore
 from constants import USAGE_STRING, DATAPATH, DATABASENAME
 import sys
@@ -29,7 +29,7 @@ def main(argv):
                 __opt_check = True
 
     # Make the application store
-    store = AppInstanceStore()
+    store = ApplicationStore()
 
     # Load up and check the SQLite database
     sql = None

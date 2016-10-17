@@ -1,7 +1,7 @@
 import unittest
 import re
 from Application import Application
-from AppInstanceStore import AppInstanceStore
+from ApplicationStore import ApplicationStore
 from Event import Event
 from EventStore import EventStore
 from PreloadLoggerLoader import PreloadLoggerLoader
@@ -9,10 +9,10 @@ from constants import PYTHONRE, PYTHONNAMER
 
 
 class TestStoreInsertion(unittest.TestCase):
-    store = None  # type: AppInstanceStore
+    store = None  # type: ApplicationStore
 
     def setUp(self):
-        self.store = AppInstanceStore()
+        self.store = ApplicationStore()
 
     def test_merge_equal(self):
         self.store.clear()
