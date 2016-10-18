@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 
-from SqlLoader import SqlLoader
-from PreloadLoggerLoader import PreloadLoggerLoader
 from ApplicationStore import ApplicationStore
 from EventStore import EventStore
+# from FileStore import FileStore
+from PreloadLoggerLoader import PreloadLoggerLoader
+from SqlLoader import SqlLoader
 from constants import USAGE_STRING, DATAPATH, DATABASENAME
-import sys
 import getopt
+import sys
+
+# Debugging imports
+import objgraph
+from pympler import asizeof
 
 
 # Main function
+# @profile
 def main(argv):
     # Application parameters
     __opt_check = False
@@ -54,18 +60,22 @@ def main(argv):
     pll.loadDb(store)
     print("Loaded the PreloadLogger logs.")
 
-    # Parse all the events in found Applications
-    print("\nCollecting and sorting all events...")
+    # Debugging
+    roots = objgraph.get_leaking_objects()
+    print("%d leaking objects" % len(roots))
+    objgraph.show_most_common_types(objects=roots)
+    asizeof.asizeof(objgraph.by_type('set'))
+
+    # Retrieve all the events in found Applications
+    print("\nSorting all events...")
     evStore = EventStore()
-    store.parseAllEvents(evStore)
-    print("\nCollected all events.")
+    evStore.sort()
+    print("Sorted all %d events in the event store." % evStore.getEventCount())
 
     # Simulate the events to build a file model
-    print("\nSimulating all events to build a file model...")
-    print("\e[31m\e[1mNOT IMPLEMENTED YET\e[0m")
-    sys.exit(1)
-    # fileStore = fileStore()
+    # fileStore = FileStore()
     # evStore.simulateAllEvents(fileStore)
+    print("\nSimulating all events to build a file model...")
 
 
 if __name__ == "__main__":

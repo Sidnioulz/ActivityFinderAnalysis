@@ -85,17 +85,23 @@ class ApplicationStore(object):
         self.pidStore = dict()   # type: dict
         self.nameStore = dict()  # type: dict
 
-    def parseAllEvents(self, eventStore):
+    def getAppLaunchEvents(self):
+        allApps = []
+        events = []
+
         for pid, apps in self.pidStore.items():
             for app in apps:
-                for zgEvent in app.getAllEvents():
-                    event = Event(actor=app, zgEvent=zgEvent)
-                    eventStore.append(event)
-                for plStr in app.getAllSyscalls():
-                    event = Event(actor=app, syscallStr=plStr)
-                    eventStore.append(event)
+                allApps.append(app)
 
-        eventStore.sort()
+        for app in allApps:
+            cmd = app.getCommandLine()
+            if cmd:
+                event = Event(actor=app,
+                              time=app.getTimeOfStart(),
+                              cmdlineStr=cmd)
+                events.append(event)
+
+        return events
 
     def lookupPid(self, pid):
         """TODO."""

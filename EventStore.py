@@ -16,6 +16,11 @@ class EventStore(object):
         super(EventStore, self).__init__()
         self.clear()
 
+    def insertList(self, events: list):
+        for event in events:
+            self.append(event)
+        self.sort()
+
     def append(self, event: Event):
         """Append an Event to the store. The store will no longer be sorted."""
         if event.getTime() == 0:
@@ -76,3 +81,6 @@ class EventStore(object):
 
     def getAllEvents(self):
         return self.store
+
+    def getEventCount(self):
+        return len(self.store)

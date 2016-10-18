@@ -24,7 +24,6 @@ class Application(object):
     tend = 0                  # type: int; when it's known to cease existing
     cmdline = ''              # type: str; complete command line, when known
     events = []               # type: list
-    syscalls = []             # type: list
     windows = []              # type: list
     documents = []            # type: list
     states = []               # type: list
@@ -219,7 +218,14 @@ class Application(object):
         self.setTimeOfEnd(max(other.getTimeOfEnd(),
                               self.getTimeOfEnd()))
         self.events += list(set(other.events) - set(self.events))
-        self.syscalls += list(set(other.syscalls) - set(self.syscalls))
+
+    def setCommandLine(self, cmd):
+        """Set the command line used to start this Application."""
+        self.cmdline = cmd
+
+    def getCommandLine(self):
+        """Return the command line used to start this Application."""
+        return self.cmdline
 
     def addEvent(self, event):
         """Add an event to this Application for future modelling."""
@@ -227,24 +233,15 @@ class Application(object):
 
     def getAllEvents(self):
         """Return this Application's events."""
-        return self.events
+        for event in self.events:
+            yield event
+
+    def takeAllEvents(self):
+        """Return this Application's events and clears them."""
+        ev = self.events
+        self.events = []
+        return ev
 
     def clearEvents(self):
         """Clear all events to be modellined for this Application."""
         self.events = []
-
-    def addSyscall(self, syscall):
-        """Add an event to this Application for future modelling."""
-        self.syscalls.append(syscall)
-
-    def setSyscallsBulk(self, syscalls):
-        """Replace the Application's current system calls with a new list."""
-        self.syscalls = syscalls
-
-    def getAllSyscalls(self):
-        """Return this Application's system calls."""
-        return self.syscalls
-
-    def clearSyscalls(self):
-        """Clear all events to be modellined for this Application."""
-        self.syscalls = []

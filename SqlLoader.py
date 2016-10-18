@@ -3,6 +3,8 @@ import sys
 import re
 from Application import Application
 from ApplicationStore import ApplicationStore
+from EventStore import EventStore
+from Event import Event
 from constants import EV_TIMESTAMP, EV_SUBJ_URI, EV_ACTOR_URI
 
 
@@ -29,10 +31,13 @@ class SqlLoader(object):
         if self.con:
             self.con.close()
 
-    """ Go through the SQLite database and print the list of .desktop files that
-        are missing on the system used for analysis. Exits if some apps are
-        missing. """
     def listMissingActors(self):
+        """Check for missing apps.
+
+        Go through the SQLite database and print the list of .desktop files
+        that are missing on the system used for analysis. Exits if some apps
+        are missing.
+        """
         self.cur = self.con.cursor()
         self.cur.execute('SELECT * from actor')
         hasErrors = False
@@ -48,9 +53,10 @@ class SqlLoader(object):
         if hasErrors is True:
             sys.exit(-1)
 
-    """ Go through the SQLite database and create all the relevant app instances
-        and events. """
-    def loadDb(self, store: ApplicationStore = None):
+    def loadDb(self,
+               store: ApplicationStore = None,
+               eventStore: EventStore = None):
+        """Browse the SQLite db and create all the relevant app instances."""
         # Load up our events from the Zeitgeist database
         self.cur = self.con.cursor()
         self.cur.execute('SELECT ev.*, (SELECT value \
@@ -120,7 +126,11 @@ class SqlLoader(object):
 
                     currentApp.setTimeOfEnd(max(ev[EV_TIMESTAMP],
                                                 currentApp.getTimeOfEnd()))
-                currentApp.addEvent(ev)
+                if eventStore:
+                    event = Event(actor=currentApp,
+                                  time=ev[EV_TIMESTAMP],
+                                  zgEvent=ev)
+                    eventStore.append(event)
 
             # Insert into the ApplicationStore if one was given to us
             if store:

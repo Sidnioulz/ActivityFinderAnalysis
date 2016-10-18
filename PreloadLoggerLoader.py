@@ -3,6 +3,8 @@ import os
 import re
 from Application import Application
 from ApplicationStore import ApplicationStore
+from EventStore import EventStore
+from Event import Event
 from constants import PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, \
                       PERLRE, PERLNAMER, \
@@ -157,6 +159,7 @@ class PreloadLoggerLoader(object):
     or to exit if some Application instances are not properly initialised. """
     def loadDb(self,
                store: ApplicationStore = None,
+               eventStore: EventStore = None,
                checkInitialised: bool = False):
 
         count = 0              # Counter of fetched files, for stats
@@ -270,7 +273,13 @@ class PreloadLoggerLoader(object):
 
                         # Line is a parameter to the last system call logged
                         if line.startswith(' '):
-                            syscalls[-1] = syscalls[-1] + '\n' + line
+                            if len(syscalls):
+                                syscalls[-1][1] = syscalls[-1][1] + '\n' + line
+                            else:
+                                print("%s has a corrupted line: %s" % (
+                                       file,
+                                       line),
+                                      file=sys.stderr)
                             continue
 
                         # Check that line is a syntactically valid system call
@@ -282,24 +291,20 @@ class PreloadLoggerLoader(object):
                                   file=sys.stderr)
                             continue
 
-                        # Update the timestamp
+                        # Update the timestamp (convert to ZG millisec format)
                         h = result.groups()
-                        timestamp = int(h[0])
+                        timestamp = int(h[0]) * 1000
                         tstart = min(tstart, timestamp)
                         tend = max(tend, timestamp)
 
                         # Append the system call to our syscall list
-                        syscalls.append(h[1])
+                        syscalls.append([timestamp, h[1]])
 
                     # Check if the timestamps have been set
                     if tend == 0:
                         nosyscalls.append(g)
                         nosyscallactors.add(g[0])
                         continue
-
-                    # Normalise timestamps with the ZG format...
-                    tstart *= 1000
-                    tend *= 1000
 
                     # TODO: process deletions and remove corresponding files
 
@@ -309,7 +314,14 @@ class PreloadLoggerLoader(object):
                                       tstart=tstart,
                                       tend=tend,
                                       interpreterid=interpreterid)
-                    app.setSyscallsBulk(syscalls)
+                    app.setCommandLine(g[2])
+
+                    if eventStore:
+                        for h in syscalls:
+                            event = Event(actor=app,
+                                          time=h[0],
+                                          syscallStr=h[1])
+                            eventStore.append(event)
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
