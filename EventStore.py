@@ -16,10 +16,10 @@ class EventStore(object):
         super(EventStore, self).__init__()
         self.clear()
 
-    def insertList(self, events: list):
-        for event in events:
-            self.append(event)
-        self.sort()
+    def clear(self):
+        """Empty the EventStore."""
+        self.store = list()   # type: list
+        self._sorted = True   # type: bool
 
     def append(self, event: Event):
         """Append an Event to the store. The store will no longer be sorted."""
@@ -75,12 +75,10 @@ class EventStore(object):
         self.store = sorted(self.store, key=lambda x: x.getTime())
         self._sorted = True
 
-    def clear(self):
-        self.store = list()   # type: list
-        self._sorted = True   # type: bool
-
     def getAllEvents(self):
+        """Return all the events in the store. Very memory-intensive."""
         return self.store
 
     def getEventCount(self):
+        """Return the number of events currently in the store."""
         return len(self.store)
