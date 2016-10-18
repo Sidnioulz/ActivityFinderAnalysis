@@ -20,6 +20,11 @@ class ApplicationStore(object):
         super(ApplicationStore, self).__init__()
         self.clear()
 
+    def clear(self):
+        """Empty the ApplicationStore."""
+        self.pidStore = dict()   # type: dict
+        self.nameStore = dict()  # type: dict
+
     def insert(self, app: Application):
         """Insert an Application in the store."""
         # print("Insert %s:%d into store" % (app.getDesktopId(), app.getPid()))
@@ -81,11 +86,8 @@ class ApplicationStore(object):
 
         self.pidStore[app.getPid()] = pids
 
-    def clear(self):
-        self.pidStore = dict()   # type: dict
-        self.nameStore = dict()  # type: dict
-
     def getAppLaunchEvents(self):
+        """Return Events that embed info obtained from Apps' command lines."""
         allApps = []
         events = []
 
