@@ -1,5 +1,4 @@
 """Modelling the lifecycle of UNIX files."""
-
 from enum import Enum
 
 
@@ -26,6 +25,8 @@ class File(object):
     nextName = 0  # type: int; next name of this file after it will be renamed
     tstart = 0    # type: int; when the file was created
     tend = 0      # type: int; when the file was deleted
+    tsg = False   # type: bool; whether the file creation date is guessed
+    teg = False   # type: bool; whether the file deletion date is guessed
     fileType = FileType.unknown  # type: FileType
 
     @staticmethod

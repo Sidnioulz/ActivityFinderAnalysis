@@ -1,5 +1,4 @@
 """A runtime instance of a Linux Desktop application."""
-
 from xdg import DesktopEntry
 from constants import DESKTOPPATHS, DESKTOPIDRE
 import re
