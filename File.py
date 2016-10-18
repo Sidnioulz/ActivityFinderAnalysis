@@ -45,3 +45,8 @@ class File(object):
         self.path = path
         self.tstart = tstart
         self.tend = tend
+
+    def setGuessFlags(self, sf: bool, ef: bool):
+        """Set whether the start and end times are guessed instead of known."""
+        self.tsg = sf
+        self.teg = ef
