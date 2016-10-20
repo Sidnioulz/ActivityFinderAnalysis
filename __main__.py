@@ -2,16 +2,13 @@
 
 from ApplicationStore import ApplicationStore
 from EventStore import EventStore
-# from FileStore import FileStore
+from FileStore import FileStore
+from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from constants import USAGE_STRING, DATAPATH, DATABASENAME
 import getopt
 import sys
-
-# Debugging imports
-import objgraph
-from pympler import asizeof
 
 
 # Main function
@@ -34,8 +31,10 @@ def main(argv):
             elif opt in ("--check-missing"):
                 __opt_check = True
 
-    # Make the application store
+    # Make the application, event and file stores
     store = ApplicationStore()
+    evStore = EventStore()
+    fileStore = FileStore()
 
     # Load up and check the SQLite database
     sql = None
@@ -48,7 +47,7 @@ def main(argv):
     if __opt_check:
         print("Checking for missing application identities...")
         sql.listMissingActors()
-    sql.loadDb(store)
+    sql.loadDb(store, evStore)
     print("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
@@ -57,25 +56,18 @@ def main(argv):
     if __opt_check:
         print("Checking for missing application identities...")
         pll.listMissingActors()
-    pll.loadDb(store)
+    pll.loadDb(store, evStore)
     print("Loaded the PreloadLogger logs.")
 
-    # Debugging
-    roots = objgraph.get_leaking_objects()
-    print("%d leaking objects" % len(roots))
-    objgraph.show_most_common_types(objects=roots)
-    asizeof.asizeof(objgraph.by_type('set'))
-
-    # Retrieve all the events in found Applications
+    # Sort all the events in found Applications
     print("\nSorting all events...")
-    evStore = EventStore()
     evStore.sort()
     print("Sorted all %d events in the event store." % evStore.getEventCount())
 
     # Simulate the events to build a file model
-    # fileStore = FileStore()
-    # evStore.simulateAllEvents(fileStore)
     print("\nSimulating all events to build a file model...")
+    fileFactory = FileFactory(fileStore)
+    evStore.simulateAllEvents(fileFactory, fileStore)
 
 
 if __name__ == "__main__":

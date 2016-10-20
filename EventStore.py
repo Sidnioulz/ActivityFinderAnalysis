@@ -1,6 +1,11 @@
 """A store for Event objects."""
-from Event import Event
+from Event import Event, EventFileFlags, EventType
+from File import File
+from FileStore import FileStore
+from FileFactory import FileFactory
 from math import floor
+from utils import timestampZgPrint
+import sys
 
 
 class EventStore(object):
@@ -82,3 +87,32 @@ class EventStore(object):
     def getEventCount(self):
         """Return the number of events currently in the store."""
         return len(self.store)
+
+    def simulateAllEvents(self,
+                          fileFactory: FileFactory,
+                          fileStore: FileStore):
+        """Simulate all events to instantiate Files."""
+        if not self._sorted:
+            self.sort()
+
+        for event in self.store:
+            if event.getFileFlags() & EventFileFlags.create:
+                print("FILES CREATED at %s" % timestampZgPrint(event.time))
+                for subj in event.getData():
+                    file = fileFactory.getFile(name=subj.getName(),
+                                               time=event.time)
+                    file.setTimeOfStart(event.time)
+                    file.setType(subj.getType())
+                    fileStore.updateFile(file)
+
+                    print(file.getName(), file.inode,
+                          "FOLDER " if file.isFolder() else " --\t"
+                          "created on %s" % (
+                            timestampZgPrint(file.getTimeOfStart()),
+                            timestampZgPrint(file.getTimeOfEnd())
+                          ),
+                          "previously", file.getPreviousName(),
+                          "next", file.getNextName()
+                          )
+
+                print("\n\n\n")
