@@ -5,13 +5,23 @@ from Application import Application
 from ApplicationStore import ApplicationStore
 from EventStore import EventStore
 from Event import Event
-from constants import EV_TIMESTAMP, EV_SUBJ_URI, EV_ACTOR_URI
+from SqlEvent import SqlEvent, SqlEventSubject
+from constants import EV_ID, EV_TIMESTAMP, EV_INTERPRETATION, \
+                      EV_MANIFESTATION, EV_ACTOR_URI, EV_EVENT_ORIGIN_URI, \
+                      EV_SUBJ_URI, EV_SUBJ_INTERPRETATION, \
+                      EV_SUBJ_MANIFESTATION, EV_SUBJ_ORIGIN_URI, \
+                      EV_SUBJ_MIMETYPE, EV_SUBJ_TEXT, EV_SUBJ_STORAGE, \
+                      EV_SUBJ_CURRENT_URI
+from utils import uq
 
 
 class SqlLoader(object):
     path = ""
     con = None
     cur = None
+    interpretations = dict()
+    manifestations = dict()
+    mimetypes = dict()
 
     """ SqlLoader loads a SQLite database from Zeitgeist and produces apps and
         app instances. Pass it the path to the activities.sqlite file. """
@@ -27,9 +37,42 @@ class SqlLoader(object):
 
         self.cur = self.con.cursor()
 
+        # Cache interpretations
+        self.cur.execute('SELECT * FROM interpretation;')
+        data = self.cur.fetchone()
+        while data:
+            self.interpretations[data[0]] = data[1]
+            data = self.cur.fetchone()
+
+        # Cache manifestations
+        self.cur.execute('SELECT * FROM manifestation;')
+        data = self.cur.fetchone()
+        while data:
+            self.manifestations[data[0]] = data[1]
+            data = self.cur.fetchone()
+
+        # Cache mimetypes
+        self.cur.execute('SELECT * FROM mimetype;')
+        data = self.cur.fetchone()
+        while data:
+            self.mimetypes[data[0]] = uq(data[1])  # image%2Fjpeg in dataset
+            data = self.cur.fetchone()
+
     def __exit__(self):
         if self.con:
             self.con.close()
+
+    def getInterpretation(self, id: int):
+        """Return the interpretation for a given interpretation id."""
+        return self.interpretations.get(id)
+
+    def getManifestation(self, id: int):
+        """Return the manifestation for a given manifestation id."""
+        return self.manifestations.get(id)
+
+    def getMimeType(self, id: int):
+        """Return the MIME type for a given mimetype id."""
+        return self.mimetypes.get(id)
 
     def listMissingActors(self):
         """Check for missing apps.
@@ -57,62 +100,93 @@ class SqlLoader(object):
                store: ApplicationStore = None,
                eventStore: EventStore = None):
         """Browse the SQLite db and create all the relevant app instances."""
+
         # Load up our events from the Zeitgeist database
         self.cur = self.con.cursor()
-        self.cur.execute('SELECT ev.*, (SELECT value \
-                                     FROM interpretation \
-                                     WHERE interpretation.id = \
-                                           ev.interpretation) \
-                                    AS interpretation_uri, \
-                                     (SELECT value \
-                                      FROM manifestation \
-                                      WHERE manifestation.id = \
-                                            ev.manifestation) \
-                                     AS manifestation_uri \
-                          FROM event_view AS ev \
-                          WHERE ev.subj_uri LIKE "activity://%"')
+        self.cur.execute('SELECT * \
+                          FROM event_view \
+                          WHERE id IN (SELECT DISTINCT id \
+                                       FROM event_view \
+                                       WHERE subj_uri LIKE "activity://%")')
 
-        nopids = []            # Matching events without a PID (file IO events)
-        zeropids = []          # Events with a n/a PID (maybe winId is set)
-        eventsPerPid = dict()  # Storage for our events
-        count = 0              # Counter of fetched events, for stats
-        instanceCount = 0      # Count of distinct app instances in the dataset
-
-        # Sort all events based on the PID of the subject who emitted it
+        # Merge all event subjects based on their event id, and find their pids
+        eventsMerged = dict()
         data = self.cur.fetchone()
         while data:
-            count += 1
-            if "pid://" not in data[EV_SUBJ_URI]:
-                nopids.append(data)
-            else:
+            pid = 0
+            if "pid://" in data[EV_SUBJ_URI]:
                 m = re.search('(?<=pid://)\d+', data[EV_SUBJ_URI])
-                pid = m.group(0) if m else 0
-                if pid:
-                    try:
-                        eventsPerPid[pid].append(data)
-                    except KeyError as e:
-                        eventsPerPid[pid] = [data]
+                pid = int(m.group(0)) if m else 0
+
+            ev = eventsMerged.get(data[EV_ID])
+            if not ev:
+                ev = SqlEvent(id=data[EV_ID],
+                              pid=pid,
+                              timestamp=data[EV_TIMESTAMP],
+                              interpretation=self.getInterpretation(
+                                             data[EV_INTERPRETATION]),
+                              manifestation=self.getManifestation(
+                                             data[EV_MANIFESTATION]),
+                              origin_uri=data[EV_EVENT_ORIGIN_URI],
+                              actor_uri=data[EV_ACTOR_URI])
+            elif pid:
+                if ev.pid and ev.pid != pid:
+                    print("Error: multiple events record a pid for event %d, "
+                          "and they disagree on the pid to record." % (
+                           data[EV_ID]), file=sys.stderr)
                 else:
-                    zeropids.append(data)
+                    ev.pid = pid
+
+            subj = SqlEventSubject(uri=data[EV_SUBJ_URI],
+                                   interpretation=self.getInterpretation(
+                                                 data[EV_SUBJ_INTERPRETATION]),
+                                   manifestation=self.getManifestation(
+                                                 data[EV_SUBJ_MANIFESTATION]),
+                                   origin_uri=data[EV_SUBJ_ORIGIN_URI],
+                                   mimetype=self.getMimeType(
+                                            data[EV_SUBJ_MIMETYPE]),
+                                   text=data[EV_SUBJ_TEXT],
+                                   storage_uri=data[EV_SUBJ_STORAGE],
+                                   current_uri=data[EV_SUBJ_CURRENT_URI])
+            ev.addSubject(subj)
+            eventsMerged[data[EV_ID]] = ev
+
             data = self.cur.fetchone()
+
+        # Now, sort the events per app PID so we can build apps
+        nopids = []            # Matching events without a PID
+        eventsPerPid = dict()  # Storage for our events
+        count = len(eventsMerged)  # Counter of fetched events, for stats
+        instanceCount = 0      # Count of distinct app instances in the dataset
+
+        for event in eventsMerged.items():
+            pid = event[1].pid
+            if not pid:
+                nopids.append(event[1])
+            else:
+                try:
+                    eventsPerPid[pid].append(event[1])
+                except KeyError as e:
+                    eventsPerPid[pid] = [event[1]]
+        del eventsMerged  # no longer needed
 
         # For each PID, we'll now identify the successive Application instances
         for (pkey, pevent) in eventsPerPid.items():
-            pevent = sorted(pevent, key=lambda x: x[EV_TIMESTAMP])
+            pevent = sorted(pevent, key=lambda x: x.timestamp)
             currentActorUri = ''  # currently matched actor URI
             currentApp = None  # currently matched Application
             apps = []          # temp storage for found Applications
 
             for ev in pevent:
-                if ev[EV_ACTOR_URI] != currentActorUri:
+                if ev.actor_uri != currentActorUri:
                     # TODO validate that currentApp and the new event's app
                     # don't actually have the same desktop id in the end, once
                     # aliases are resolved TODO
-                    currentActorUri = ev[EV_ACTOR_URI]
-                    currentApp = Application(desktopid=ev[EV_ACTOR_URI],
+                    currentActorUri = ev.actor_uri
+                    currentApp = Application(desktopid=ev.actor_uri,
                                              pid=int(pkey),
-                                             tstart=ev[EV_TIMESTAMP],
-                                             tend=ev[EV_TIMESTAMP])
+                                             tstart=ev.timestamp,
+                                             tend=ev.timestamp)
                     if not currentApp.hasSameDesktopId(currentActorUri):
                         print("Warning: App's id %s was translated to %s when "
                               "reading Desktop files." % (
@@ -121,14 +195,14 @@ class SqlLoader(object):
                               file=sys.stderr)
                     apps.append(currentApp)
                 else:
-                    currentApp.setTimeOfStart(min(ev[EV_TIMESTAMP],
+                    currentApp.setTimeOfStart(min(ev.timestamp,
                                                   currentApp.getTimeOfStart()))
 
-                    currentApp.setTimeOfEnd(max(ev[EV_TIMESTAMP],
+                    currentApp.setTimeOfEnd(max(ev.timestamp,
                                                 currentApp.getTimeOfEnd()))
                 if eventStore:
                     event = Event(actor=currentApp,
-                                  time=ev[EV_TIMESTAMP],
+                                  time=ev.timestamp,
                                   zgEvent=ev)
                     eventStore.append(event)
 
@@ -139,23 +213,10 @@ class SqlLoader(object):
 
             instanceCount += len(apps)
 
-            """ DEBUG STUFF """
-            # print(pkey, ":", len(apps), apps[0].getDesktopId())
-            # if len(apps) > 1:
-            #     print("PID %s" % pkey)
-            #     for app in apps:
-            #         print("%s to %s: %s" % (
-            #             timestampZgPrint(app.getTimeOfStart()),
-            #             timestampZgPrint(app.getTimeOfEnd()),
-            #             app.getDesktopId()))
-            #     print("\n\n\n\n")
-
-        print("Finished loading DB.\n%d events seen, %d accepted, %d rejected "
-              "as having no PID.\nIn total, %.02f%% events accepted." % (
+        print("Finished loading DB.\n%d events seen, %d normal, %d without a "
+              "PID.\nIn total, %.02f%% events accepted." % (
+               count,
                count-len(nopids),
-               count-len(nopids)-len(zeropids),
-               len(zeropids),
-               100-100*len(zeropids) / (count-len(nopids))))
+               len(nopids),
+               100-100*len(nopids) / count))
         print("Instance count: %d" % instanceCount)
-
-        return zeropids
