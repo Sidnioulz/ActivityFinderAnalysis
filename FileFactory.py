@@ -34,7 +34,9 @@ class FileFactory(object):
             tstart = file.getTimeOfStart()
             tend = file.getTimeOfEnd()
 
-            # Current file is invalid, as it's been created after our time
+            # Current file is invalid, as it's been created after our time.
+            # We must make our own file, which pre-existed. Note that since
+            # events are sorted, this should never happen.
             if time < tstart:
                 print("Warning: an Event referenced a file that existed before"
                       " the first file on the heap for name '%s'. This should "
@@ -53,6 +55,7 @@ class FileFactory(object):
 
             prevTend = tend
         else:
+            # Make a new file starting where the last one ended, and not ending
             f = File(path=name, tstart=prevTend, tend=0)
             f.setGuessFlags(True, False)
             self.store.addFile(f)
