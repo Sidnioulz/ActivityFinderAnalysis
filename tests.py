@@ -4,6 +4,9 @@ from Application import Application
 from ApplicationStore import ApplicationStore
 from Event import Event
 from EventStore import EventStore
+from FileStore import FileStore
+from File import File
+from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
 from constants import PYTHONRE, PYTHONNAMER
 
@@ -207,14 +210,14 @@ class TestEventStoreInsertion(unittest.TestCase):
         self.store.clear()
         app = Application("firefox.desktop", pid=21, tstart=0, tend=10)
 
-        first = Event(1, app, zgStr="test")
-        second = Event(2, app, zgStr="test")
-        third = Event(3, app, zgStr="test")
-        forth = Event(4, app, zgStr="test")
-        fifth = Event(5, app, zgStr="test")
-        sixth = Event(6, app, zgStr="test")
-        seventh = Event(7, app, zgStr="test")
-        eight = Event(8, app, zgStr="test")
+        first = Event(app, 1, syscallStr="test")
+        second = Event(app, 2, syscallStr="test")
+        third = Event(app, 3, syscallStr="test")
+        forth = Event(app, 4, syscallStr="test")
+        fifth = Event(app, 5, syscallStr="test")
+        sixth = Event(app, 6, syscallStr="test")
+        seventh = Event(app, 7, syscallStr="test")
+        eight = Event(app, 8, syscallStr="test")
 
         self.store.insert(eight)
         self.store.insert(first)
@@ -234,10 +237,10 @@ class TestEventStoreInsertion(unittest.TestCase):
         app = Application("firefox.desktop", pid=21, tstart=0, tend=3)
         lastapp = Application("ristretto.desktop", pid=22, tstart=3, tend=4)
 
-        first = Event(1, app, zgStr="test")
-        second = Event(2, app, zgStr="test")
-        third = Event(3, app, zgStr="test")
-        last = Event(3, lastapp, zgStr="test")
+        first = Event(app, 1, syscallStr="test")
+        second = Event(app, 2, syscallStr="test")
+        third = Event(app, 3, syscallStr="test")
+        last = Event(lastapp, 3, syscallStr="test")
 
         self.store.insert(first)
         self.store.insert(third)
@@ -249,4 +252,65 @@ class TestEventStoreInsertion(unittest.TestCase):
         self.assertEqual(sorte, alle)
 
     def tearDown(self):
+        self.store = None
+
+
+class TestFileStore(unittest.TestCase):
+    store = None    # type: FileStore
+    factory = None  # type: FileFactory
+
+    def setUp(self):
+        self.store = FileStore()
+        self.factory = FileFactory(self.store)
+
+    def test_add(self):
+        first = "/path/to/first/file"
+        file1 = File(first, 0, 0, "image/jpg")
+        self.store.addFile(file1)
+        self.assertEqual(len(self.store.getFilesForName(first)), 1)
+
+
+class TestFileFactory(unittest.TestCase):
+    store = None    # type: FileStore
+    factory = None  # type: FileFactory
+
+    def setUp(self):
+        self.store = FileStore()
+        self.factory = FileFactory(self.store)
+
+    def test_get_same_twice(self):
+        first = "/path/to/first"
+        time = 1
+
+        file1 = self.factory.getFile(first, time)
+        file2 = self.factory.getFile(first, time)
+
+        self.assertEqual(file1.inode, file2.inode)
+
+    def test_get_existing_file(self):
+        first = "/path/to/first/file"
+        second = "/path/to/second/file"
+
+        exist1 = File(first, 0, 0, "image/jpg")
+        self.store.addFile(exist1)
+
+        file1 = self.factory.getFile(first, 0)
+        self.assertEqual(exist1.inode, file1.inode)
+        file2 = self.factory.getFile(first, 10)
+        self.assertEqual(exist1.inode, file2.inode)
+
+        exist2 = File(second, 0, 3, "text/html")
+        exist3 = File(second, 4, 0, "text/html")
+        self.store.addFile(exist2)
+        self.store.addFile(exist3)
+
+        file3 = self.factory.getFile(second, 0)
+        self.assertNotEqual(exist3.inode, file3.inode)
+        self.assertEqual(exist2.inode, file3.inode)
+        file4 = self.factory.getFile(second, 10)
+        self.assertNotEqual(exist2.inode, file4.inode)
+        self.assertEqual(exist3.inode, file4.inode)
+
+    def tearDown(self):
+        self.factory = None
         self.store = None
