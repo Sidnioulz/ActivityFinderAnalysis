@@ -107,7 +107,7 @@ class EventStore(object):
 
                     print(file.getName(), file.inode,
                           "FOLDER " if file.isFolder() else " --\t"
-                          "created on %s" % (
+                          "created on %s, deleted on %s" % (
                             timestampZgPrint(file.getTimeOfStart()),
                             timestampZgPrint(file.getTimeOfEnd())
                           ),
