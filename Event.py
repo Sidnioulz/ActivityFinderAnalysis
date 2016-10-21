@@ -4,8 +4,7 @@ from enum import Enum
 from flags import Flags
 from Application import Application
 # from utils import timestampZgPrint
-from constants import *  # EV_TIMESTAMP, EV_INTERPRETATION_URI
-from SqlEvent import SqlEvent, SqlEventSubject
+from SqlEvent import SqlEvent
 from File import File
 from utils import urlToUnixPath
 
@@ -108,15 +107,15 @@ class Event(object):
 
         elif syscallStr:
             self.source = EventSource.preloadlogger
-            syscall = None
-            content = None
-            bits = syscallStr.split(sep='|')
-            try:
-                syscall = bits[0]
-                content = bits[1]
-            except(TypeError, KeyError) as e:
-                raise ValueError("An invalid system call was passed to Event, "
-                                 "aborting: %s" % syscallStr)
+            # syscall = None
+            # content = None
+            # bits = syscallStr.split(sep='|')
+            # try:
+            #     syscall = bits[0]
+            #     content = bits[1]
+            # except(TypeError, IndexError) as e:
+            #     raise ValueError("An invalid syscall was passed to Event, "
+            #                      "aborting: %s" % syscallStr)
             # TODO pass syscall and content to a dispatcher for handlers
             # print("NEW EVENT: AT %s -- %s from PL" % (
             #        timestampZgPrint(self.time), syscall)
