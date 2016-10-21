@@ -17,7 +17,7 @@ class FileStore(object):
     def getFilesForName(self, name):
         """Return all Files that have the given name as a path."""
         try:
-            return self.nameStore['name']
+            return self.nameStore[name]
         except(KeyError) as e:
             return []
 
@@ -61,20 +61,20 @@ class FileStore(object):
         # DEBUGGING: Get past all apps that ended before this one
         for named in filesWithName:
             if named.getTimeOfEnd() == 0:
-                raise ArithmeticError("Found undeleted file for this name")
                 # TODO error
+                raise ArithmeticError("Found undeleted file for this name")
                 return
             elif named.getTimeOfEnd() > tstart:
-                raise ArithmeticError("Time overlap between two files on name")
                 # TODO error
+                raise ArithmeticError("Time overlap between two files on name")
                 return
 
             if tend and tend < named.getTimeOfStart():
-                raise ArithmeticError("TODO: not implemented, mid-insert")
                 # TODO insert before named
+                raise ArithmeticError("TODO: not implemented, mid-insert")
                 break
 
         else:
-            raise ArithmeticError("I lost myself on the way...")
             # TODO error why are we here!?
+            raise ArithmeticError("I lost myself on the way...")
             pass
