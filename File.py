@@ -40,6 +40,7 @@ class File(object):
         if not path:
             raise ValueError("Files must have a valid path.")
 
+        File.__allocInode(self)
         self.path = path
         self.tstart = tstart
         self.tend = tend
@@ -96,8 +97,8 @@ class File(object):
 
     def isFolder(self):
         """Return True if the file is a folder."""
-        return self.ftype in ("inode/directory")
+        return self.ftype in ("inode/directory",)
 
     def isBinary(self):
         """Return true if the file is binary, or not a known format."""
-        return self.ftype in ("application/octet-stream")
+        return self.ftype in ("application/octet-stream",)
