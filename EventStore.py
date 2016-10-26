@@ -1,11 +1,8 @@
 """A store for Event objects."""
-from Event import Event, EventFileFlags, EventType
-from File import File
+from Event import Event, EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
-from utils import timestampZgPrint
-import sys
 
 
 class EventStore(object):
@@ -88,31 +85,179 @@ class EventStore(object):
         """Return the number of events currently in the store."""
         return len(self.store)
 
+    def simulateAccess(self,
+                       event: Event,
+                       fileFactory: FileFactory,
+                       fileStore: FileStore):
+        """Simulate a file access Event."""
+        for subj in event.getData():
+            file = fileFactory.getFile(name=subj.getName(),
+                                       time=event.time)
+            file.addAccess(event.getActor(),
+                           event.getFileFlags(),
+                           event.time)
+            fileStore.updateFile(file)
+
+    def simulateDestroy(self,
+                        event: Event,
+                        fileFactory: FileFactory,
+                        fileStore: FileStore):
+        """Simulate a file deletion Event."""
+        filesDeleted = []
+
+        # Get each file, set its end time, and update the store
+        for subj in event.getData():
+            file = fileFactory.getFile(name=subj.getName(),
+                                       time=event.time)
+            file.addAccess(event.getActor(),
+                           event.getFileFlags(),
+                           event.time)
+            fileFactory.deleteFile(file, event.time)
+            filesDeleted.append(file)
+
+        return filesDeleted
+
+    def __doCreateFile(self,
+                       name: str,
+                       ftype: str,
+                       event: Event,
+                       fileFactory: FileFactory,
+                       fileStore: FileStore):
+        """Create a File, and return it."""
+
+        file = fileFactory.getFile(name=name, time=event.time)
+        file.setTimeOfStart(event.time)
+        file.setType(ftype)
+        file.addAccess(event.getActor(),
+                       event.getFileFlags(),
+                       event.time)
+        fileStore.updateFile(file)
+
+        return file
+
+    def simulateCreate(self,
+                       event: Event,
+                       fileFactory: FileFactory,
+                       fileStore: FileStore):
+        """Simulate a file creation Event."""
+        filesCreated = []
+
+        # TODO: if a file has an overwrite flag, DESTROY PREVIOUS VERSION first
+        # TODO: else, apply the rules below for ZG, and treat as an open/access
+        #       for syscalls
+
+        # TODO
+        """
+        get file.
+        if file did not exist:
+            proceed to set up file and updateFile
+        elif file existed:
+            if created less than 1 sec ago AND from SAME ACTOR (how?)
+                    AND from actor in a whitelist (soffice.bin, etc):
+                pass  # it's a dup
+            elif same but actor not whitelisted:
+                print warning to manually check the data
+                exit
+
+            if file was accessed by same application instance:
+                ignore event
+                inject a FileModified equivalent event right after
+            else:
+                ignore event
+                inject a FileDestroyed for the same file right after
+                inject the original event after the FileDestroyed
+        """
+
+        # Get each file, set its starting time and type, and update the store
+        for subj in event.getData():
+            f = self.__doCreateFile(subj.getName(),
+                                    subj.getType(),
+                                    event,
+                                    fileFactory,
+                                    fileStore)
+            filesCreated.append(f)
+
+        return filesCreated
+
+    def simulateCopy(self,
+                     event: Event,
+                     fileFactory: FileFactory,
+                     fileStore: FileStore,
+                     keepOld: bool=True):
+        """Simulate a file copy or move Event, based on :keepOld:."""
+        newFiles = []
+
+        # Get each file, set its starting time and type, and update the store
+        for subj in event.getData():
+            old = subj[0]
+            new = subj[1]
+
+            # Delete any File on the new path as it would get overwritten.
+            newFile = fileFactory.getFileIfExists(new.getName(), event.time)
+            if newFile:
+                fileFactory.deleteFile(newFile, event.time)
+
+            # Create a file on the new path which is identical to the old File.
+            newFile = self.__doCreateFile(new.getName(),
+                                          old.getType(),
+                                          event,
+                                          fileFactory,
+                                          fileStore)
+
+            # Delete the old file for move events only.
+            if not keepOld:
+                oldFile = fileFactory.getFile(old.getName(), event.time)
+                fileFactory.deleteFile(oldFile, event.time)
+
+            # Update the files' links
+            ctype = 'copy' if keepOld else 'move'
+            oldFile = fileFactory.getFile(old.getName(), event.time)
+            oldFile.addFollower(newFile.getName(), event.time, ctype)
+            newFile.setPredecessor(oldFile.getName(), event.time, ctype)
+            fileStore.updateFile(oldFile)
+            fileStore.updateFile(newFile)
+
+            newFiles.append(newFile)
+
+        return newFiles
+
     def simulateAllEvents(self,
                           fileFactory: FileFactory,
                           fileStore: FileStore):
-        """Simulate all events to instantiate Files."""
+        """Simulate all events to instantiate Files in the FileStore."""
         if not self._sorted:
             self.sort()
 
+        # Dispatch event to the appropriate handler
         for event in self.store:
+            if event.getFileFlags() & EventFileFlags.destroy:
+                res = self.simulateDestroy(event, fileFactory, fileStore)
+
             if event.getFileFlags() & EventFileFlags.create:
-                print("FILES CREATED at %s" % timestampZgPrint(event.time))
-                for subj in event.getData():
-                    file = fileFactory.getFile(name=subj.getName(),
-                                               time=event.time)
-                    file.setTimeOfStart(event.time)
-                    file.setType(subj.getType())
-                    fileStore.updateFile(file)
+                res = self.simulateCreate(event, fileFactory, fileStore)
 
-                    print(file.getName(), file.inode,
-                          "FOLDER " if file.isFolder() else " --\t"
-                          "created on %s, deleted on %s" % (
-                            timestampZgPrint(file.getTimeOfStart()),
-                            timestampZgPrint(file.getTimeOfEnd())
-                          ),
-                          "previously", file.getPreviousName(),
-                          "next", file.getNextName()
-                          )
+                # We received a list of files that were created
+                if isinstance(res, list):
+                    pass
+                # We received instructions to hot-patch the event list
+                else:
+                    print("NOT IMPLEMENTED YET.")
+                    pass
 
-                print("\n\n\n")
+            # TODO resolve @fd@ for create/write/read/etc.
+            # add to Application's fds list to track writes/reads to files
+
+            if event.getFileFlags() & EventFileFlags.move:
+                res = self.simulateCopy(event,
+                                        fileFactory,
+                                        fileStore,
+                                        keepOld=False)
+
+            if event.getFileFlags() & EventFileFlags.copy:
+                res = self.simulateCopy(event,
+                                        fileFactory,
+                                        fileStore)
+
+            if event.getFileFlags() & (EventFileFlags.read |
+                                       EventFileFlags.write):
+                self.simulateAccess(event, fileFactory, fileStore)
