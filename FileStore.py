@@ -1,5 +1,6 @@
 """Service to store File instances."""
 from File import File
+from utils import timestampZgPrint
 
 
 class FileStore(object):
@@ -14,6 +15,43 @@ class FileStore(object):
         """Empty the FileStore."""
         self.nameStore = dict()   # type: dict
 
+    def guessFileTypes(self):
+        """Guess file types for files without a type, using their extension."""
+        # TODO
+        pass
+
+    def printFiles(self,
+                   showDeleted: bool=False,
+                   showCreationTime: bool=False,
+                   onlyDesignated: bool=False):
+        """Print all the files currently being stored."""
+        for key in sorted(self.nameStore, key=lambda s: s.lower()):
+            files = self.nameStore[key]
+            last = files[-1]
+
+            printpath = last.getName()
+            lastDir = printpath.rfind('/')
+            if lastDir:
+                printpath = (lastDir+1)*' ' + printpath[lastDir+1:]
+                if last.isFolder():
+                    printpath += "/"
+
+            # Non-deleted files
+            if not last.getTimeOfEnd():
+                if showCreationTime and last.getTimeOfStart():
+                    print("%s\tCREATED on %s" % (
+                           printpath,
+                           timestampZgPrint(last.getTimeOfStart())))
+                else:
+                    print("%s" % printpath)
+            else:
+                if showDeleted:
+                    print("%s\tDELETED on %s)" % (
+                           printpath,
+                           timestampZgPrint(last.getTimeOfEnd())))
+
+        # TODO onlyDesignated
+
     def getFilesForName(self, name):
         """Return all Files that have the given name as a path."""
         try:
@@ -25,14 +63,14 @@ class FileStore(object):
         """Add a File to the FileStore."""
         filesWithName = self.getFilesForName(file.getName())
 
-        # Empty case
         for (index, old) in enumerate(filesWithName):
             if old.inode == file.inode:
                 filesWithName[index] = file
                 break
         else:
-            # TODO error
-            raise ArithmeticError("Updated a file that isn't present yet.")
+            raise ArithmeticError("Attempted to update file '%s' (made on %s)"
+                                  ", but it has not yet been added to the "
+                                  "store." % (file, file.getTimeOfStart()))
 
     def addFile(self, file: File):
         """Add a File to the FileStore."""
@@ -50,31 +88,33 @@ class FileStore(object):
         # We must be the last for this name as the data must be sorted
         lastFile = filesWithName[-1]
         if lastFile.getTimeOfEnd() > tstart:
-            # TODO error
-            raise ArithmeticError("Newly inserted file not last")
+            raise ArithmeticError("Newly inserted file '%s' (made on %s) not "
+                                  "last. Followed by a file made on %s." % (
+                                   name, tstart, lastFile.getTimeOfEnd()))
             return
         else:
             filesWithName.append(file)
             self.nameStore[name] = filesWithName
             return
 
+        assert False, "FileStore.addFile(): temporal inconsistency on '%s' " \
+                      "(made on %s). This is due to some Events not being " \
+                      "captured or some event types not being processed. " % (
+                       name, tstart)
+
         # DEBUGGING: Get past all apps that ended before this one
         for named in filesWithName:
             if named.getTimeOfEnd() == 0:
-                # TODO error
                 raise ArithmeticError("Found undeleted file for this name")
                 return
             elif named.getTimeOfEnd() > tstart:
-                # TODO error
                 raise ArithmeticError("Time overlap between two files on name")
                 return
 
             if tend and tend < named.getTimeOfStart():
-                # TODO insert before named
                 raise ArithmeticError("TODO: not implemented, mid-insert")
                 break
 
         else:
-            # TODO error why are we here!?
             raise ArithmeticError("I lost myself on the way...")
             pass
