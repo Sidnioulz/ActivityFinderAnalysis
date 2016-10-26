@@ -311,6 +311,19 @@ class TestFileFactory(unittest.TestCase):
         self.assertNotEqual(exist2.inode, file4.inode)
         self.assertEqual(exist3.inode, file4.inode)
 
+    def test_update_time_end(self):
+        path = "/path/to/first/file"
+
+        f1 = File(path, 0, 0, "image/jpg")
+        self.store.addFile(f1)
+
+        f2 = self.factory.getFile(path, 0)
+        self.factory.deleteFile(f2, 100)
+        self.store.updateFile(f2)
+
+        f3 = self.factory.getFile(path, 0)
+        self.assertEqual(f3.getTimeOfEnd(), 100)
+
     def tearDown(self):
         self.factory = None
         self.store = None
