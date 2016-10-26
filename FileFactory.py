@@ -16,7 +16,7 @@ class FileFactory(object):
             raise ValueError("A FileFactory must have a valid FileStore.")
         self.store = fileStore
 
-    def getFile(self, name, time):
+    def getFile(self, name: str, time: int, ftype: str=''):
         """Get a File for a given name and time, or creates one.
 
         Looks up the FileStore for Files that match the given name and exist at
@@ -24,9 +24,10 @@ class FileFactory(object):
         FileStore.
         """
 
-        # TODO: transparently generate parents when making a new File
-        # This will help with dealing with folders that are created in the
-        # toolkit.
+        # Ensure the parent folder is initialised
+        parentPath = File.getParentName(name)
+        if parentPath:
+            self.getFile(parentPath, time, ftype='inode/directory')
 
         files = self.store.getFilesForName(name)
         prevTend = 0
@@ -42,7 +43,7 @@ class FileFactory(object):
                       " the first file on the heap for name '%s'. This should "
                       "not happen because Events are supposedly sorted prior "
                       "to being simulated." % name, file=sys.stderr)
-                f = File(path=name, tstart=prevTend, tend=tstart)
+                f = File(path=name, tstart=prevTend, tend=tstart, ftype=ftype)
                 f.setGuessFlags(True, True)
                 self.store.addFile(f)
                 return file
@@ -50,13 +51,51 @@ class FileFactory(object):
             elif not tend:
                 return file
             # If current file has an end, ensure it is after the time we target
-            elif tend > time:
+            # or it is equal (useful for when referring to the deletion event
+            # itself).
+            elif tend >= time:
                 return file
 
             prevTend = tend
         else:
             # Make a new file starting where the last one ended, and not ending
-            f = File(path=name, tstart=prevTend, tend=0)
+            f = File(path=name, tstart=prevTend, tend=0, ftype=ftype)
             f.setGuessFlags(True, False)
             self.store.addFile(f)
             return f
+
+    def getFileIfExists(self, name: str, time: int):
+        """Get a File for a given name and time, if it exists.
+
+        Looks up the FileStore for Files that match the given name and exist at
+        the given time. If no File is found, returns None. This function does
+        not create new Files if they do not exist. Use @getFile for that.
+        """
+
+        files = self.store.getFilesForName(name)
+        for file in files:
+            tstart = file.getTimeOfStart()
+            tend = file.getTimeOfEnd()
+
+            if time < tstart:
+                return None
+            elif not tend or tend >= time:
+                    return file
+        else:
+            return None
+
+    def deleteFile(self, file: File, time: int):
+        """Delete a File for a given name and time, as well as its children.
+
+        Deletes a File, by marking its time of end. If the File is a folder,
+        the children are deleted too. This function will update the File in the
+        underlying FileStore.
+        """
+        # Delete children if folder
+        if file.isFolder():
+            for child in self.store.getChildren(file):
+                self.deleteFile(child, time)
+
+        # Delete file
+        file.setTimeOfEnd(time)
+        self.store.updateFile(file)
