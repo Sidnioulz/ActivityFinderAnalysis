@@ -36,24 +36,6 @@ class SqlEventSubject(object):
                  self.uri, self.interpretation, self.manifestation,
                  self.mimetype, self.text, self.storage_uri, self.current_uri))
 
-# FIXME
-# subj_uri
-# ## subj_id
-# subj_interpret
-# subj_manifesta
-# ## subj_origin
-# subj_origin_ur
-# subj_mimetype
-# subj_text
-# subj_storage
-# subj_storage_s
-# subj_current_u
-# subj_id_current
-# subj_text_id
-# subj_storage_id
-# subj_origin_cur
-# subj_or_cur_uri
-
 
 class SqlEvent(object):
     id = 0                # type: int
@@ -80,6 +62,7 @@ class SqlEvent(object):
         self.manifestation = manifestation
         self.origin_uri = origin_uri
         self.actor_uri = actor_uri
+        self.subjects = []
 
     def addSubject(self, subj: SqlEventSubject):
         self.subjects.append(subj)
