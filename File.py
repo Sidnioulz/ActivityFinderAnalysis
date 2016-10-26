@@ -1,5 +1,55 @@
 """Modelling the lifecycle of UNIX files."""
-from enum import Enum
+from os.path import dirname
+from Application import Application
+from flags import Flags
+
+
+class EventFileFlags(Flags):
+    """Flags for accesses to files in Events."""
+
+    create = 1 << 0
+    overwrite = 1 << 1
+    destroy = 1 << 2
+    move = 1 << 3
+    copy = 1 << 4
+    read = 1 << 5
+    write = 1 << 6
+    designation = 1 << 7
+    programmatic = 1 << 8
+
+
+class FileAccess(object):
+    """Something to hold info on who accessed a File."""
+    actor = None       # type: Application
+    time = 0           # type: int
+    accessType = None  # type: event
+
+    def __init__(self,
+                 actor: Application,
+                 time: int,
+                 accessType: EventFileFlags):
+        """Construct a FileAccess."""
+        super(FileAccess, self).__init__()
+        self.actor = actor
+        self.time = time
+        self.accessType = accessType
+
+
+class FileCopy(object):
+    """Something to hold info on a File's previous or next version."""
+    path = ''
+    time = 0
+    copytype = None
+
+    def __init__(self,
+                 path: str,
+                 time: int,
+                 copytype: str):
+        """Construct a FileCopy, with a type ('move', 'copy', or 'link')."""
+        super(FileCopy, self).__init__()
+        self.path = path
+        self.time = time
+        self.copytype = copytype
 
 
 class File(object):
@@ -10,18 +60,17 @@ class File(object):
     their name + tstart + tend. When a file is renamed, a new File is created.
     """
 
-    inode = 0     # type: int; a unique identifier to deal with renames
-    path = ''     # type: str; the name of this file
-    # TODO FIXME: decide if you'll index inodes and use that, or use name+time
-    prevName = 0  # type: int; previous name of this file before it was renamed
-    nextName = 0  # type: int; next name of this file after it will be renamed
-    prevTime = 0  # type: int; time this file was renamed from previous to self
-    nextTime = 0  # type: int; time this file was renamed from self to next
-    tstart = 0    # type: int; when the file was created
-    tend = 0      # type: int; when the file was deleted
-    tsg = False   # type: bool; whether the file creation date is guessed
-    teg = False   # type: bool; whether the file deletion date is guessed
-    ftype = ''    # type: str; the MIME type of the file
+    inode = 0      # type: int; a unique identifier to deal with renames
+    path = ''      # type: str; the name of this file
+    pred = None    # type: FileCopy; previous name of this file before renaming
+    follow = None  # type: list; next name of this file after renaming
+    # TODO links
+    tstart = 0     # type: int; when the file was created
+    tend = 0       # type: int; when the file was deleted
+    tsg = False    # type: bool; whether the file creation date is guessed
+    teg = False    # type: bool; whether the file deletion date is guessed
+    ftype = ''     # type: str; the MIME type of the file
+    accesses = []  # type: list; access events to this File
 
     @staticmethod
     def __allocInode(file):
@@ -42,14 +91,27 @@ class File(object):
 
         File.__allocInode(self)
         self.path = path
+        self.pred = None
+        self.follow = []
         self.tstart = tstart
         self.tend = tend
+        self.tsg = False
+        self.teg = False
         self.ftype = ftype
+        self.accesses = []
 
     def setGuessFlags(self, sf: bool, ef: bool):
         """Set whether the start and end times are guessed instead of known."""
         self.tsg = sf
         self.teg = ef
+
+    @staticmethod
+    def getParentName(path: str):
+        if not path:
+            return None
+
+        parentPath = dirname(path)
+        return parentPath if path != parentPath else None
 
     def getName(self):
         """Return the path of the file."""
@@ -71,21 +133,23 @@ class File(object):
         """Set the time at which the file was known to cease existing."""
         self.tend = tend
 
-    def getPreviousName(self):
+    def getPredecessor(self):
         """Return the previous name of the file, if any."""
-        return self.prevName
+        return self.pred
 
-    def getPreviousTime(self):
-        """Return the time at which the file was renamed to self, if any."""
-        return self.prevTime
+    def getFollowers(self):
+        """Return the next names of the file, if any."""
+        return self.follow
 
-    def getNextName(self):
-        """Return the next name of the file, if any."""
-        return self.nextName
+    def setPredecessor(self, name: str, time: int, copytype: str):
+        self.pred = FileCopy(name, time, copytype)
 
-    def getNextTime(self):
-        """Return the time at which this file was renamed to next, if any."""
-        return self.nextTime
+    def addFollower(self, name: str, time: int, copytype: str):
+        copy = FileCopy(name, time, copytype)
+        self.follow.append(copy)
+
+    def clearFollowers(self):
+        self.follow.clear()
 
     def setType(self, ftype: str):
         """Set the MIME type of the file to the given value."""
@@ -102,3 +166,8 @@ class File(object):
     def isBinary(self):
         """Return true if the file is binary, or not a known format."""
         return self.ftype in ("application/octet-stream",)
+
+    def addAccess(self, actor: Application, time: int, flags: EventFileFlags):
+        """Record an access event for this File."""
+        acc = FileAccess(actor, time, flags)
+        self.accesses.append(acc)
