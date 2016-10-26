@@ -129,13 +129,13 @@ class SqlLoader(object):
                                              data[EV_MANIFESTATION]),
                               origin_uri=data[EV_EVENT_ORIGIN_URI],
                               actor_uri=data[EV_ACTOR_URI])
-            elif pid:
-                if ev.pid and ev.pid != pid:
-                    print("Error: multiple events record a pid for event %d, "
-                          "and they disagree on the pid to record." % (
-                           data[EV_ID]), file=sys.stderr)
-                else:
-                    ev.pid = pid
+            elif pid and ev.pid:
+                assert ev.pid == pid, ("Error: multiple events record a pid "
+                                       " event %d, and they disagree on the "
+                                       "pid to record (%d != %d)." % (
+                                        data[EV_ID], ev.pid, pid))
+            elif pid and not ev.pid:
+                ev.pid = pid
 
             subj = SqlEventSubject(uri=data[EV_SUBJ_URI],
                                    interpretation=self.getInterpretation(
