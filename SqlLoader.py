@@ -181,7 +181,7 @@ class SqlLoader(object):
                 if ev.actor_uri != currentActorUri:
                     # TODO validate that currentApp and the new event's app
                     # don't actually have the same desktop id in the end, once
-                    # aliases are resolved TODO
+                    # aliases are resolved
                     currentActorUri = ev.actor_uri
                     currentApp = Application(desktopid=ev.actor_uri,
                                              pid=int(pkey),
