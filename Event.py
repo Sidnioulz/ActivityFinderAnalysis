@@ -6,7 +6,7 @@ from SqlEvent import SqlEvent
 from File import File, EventFileFlags
 from utils import urlToUnixPath, int16
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
-                      POSIX_OPENDIR_RE, \
+                      POSIX_OPENDIR_RE, POSIX_UNLINK_RE, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                       O_TRUNC, O_DIRECTORY
 import sys
@@ -66,6 +66,7 @@ class Event(object):
     posixFopenRe = re.compile(POSIX_FOPEN_RE)
     posixFDopenRe = re.compile(POSIX_FDOPEN_RE)
     posixOpendirRe = re.compile(POSIX_OPENDIR_RE)
+    posixUnlinkRe = re.compile(POSIX_UNLINK_RE)
 
     def __init__(self,
                  actor: Application,
@@ -204,7 +205,7 @@ class Event(object):
             # TODO continue
             self.type = EventType.invalid
 
-    def _openRejectError(self, syscall, path, flags, error):
+    def _rejectError(self, syscall, path, flags, error):
         """Print a warning that a syscall failed and invalidate the Event."""
         # Don't log failed syscalls, but inform the reader
         print("Info: system call %s(%s, %d) from Application %s:%d "
@@ -287,7 +288,7 @@ class Event(object):
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
-            self._openRejectError(syscall, path, flags, error)
+            self._rejectError(syscall, path, flags, error)
             return
 
         # creat() is a specialised open(), and mkdir() also 'creates' a file
@@ -327,7 +328,7 @@ class Event(object):
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
-            self._openRejectError(syscall, path, flags, error)
+            self._rejectError(syscall, path, flags, error)
             return
 
         # Parse flags
@@ -368,7 +369,7 @@ class Event(object):
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
-            self._openRejectError(syscall, path, flags, error)
+            self._rejectError(syscall, path, flags, error)
             return
 
         # Now, save the File that will be processed by the simulator
@@ -414,11 +415,47 @@ class Event(object):
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
-            self._openRejectError(syscall, path, flags, error)
+            self._rejectError(syscall, path, flags, error)
             return
 
         # Parse flags
         self._openFopenParseFlags(flags)
+
+    def parsePOSIXUnlink(self, syscall: str, content: str):
+        """Process a POSIX unlink() system call."""
+        # Process the event's content
+        res = Event.posixUnlinkRe.match(content)
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX unlink system call was not logged "
+                  "properly: %s" % content, file=sys.stderr)
+            self.type = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 3:
+                print("Error: POSIX unlink system call was not logged "
+                      "properly: %s" % content, file=sys.stderr)
+                self.type = EventType.invalid
+                return
+
+            # Assign relevant variables
+            func = (str, int, str)
+            (filename, error, cwd) = map(lambda f, d: f(d), func, g)
+
+        # Build path to be used by simulator, and save the corresponding File
+        path = filename if filename.startswith('/') else np(cwd+'/'+filename)
+        self.setDataSyscallFile(path)
+
+        # Don't log failed syscalls, but inform the reader
+        if error < 0:
+            self._rejectError(syscall, path, 0, error)
+            return
+
+        self.evtype = EventType.filedelete
+        self.evflags |= EventFileFlags.write
+        self.evflags |= EventFileFlags.destroy
 
     def parseSyscall(self, syscallStr: str):
         """Process a system call string to initialise this Event."""
@@ -453,8 +490,15 @@ class Event(object):
             self.parsePOSIXOpendir(syscall, content)
 
         else:
+            if syscall in ('unlink',):
+                self.parsePOSIXUnlink(syscall, content)
             # TODO continue
             self.type = EventType.invalid
+
+        # TODO support link/symlink?
+        if syscall in ('link', 'symlink'):
+            pass
+            # print("DEBUG: needed?", syscall, content, "\n\n")
 
     def getTime(self):
         """Return the Event's time of occurrence."""

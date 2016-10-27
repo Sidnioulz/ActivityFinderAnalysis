@@ -58,6 +58,7 @@ POSIX_FOPEN_RE = '^(.*?)\|FILE (0x[a-f0-9]+|\(nil\)): with flag (\-?\d+),' \
 POSIX_FDOPEN_RE = '^fd: (-?\d+)\|\|.*?\n\n FILE (0x[a-f0-9]+)\|with flag' \
                   ' (\-?\d+), e(\-?\d+)\|'
 POSIX_OPENDIR_RE = '^(.*?)\|DIR (0x[a-f0-9]+|\(nil\)): e(\-?\d+)\|(.*?)$'
+POSIX_UNLINK_RE = '^(.*?)\|e(\-?\d+)\|(.*?)$'
 O_ACCMODE = 0o3
 O_RDONLY = 0o0
 O_WRONLY = 0o1
