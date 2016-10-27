@@ -45,7 +45,10 @@ class FileCopy(object):
                  path: str,
                  time: int,
                  copytype: str):
-        """Construct a FileCopy, with a type ('move', 'copy', or 'link')."""
+        """Construct a FileCopy, with a type ('move', 'copy', 'link').
+
+        Valid types are 'move', 'copy', 'link' and 'symlink'.
+        """
         super(FileCopy, self).__init__()
         self.path = path
         self.time = time
@@ -64,7 +67,9 @@ class File(object):
     path = ''      # type: str; the name of this file
     pred = None    # type: FileCopy; previous name of this file before renaming
     follow = None  # type: list; next name of this file after renaming
-    # TODO links
+    links = None   # type: list list of hard links to this File
+    symlinksrc = None  # type: FileCopy; target of this file if it is a symlink
+    symlinks = None    # type: list list of symbolic links to this File
     tstart = 0     # type: int; when the file was created
     tend = 0       # type: int; when the file was deleted
     tsg = False    # type: bool; whether the file creation date is guessed
@@ -77,6 +82,12 @@ class File(object):
         """Get an inode number allocated to a new File object."""
         File.inode += 1
         file.inode = File.inode
+
+    def __eq__(self, other: 'File'):
+        """Override the default Equals behavior"""
+        if isinstance(other, self.__class__):
+            return self.inode == other.inode
+        return False
 
     def __init__(self,
                  path: str,
@@ -93,6 +104,9 @@ class File(object):
         self.path = path
         self.pred = None
         self.follow = []
+        self.links = []
+        self.symlinksrc = None
+        self.symlinks = []
         self.tstart = tstart
         self.tend = tend
         self.tsg = False
@@ -150,6 +164,26 @@ class File(object):
 
     def clearFollowers(self):
         self.follow.clear()
+
+    def addLink(self, linkedFile: 'File'):
+        """Add a hard link to this File."""
+        self.links.append(linkedFile)
+        linkedFile.links.append(self)
+
+    def removeLink(self, linkedFile: 'File'):
+        """Remove a hard link from this File."""
+        self.links.remove(linkedFile)
+        linkedFile.links.remove(self)
+
+    def symlink(self, linkedFile: 'File'):
+        """Add a symbolic link to this File."""
+        linkedFile.symlinks.append(self)
+        self.symlinksrc = linkedFile
+
+    def removeSymlink(self, linkedFile: 'File'):
+        """Add a symbolic link to this File."""
+        linkedFile.symlinks.remove(self)
+        self.symlinksrc = None
 
     def setType(self, ftype: str):
         """Set the MIME type of the file to the given value."""
