@@ -106,13 +106,9 @@ class ApplicationStore(object):
         return events
 
     def lookupPid(self, pid):
-        """TODO."""
-        # TODO
         return self.pidStore[pid]
 
     def lookupPidTimestamp(self, pid, timestamp):
-        """TODO."""
-        # TODO
         pids = self.pidStore[pid]
         for app in pids:
             if (timestamp >= app.getTimeOfStart() and
@@ -120,8 +116,3 @@ class ApplicationStore(object):
                 return app
 
         return None
-
-    def lookupPidActor(self, pid, actor):
-        """TODO."""
-        # TODO
-        pass
