@@ -229,7 +229,7 @@ class PreloadLoggerLoader(object):
                         continue
 
                     # Filter interpreters, and rewrite them to get the identity
-                    # of the app they launched instead. #TODO
+                    # of the app they launched instead.
                     items = self.space.split(g[2])
                     interpreterid = None
 
@@ -325,8 +325,7 @@ class PreloadLoggerLoader(object):
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
-                    # actors.add(app.getDesktopId())  # FIXME TODO
-                    actors.add(g[0])
+                    actors.add(app.getDesktopId())
 
                     if checkInitialised and not app.isInitialised():
                         print("MISSING: %s" % g[0],
