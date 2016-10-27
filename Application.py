@@ -96,7 +96,6 @@ class Application(object):
             # TODO get path from Exec/TryExec for de entry
             pass
 
-        # TODO continue
         self.init = True
 
     def __initFromPath(self):
@@ -105,7 +104,7 @@ class Application(object):
         Scans the XDG desktop entries' Exec and TryExec paths to find an
         appropriate Desktop id.
         """
-        # TODO
+        # TODO __initFromPath
         # first, literal pass through Exec
         # second, resolve PATH to only get the executable name
         # third, TryExec, literal
