@@ -20,6 +20,26 @@ class FileStore(object):
         # TODO
         pass
 
+    def getChildren(self, f: File, time: int):
+        parent = f.getName() + '/'
+        print(parent)
+        children = []
+        for item in [k for k in self.nameStore.items()
+                     if k[0].startswith(parent)]:
+            # Only direct children
+            if item[0][len(parent)+1:].find('/') == -1:
+                    for file in item[1]:
+                        tstart = file.getTimeOfStart()
+                        tend = file.getTimeOfEnd()
+
+                        if time < tstart:
+                            break
+                        elif not tend or tend >= time:
+                            children.append(file)
+                            break
+
+        return children
+
     def printFiles(self,
                    showDeleted: bool=False,
                    showCreationTime: bool=False,
@@ -31,9 +51,11 @@ class FileStore(object):
 
             printpath = last.getName()
             lastDir = printpath.rfind('/')
-            if lastDir:
+            if lastDir > -1:
                 printpath = (lastDir+1)*' ' + printpath[lastDir+1:]
                 if last.isFolder():
+                    printpath += "/"
+            elif lastDir == 0 and last.isFolder():
                     printpath += "/"
 
             # Non-deleted files
@@ -44,9 +66,14 @@ class FileStore(object):
                            timestampZgPrint(last.getTimeOfStart())))
                 else:
                     print("%s" % printpath)
-            else:
-                if showDeleted:
-                    print("%s\tDELETED on %s)" % (
+            elif showDeleted:
+                if showCreationTime and last.getTimeOfStart():
+                    print("%s\tCREATED on %s, DELETED on %s" % (
+                           printpath,
+                           timestampZgPrint(last.getTimeOfStart()),
+                           timestampZgPrint(last.getTimeOfEnd())))
+                else:
+                    print("%s\tDELETED on %s" % (
                            printpath,
                            timestampZgPrint(last.getTimeOfEnd())))
 

@@ -269,6 +269,28 @@ class TestFileStore(unittest.TestCase):
         self.store.addFile(file1)
         self.assertEqual(len(self.store.getFilesForName(first)), 1)
 
+    def test_get_children(self):
+        file1 = File("/path/to/file", 0, 0, "image/jpg")
+        file2 = File("/path/to/document", 0, 0, "image/jpg")
+        self.store.addFile(file1)
+        self.store.addFile(file2)
+
+        fparent = File("/path/to", 0, 0, "inode/directory")
+        children = self.store.getChildren(fparent, 0)
+        self.assertEqual(len(children), 2)
+        self.assertTrue(file1 in children)
+        self.assertTrue(file2 in children)
+
+    def getChildren(self, f: File):
+        parent = f.getName() + '/'
+        children = []
+        for item in [k for k, v in self.nameStore.items()
+                     if k.startswith(parent)]:
+            if item[0][len(parent)+1:].find('/') == -1:
+                children.append(item[1])
+
+        return children
+
 
 class TestFileFactory(unittest.TestCase):
     store = None    # type: FileStore
