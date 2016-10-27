@@ -80,7 +80,7 @@ class FileFactory(object):
             if time < tstart:
                 return None
             elif not tend or tend >= time:
-                    return file
+                return file
         else:
             return None
 
@@ -93,7 +93,7 @@ class FileFactory(object):
         """
         # Delete children if folder
         if file.isFolder():
-            for child in self.store.getChildren(file):
+            for child in self.store.getChildren(file, time):
                 self.deleteFile(child, time)
 
         # Delete file
