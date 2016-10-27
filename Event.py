@@ -4,11 +4,14 @@ from enum import Enum
 from Application import Application
 from SqlEvent import SqlEvent
 from File import File, EventFileFlags
-from utils import urlToUnixPath
-from constants import POSIX_OPEN_RE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
+from utils import urlToUnixPath, int16
+from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
+                      POSIX_OPENDIR_RE, \
+                      O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                       O_TRUNC, O_DIRECTORY
 import sys
 import re
+from os.path import normpath as np
 
 
 class EventSource(Enum):
@@ -57,8 +60,12 @@ class Event(object):
     source = EventSource.unknown  # type: EventSource; source of the event
     subjects = []  # type: list; other entities affected by the event
     data = None    # binary data specific to each Event. Read the code...
+    data_app = None  # binary data specific to each Event's actor.
 
     posixOpenRe = re.compile(POSIX_OPEN_RE)
+    posixFopenRe = re.compile(POSIX_FOPEN_RE)
+    posixFDopenRe = re.compile(POSIX_FDOPEN_RE)
+    posixOpendirRe = re.compile(POSIX_OPENDIR_RE)
 
     def __init__(self,
                  actor: Application,
@@ -109,6 +116,10 @@ class Event(object):
         """Set data to a single file (for simple file events)."""
         self.data = [File(path=path, ftype=ftype)]
 
+    def setDataSyscallFD(self, fd: int):
+        """Set list of FDs that this Event links to its acting Application."""
+        self.data_app = [fd]
+
     def setDataZGFiles(self, zge: SqlEvent):
         """Set data to a list of files (for simple file events)."""
         self.data = []
@@ -131,7 +142,6 @@ class Event(object):
 
     def parseZeitgeist(self, zge: SqlEvent):
         """Process a Zeitgeist event to initialise this Event."""
-
         self.dbgdata = zge
         self.evflags |= EventFileFlags.designation
 
@@ -194,6 +204,40 @@ class Event(object):
             # TODO continue
             self.type = EventType.invalid
 
+    def _openRejectError(self, syscall, path, flags, error):
+        """Print a warning that a syscall failed and invalidate the Event."""
+        # Don't log failed syscalls, but inform the reader
+        print("Info: system call %s(%s, %d) from Application %s:%d "
+              "failed with error %d, and will not be logged." % (
+               syscall, path, flags,
+               self.actor.getDesktopId(), self.actor.getPid(),
+               error),
+              file=sys.stderr)
+        self.type = EventType.invalid
+
+    def _openFopenParseFlags(self, flags):
+        """Parse flags for open syscalls (and for fopen, as PL maps them)."""
+        if flags & O_CREAT:
+            self.evflags |= EventFileFlags.create
+            self.evtype = EventType.filecreate
+
+        if flags & O_TRUNC:
+            self.evflags |= EventFileFlags.overwrite
+            self.evtype = EventType.filecreate
+
+        if flags & O_ACCMODE == O_WRONLY:
+            self.evflags |= EventFileFlags.write
+            self.evtype = EventType.filewrite
+
+        if flags & O_ACCMODE == O_RDONLY:
+            self.evflags |= EventFileFlags.read
+            self.evtype = EventType.fileread
+
+        if flags & O_ACCMODE == O_RDWR:
+            self.evflags |= EventFileFlags.write
+            self.evflags |= EventFileFlags.read
+            self.evtype = EventType.filereadwrite
+
     def parsePOSIXOpen(self, syscall: str, content: str):
         """Process a POSIX open() or similar system call."""
         # Process the event's content
@@ -209,7 +253,7 @@ class Event(object):
             else:
                 print("TODO: find RE parser for: ", syscall, "***", content)
                 print("TODO: init @fdref@ with fd value")
-                sys.exit(1)
+                sys.exit(1)  # TODO
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 5:
@@ -223,57 +267,158 @@ class Event(object):
             (filename, fd, flags, error, cwd) = map(lambda f, d: f(d), func, g)
 
         # Build path to be used by simulator
-        path = filename if not cwd else cwd+'/'+filename
+        path = filename if filename.startswith('/') else np(cwd+'/'+filename)
 
         # Inject reference to system call if relevant, but as openat is
         # sometimes open with a NULL fd parameter, it can happen that fdref is
         # not defined, and that's fine.
         if syscall in ('openat', 'openat64', 'mkdirat'):
             try:
-                path = ("@fd%d@" % fdref) + path
+                path = ("@fdref%d@" % fdref) + path  # FIXME syntax
             except NameError:
                 pass
-
-        # creat() is a specialised open(), and mkdir() also 'creates' a file
-        if syscall in ('creat', 'mkdir'):
-            flags = O_WRONLY | O_CREAT | O_TRUNC
 
         # Now, save the File that will be processed by the simulator
         if syscall in ('mkdirat', 'mkdir') or flags & O_DIRECTORY:
             self.setDataSyscallFile(path, 'inode/directory')
         else:
             self.setDataSyscallFile(path)
+        self.setDataSyscallFD(fd)
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
-            print("Info: system call %s(%s, %d) from Application %s:%d "
-                  "failed with error %d, and will not be logged." % (
-                   self.actor.getDesktopId(), self.actor.getPid(),
-                   syscall, path, flags, error),
-                  file=sys.stderr)
-            self.type = EventType.invalid
+            self._openRejectError(syscall, path, flags, error)
             return
 
-        if flags & O_CREAT:
-            self.evflags |= EventFileFlags.create
-            self.evtype = EventType.filecreate
+        # creat() is a specialised open(), and mkdir() also 'creates' a file
+        if syscall in ('creat', 'mkdir'):
+            flags = O_WRONLY | O_CREAT | O_TRUNC
 
-        if flags & O_TRUNC:
-            self.evflags |= EventFileFlags.overwrite
-            self.evtype = EventType.filecreate
+        # Parse flags
+        self._openFopenParseFlags(flags)
 
-        if flags & O_WRONLY:
-            self.evflags |= EventFileFlags.write
-            self.evtype = EventType.filewrite
+    def parsePOSIXFopen(self, syscall: str, content: str):
+        """Process a POSIX fopen() or freopen() system call."""
+        # Process the event's content
+        res = Event.posixFopenRe.match(content)
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX fopen/freopen system call was not logged "
+                  "properly: %s" % content, file=sys.stderr)
+            self.type = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 5:
+                print("Error: POSIX fopen/freopen system call was not logged "
+                      "properly: %s" % content, file=sys.stderr)
+                self.type = EventType.invalid
+                return
 
-        if flags & O_RDONLY:
-            self.evflags |= EventFileFlags.read
-            self.evtype = EventType.fileread
+            # Assign relevant variables
+            func = (str, int16, int, int, str)
+            (filename, fd, flags, error, cwd) = map(lambda f, d: f(d), func, g)
 
-        if flags & O_RDWR:
-            self.evflags |= EventFileFlags.write
-            self.evflags |= EventFileFlags.read
-            self.evtype = EventType.filereadwrite
+        # Build path to be used by simulator, and save the corresponding File
+        path = filename if filename.startswith('/') else np(cwd+'/'+filename)
+        self.setDataSyscallFile(path)
+        self.setDataSyscallFD(fd)
+
+        # Don't log failed syscalls, but inform the reader
+        if error < 0:
+            self._openRejectError(syscall, path, flags, error)
+            return
+
+        # Parse flags
+        self._openFopenParseFlags(flags)
+
+    def parsePOSIXFDopen(self, syscall: str, content: str):
+        """Process a POSIX fdopen() or fdopendir() system call."""
+
+        # FIXME DEBUG
+        if syscall in ('fdopendir',):
+            print("CHECK SYNTAX: ", syscall, content)   # TODO
+            sys.exit(1)
+
+        # Process the event's content
+        content = content.strip()
+        res = Event.posixFDopenRe.match(content)
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX fdopen/fdopendir system call was not "
+                  "logged properly: %s" % content, file=sys.stderr)
+            self.type = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 4:
+                print("Error: POSIX fdopen/fdopendir system call was not "
+                      "logged properly: %s" % content, file=sys.stderr)
+                self.type = EventType.invalid
+                return
+
+            # Assign relevant variables
+            func = (int, str, int16, int, int, str)
+            (fdref, fd, flags, error) = map(lambda f, d: f(d), func, g)
+
+        # Build path to be used by simulator, and save the corresponding File
+        path = ("@fdref%d@" % fdref)  # FIXME syntax
+
+        # Don't log failed syscalls, but inform the reader
+        if error < 0:
+            self._openRejectError(syscall, path, flags, error)
+            return
+
+        # Now, save the File that will be processed by the simulator
+        if syscall in ('fdopendir') or flags & O_DIRECTORY:
+            self.setDataSyscallFile(path, 'inode/directory')
+        else:
+            self.setDataSyscallFile(path)
+        self.setDataSyscallFD(fd)
+
+        # Parse flags
+        self._openFopenParseFlags(flags)
+
+    def parsePOSIXOpendir(self, syscall: str, content: str):
+        """Process a POSIX opendir() system call."""
+        # Process the event's content
+        res = Event.posixOpendirRe.match(content)
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX opendir system call was not logged "
+                  "properly: %s" % content, file=sys.stderr)
+            self.type = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 4:
+                print("Error: POSIX opendir system call was not logged "
+                      "properly: %s" % content, file=sys.stderr)
+                self.type = EventType.invalid
+                return
+
+            # Assign relevant variables
+            func = (str, int16, int, str)
+            (filename, fd, error, cwd) = map(lambda f, d: f(d), func, g)
+
+        # Build path to be used by simulator, and save the corresponding File
+        path = filename if filename.startswith('/') else np(cwd+'/'+filename)
+        self.setDataSyscallFile(path, 'inode/directory')
+        self.setDataSyscallFD(fd)
+
+        # Opendir requires the directory to exist, and is a read access
+        flags = O_RDONLY
+
+        # Don't log failed syscalls, but inform the reader
+        if error < 0:
+            self._openRejectError(syscall, path, flags, error)
+            return
+
+        # Parse flags
+        self._openFopenParseFlags(flags)
 
     def parseSyscall(self, syscallStr: str):
         """Process a system call string to initialise this Event."""
@@ -297,6 +442,15 @@ class Event(object):
         if syscall in ('creat', 'open', 'openat',
                        'open64', 'openat64', 'mkdir', 'mkdirat'):
             self.parsePOSIXOpen(syscall, content)
+        # Variants of the fopen() system calls
+        elif syscall in ('fopen', 'freopen'):
+            self.parsePOSIXFopen(syscall, content)
+        # Variants of the fdopen() system calls
+        elif syscall in ('fdopen', 'fdopendir'):
+            self.parsePOSIXFDopen(syscall, content)
+        # opendir()
+        elif syscall in ('opendir',):
+            self.parsePOSIXOpendir(syscall, content)
 
         else:
             # TODO continue

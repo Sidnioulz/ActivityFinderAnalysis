@@ -92,7 +92,8 @@ class EventStore(object):
         """Simulate a file access Event."""
         for subj in event.getData():
             file = fileFactory.getFile(name=subj.getName(),
-                                       time=event.time)
+                                       time=event.time,
+                                       ftype=subj.getType())
             file.addAccess(event.getActor(),
                            event.getFileFlags(),
                            event.time)
@@ -108,7 +109,8 @@ class EventStore(object):
         # Get each file, set its end time, and update the store
         for subj in event.getData():
             file = fileFactory.getFile(name=subj.getName(),
-                                       time=event.time)
+                                       time=event.time,
+                                       ftype=subj.getType())
             file.addAccess(event.getActor(),
                            event.getFileFlags(),
                            event.time)
@@ -125,7 +127,7 @@ class EventStore(object):
                        fileStore: FileStore):
         """Create a File, and return it."""
 
-        file = fileFactory.getFile(name=name, time=event.time)
+        file = fileFactory.getFile(name=name, time=event.time, ftype=ftype)
         file.setTimeOfStart(event.time)
         file.setType(ftype)
         file.addAccess(event.getActor(),
@@ -187,10 +189,17 @@ class EventStore(object):
         """Simulate a file copy or move Event, based on :keepOld:."""
         newFiles = []
 
+        # FIXME: attn, for syscalls, a cp to a folder doesn't cause deletion of
+        # the folder, but only of the overridden children!
+
         # Get each file, set its starting time and type, and update the store
         for subj in event.getData():
             old = subj[0]
             new = subj[1]
+
+            print("ACHTUNG: copying '%s' to '%s' at time %d" % (
+                old.getName(), new.getName(), event.time
+            ))
 
             # Delete any File on the new path as it would get overwritten.
             newFile = fileFactory.getFileIfExists(new.getName(), event.time)

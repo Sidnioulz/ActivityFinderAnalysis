@@ -24,9 +24,6 @@ MONORE = "^(?:[^/]*/)*mono-sgen$"
 MONONAMER = "^(?:[^/]*/)*(.*?)(?:\.exe)?$"
 MONOPROCNAME = "^(.*?)(?:\.exe)?$"
 
-# Event constants
-# TODO
-
 # Zeitgeist Event index constants
 EV_ID = 0
 EV_TIMESTAMP = 1
@@ -56,6 +53,11 @@ EV_SUBJ_ORIGIN_CURRENT_URI = 24
 
 # POSIX event and system call constants
 POSIX_OPEN_RE = '^(.*?)\|fd (\-?\d+): with flag (\-?\d+), e(\-?\d+)\|(.*?)$'
+POSIX_FOPEN_RE = '^(.*?)\|FILE (0x[a-f0-9]+|\(nil\)): with flag (\-?\d+),' \
+                 ' e(\-?\d+)\|(.*?)$'
+POSIX_FDOPEN_RE = '^fd: (-?\d+)\|\|.*?\n\n FILE (0x[a-f0-9]+)\|with flag' \
+                  ' (\-?\d+), e(\-?\d+)\|'
+POSIX_OPENDIR_RE = '^(.*?)\|DIR (0x[a-f0-9]+|\(nil\)): e(\-?\d+)\|(.*?)$'
 O_ACCMODE = 0o3
 O_RDONLY = 0o0
 O_WRONLY = 0o1
