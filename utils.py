@@ -20,3 +20,11 @@ def urlToUnixPath(url):
 def uq(s):
     """Unquote a string."""
     return unquote(s)
+
+
+def int16(i):
+    """A unary function to convert strings to hexadecimal integers."""
+    if i == "(nil)":
+        return 0
+    else:
+        return int(i, 16)
