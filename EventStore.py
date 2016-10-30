@@ -4,7 +4,7 @@ from Event import Event, EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
-from utils import timestampZgPrint
+from utils import time2Str
 
 
 class EventStore(object):
@@ -225,7 +225,7 @@ class EventStore(object):
             new = subj[1]
 
             print("Info: copying '%s' to '%s' at time %s" % (
-                old.getName(), new.getName(), timestampZgPrint(event.getTime())
+                old.getName(), new.getName(), time2Str(event.getTime())
             ))
 
             # Delete any File on the new path as it would get overwritten.

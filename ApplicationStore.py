@@ -1,5 +1,5 @@
 """A place to store and merge fragments of Application instances."""
-from utils import timestampZgPrint
+from utils import time2Str
 from Application import Application
 from Event import Event
 import sys
@@ -75,10 +75,10 @@ class ApplicationStore(object):
                                        bpp.getDesktopId(),
                                        app.getDesktopId(),
                                        app.getPid(),
-                                       timestampZgPrint(app.getTimeOfStart()),
-                                       timestampZgPrint(app.getTimeOfEnd()),
-                                       timestampZgPrint(bpp.getTimeOfStart()),
-                                       timestampZgPrint(bpp.getTimeOfEnd())))
+                                       time2Str(app.getTimeOfStart()),
+                                       time2Str(app.getTimeOfEnd()),
+                                       time2Str(bpp.getTimeOfStart()),
+                                       time2Str(bpp.getTimeOfEnd())))
                 break
         # app is the last item on the list!
         else:

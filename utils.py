@@ -3,7 +3,7 @@ import os
 from urllib.parse import urlparse, unquote
 
 
-def timestampZgPrint(timestamp):
+def time2Str(timestamp):
     """Transforms a Zeitgeist timestamp into a human-readable string."""
     (timestamp, remainder) = divmod(timestamp, 1000)
     string = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")

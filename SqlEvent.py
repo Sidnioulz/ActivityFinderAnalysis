@@ -1,4 +1,4 @@
-from utils import timestampZgPrint
+from utils import time2Str
 
 
 class SqlEventSubject(object):
@@ -70,7 +70,7 @@ class SqlEvent(object):
     def __str__(self):
         prnt = ("Sql Event: %d\n\tpid: %d\n\ttime: %s\n\tinterpretation: %s\n"
                 "\tmanifestation: %s\n\tactor: %s\n\tsubjects:\n" % (
-                 self.id, self.pid, timestampZgPrint(self.timestamp),
+                 self.id, self.pid, time2Str(self.timestamp),
                  self.interpretation, self.manifestation,
                  self.actor_uri))
         for subject in self.subjects:

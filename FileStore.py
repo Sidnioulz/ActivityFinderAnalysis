@@ -1,6 +1,6 @@
 """Service to store File instances."""
 from File import File
-from utils import timestampZgPrint
+from utils import time2Str
 
 
 class FileStore(object):
@@ -63,19 +63,19 @@ class FileStore(object):
                 if showCreationTime and last.getTimeOfStart():
                     print("%s\tCREATED on %s" % (
                            printpath,
-                           timestampZgPrint(last.getTimeOfStart())))
+                           time2Str(last.getTimeOfStart())))
                 else:
                     print("%s" % printpath)
             elif showDeleted:
                 if showCreationTime and last.getTimeOfStart():
                     print("%s\tCREATED on %s, DELETED on %s" % (
                            printpath,
-                           timestampZgPrint(last.getTimeOfStart()),
-                           timestampZgPrint(last.getTimeOfEnd())))
+                           time2Str(last.getTimeOfStart()),
+                           time2Str(last.getTimeOfEnd())))
                 else:
                     print("%s\tDELETED on %s" % (
                            printpath,
-                           timestampZgPrint(last.getTimeOfEnd())))
+                           time2Str(last.getTimeOfEnd())))
 
         # TODO onlyDesignated
 

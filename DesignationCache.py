@@ -3,7 +3,7 @@ from Event import Event
 from File import EventFileFlags
 from Application import Application
 from blist import sortedlist
-from utils import timestampZgPrint
+from utils import time2Str
 from os.path import normpath as np
 
 
@@ -125,12 +125,12 @@ class DesignationCache(object):
                           "File '%s' is turned into a %s event based on an "
                           "act of designation performed on %s." % (
                            event.getFileFlags(),
-                           timestampZgPrint(event.getTime()),
+                           time2Str(event.getTime()),
                            DesignationCache._actkey(event.getActor()),
                            f.getName(),
                            "designation" if newFlags &
                            EventFileFlags.designation else "programmatic",
-                           timestampZgPrint(act.tstart)))
+                           time2Str(act.tstart)))
                     res.append((f, newFlags))
                     del files[fIdx]
         # Now that we've checked all acts of designation for this Application,
