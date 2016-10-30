@@ -5,6 +5,9 @@ USAGE_STRING = '__main__.py [--check-missing]'
 DATAPATH = "../data/current/"
 DATABASENAME = "activity.sqlite"
 
+# Path splitting regexp
+SPACE_REGEXP = r'(?<!\\) '
+
 # Application constants
 DESKTOPPATHS = ['../applications/usr/share/applications/',
                 '/usr/share/applications/',
