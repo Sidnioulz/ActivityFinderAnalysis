@@ -5,10 +5,55 @@ from ApplicationStore import ApplicationStore
 from Event import Event
 from EventStore import EventStore
 from FileStore import FileStore
-from File import File
+from File import File, EventFileFlags
 from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
 from constants import PYTHONRE, PYTHONNAMER
+
+
+class TestEventFlags(unittest.TestCase):
+    store = None  # type: EventStore
+
+    def setUp(self):
+        self.store = EventStore()
+
+    def test_merge_equal(self):
+        app = Application("firefox.desktop", pid=21, tstart=1, tend=200000)
+
+        ss = "open64|/home/user/.kde/share/config/kdeglobals|fd " \
+             "10: with flag 524288, e0|"
+        e1 = Event(actor=app, time=10, syscallStr=ss)
+        self.store.append(e1)
+
+        cmd = "@firefox|2294|firefox -p /home/user/.kde/file"
+        e2 = Event(actor=app, time=1, cmdlineStr=cmd)
+        self.store.append(e2)
+
+        st = "open64|/home/user/.kde/file|fd " \
+             "10: with flag 524288, e0|"
+        e3 = Event(actor=app, time=13, syscallStr=st)
+        self.store.append(e3)
+
+        fS = FileStore()
+        fF = FileFactory(fS)
+        self.store.simulateAllEvents(fF, fS)
+
+        ef1 = EventFileFlags.no_flags
+        ef1 |= EventFileFlags.programmatic
+        ef1 |= EventFileFlags.read
+        self.assertEqual(ef1, e1.getFileFlags())
+
+        ef3 = EventFileFlags.no_flags
+        ef3 |= EventFileFlags.designation
+        ef3 |= EventFileFlags.read
+
+        file = fF.getFile("/home/user/.kde/file", 20)
+        acc = file.getAccesses()
+        self.assertEqual(len(acc), 1)
+        self.assertEqual(acc[0].evflags, ef3)
+
+    def tearDown(self):
+        self.store = None
 
 
 class TestStoreInsertion(unittest.TestCase):
@@ -334,13 +379,14 @@ class TestFileFactory(unittest.TestCase):
         self.assertEqual(exist3.inode, file4.inode)
 
     def test_update_time_end(self):
+        app = Application("firefox.desktop", pid=21, tstart=0, tend=300)
         path = "/path/to/first/file"
 
         f1 = File(path, 0, 0, "image/jpg")
         self.store.addFile(f1)
 
         f2 = self.factory.getFile(path, 0)
-        self.factory.deleteFile(f2, 100)
+        self.factory.deleteFile(f2, app, 100, EventFileFlags.no_flags)
         self.store.updateFile(f2)
 
         f3 = self.factory.getFile(path, 0)

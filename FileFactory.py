@@ -1,5 +1,6 @@
 """Service to retrieve existing files or to create them."""
-from File import File
+from Application import Application
+from File import File, EventFileFlags
 from FileStore import FileStore
 import sys
 
@@ -84,7 +85,11 @@ class FileFactory(object):
         else:
             return None
 
-    def deleteFile(self, file: File, time: int):
+    def deleteFile(self,
+                   file: File,
+                   deleter: Application,
+                   time: int,
+                   evflags: EventFileFlags):
         """Delete a File for a given name and time, as well as its children.
 
         Deletes a File, by marking its time of end. If the File is a folder,
@@ -94,7 +99,10 @@ class FileFactory(object):
         # Delete children if folder
         if file.isFolder():
             for child in self.store.getChildren(file, time):
-                self.deleteFile(child, time)
+                self.deleteFile(child, deleter, time, evflags)
+
+        # Record access on file
+        file.addAccess(actor=deleter, flags=evflags, time=time)
 
         # Delete file
         file.setTimeOfEnd(time)

@@ -16,24 +16,56 @@ class EventFileFlags(Flags):
     write = 1 << 6
     designation = 1 << 7
     programmatic = 1 << 8
+    designationcache = 1 << 9
+
+    def __str__(self):
+        """Human-readable version of the flags."""
+        ret = "1" if self & EventFileFlags.designationcache else "0"
+        ret += "1" if self & EventFileFlags.programmatic else "0"
+        ret += "1" if self & EventFileFlags.designation else "0"
+        ret += " "
+        ret += "1" if self & EventFileFlags.write else "0"
+        ret += "1" if self & EventFileFlags.read else "0"
+        ret += " "
+        ret += "1" if self & EventFileFlags.copy else "0"
+        ret += "1" if self & EventFileFlags.move else "0"
+        ret += " "
+        ret += "1" if self & EventFileFlags.destroy else "0"
+        ret += "1" if self & EventFileFlags.overwrite else "0"
+        ret += "1" if self & EventFileFlags.create else "0"
+        return ret
+
+    def __eq__(self, other):
+        return int(self) == int(other)
 
 
 class FileAccess(object):
     """Something to hold info on who accessed a File."""
-    actor = None       # type: Application
-    time = 0           # type: int
-    accessType = None  # type: event
+    actor = None    # type: Application
+    time = 0        # type: int
+    evflags = None  # type: EventFileFlags
 
     def __init__(self,
                  actor: Application,
                  time: int,
-                 accessType: EventFileFlags):
+                 evflags: EventFileFlags):
         """Construct a FileAccess."""
         super(FileAccess, self).__init__()
         self.actor = actor
         self.time = time
-        self.accessType = accessType
+        self.evflags = EventFileFlags(evflags)
 
+    def getActor(self):
+        """Return the actor that accessed the File."""
+        return self.actor
+
+    def getTime(self):
+        """Return the time at which the access occurred."""
+        return self.time
+
+    def getFileFlags(self):
+        """Return the EventFileFlags that describe this access event."""
+        return self.evflags
 
 class FileCopy(object):
     """Something to hold info on a File's previous or next version."""
@@ -205,3 +237,7 @@ class File(object):
         """Record an access event for this File."""
         acc = FileAccess(actor, time, flags)
         self.accesses.append(acc)
+
+    def getAccesses(self):
+        """Get the acts of access on this File."""
+        return self.accesses

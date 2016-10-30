@@ -1,8 +1,10 @@
 """A store for Event objects."""
+from DesignationCache import DesignationCache
 from Event import Event, EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
+from utils import timestampZgPrint
 
 
 class EventStore(object):
@@ -20,8 +22,9 @@ class EventStore(object):
 
     def clear(self):
         """Empty the EventStore."""
-        self.store = list()   # type: list
-        self._sorted = True   # type: bool
+        self.store = list()                   # type: list
+        self._sorted = True                   # type: bool
+        self.desigcache = DesignationCache()  # type: DesignationCache
 
     def append(self, event: Event):
         """Append an Event to the store. The store will no longer be sorted."""
@@ -90,13 +93,24 @@ class EventStore(object):
                        fileFactory: FileFactory,
                        fileStore: FileStore):
         """Simulate a file access Event."""
+        files = []
+
+        # Get each File
         for subj in event.getData():
             file = fileFactory.getFile(name=subj.getName(),
-                                       time=event.time,
+                                       time=event.getTime(),
                                        ftype=subj.getType())
-            file.addAccess(event.getActor(),
-                           event.getFileFlags(),
-                           event.time)
+            files.append(file)
+
+        # Check acts of designation
+        res = self.desigcache.checkForDesignation(event, files)
+        del files
+
+        # Then, for each File, log the access
+        for (file, flags) in res:
+            file.addAccess(actor=event.getActor(),
+                           flags=flags,
+                           time=event.getTime())
             fileStore.updateFile(file)
 
     def simulateDestroy(self,
@@ -105,16 +119,25 @@ class EventStore(object):
                         fileStore: FileStore):
         """Simulate a file deletion Event."""
         filesDeleted = []
+        files = []
 
-        # Get each file, set its end time, and update the store
+        # Get each File
         for subj in event.getData():
             file = fileFactory.getFile(name=subj.getName(),
-                                       time=event.time,
+                                       time=event.getTime(),
                                        ftype=subj.getType())
-            file.addAccess(event.getActor(),
-                           event.getFileFlags(),
-                           event.time)
-            fileFactory.deleteFile(file, event.time)
+            files.append(file)
+
+        # Check acts of designation
+        res = self.desigcache.checkForDesignation(event, files)
+        del files
+
+        # Then, for each File, set its end time, and update the store
+        for (file, flags) in res:
+            fileFactory.deleteFile(file,
+                                   event.getActor(),
+                                   event.getTime(),
+                                   flags)
             filesDeleted.append(file)
 
         return filesDeleted
@@ -127,12 +150,16 @@ class EventStore(object):
                        fileStore: FileStore):
         """Create a File, and return it."""
 
-        file = fileFactory.getFile(name=name, time=event.time, ftype=ftype)
-        file.setTimeOfStart(event.time)
+        file = fileFactory.getFile(name=name,
+                                   time=event.getTime(),
+                                   ftype=ftype)
+        file.setTimeOfStart(event.getTime())
         file.setType(ftype)
-        file.addAccess(event.getActor(),
-                       event.getFileFlags(),
-                       event.time)
+
+        res = self.desigcache.checkForDesignation(event, [file])
+        file.addAccess(actor=event.getActor(),
+                       time=event.getTime(),
+                       flags=res[0][1])
         fileStore.updateFile(file)
 
         return file
@@ -170,7 +197,7 @@ class EventStore(object):
                 inject the original event after the FileDestroyed
         """
 
-        # Get each file, set its starting time and type, and update the store
+        # Get each File
         for subj in event.getData():
             f = self.__doCreateFile(subj.getName(),
                                     subj.getType(),
@@ -197,14 +224,19 @@ class EventStore(object):
             old = subj[0]
             new = subj[1]
 
-            print("ACHTUNG: copying '%s' to '%s' at time %d" % (
-                old.getName(), new.getName(), event.time
+            print("Info: copying '%s' to '%s' at time %s" % (
+                old.getName(), new.getName(), timestampZgPrint(event.getTime())
             ))
 
             # Delete any File on the new path as it would get overwritten.
-            newFile = fileFactory.getFileIfExists(new.getName(), event.time)
+            newFile = fileFactory.getFileIfExists(new.getName(),
+                                                  event.getTime())
             if newFile:
-                fileFactory.deleteFile(newFile, event.time)
+                res = self.desigcache.checkForDesignation(event, [newFile])
+                fileFactory.deleteFile(newFile,
+                                       event.getActor(),
+                                       event.getTime(),
+                                       res[0][1])
 
             # Create a file on the new path which is identical to the old File.
             newFile = self.__doCreateFile(new.getName(),
@@ -215,14 +247,18 @@ class EventStore(object):
 
             # Delete the old file for move events only.
             if not keepOld:
-                oldFile = fileFactory.getFile(old.getName(), event.time)
-                fileFactory.deleteFile(oldFile, event.time)
+                oldFile = fileFactory.getFile(old.getName(), event.getTime())
+                res = self.desigcache.checkForDesignation(event, [oldFile])
+                fileFactory.deleteFile(oldFile,
+                                       event.getActor(),
+                                       event.getTime(),
+                                       res[0][1])
 
             # Update the files' links
             ctype = 'copy' if keepOld else 'move'
-            oldFile = fileFactory.getFile(old.getName(), event.time)
-            oldFile.addFollower(newFile.getName(), event.time, ctype)
-            newFile.setPredecessor(oldFile.getName(), event.time, ctype)
+            oldFile = fileFactory.getFile(old.getName(), event.getTime())
+            oldFile.addFollower(newFile.getName(), event.getTime(), ctype)
+            newFile.setPredecessor(oldFile.getName(), event.getTime(), ctype)
             fileStore.updateFile(oldFile)
             fileStore.updateFile(newFile)
 
@@ -239,6 +275,12 @@ class EventStore(object):
 
         # Dispatch event to the appropriate handler
         for event in self.store:
+            # The current Event is an act of designation for future Events
+            # related to the same Application and Files. Save it.
+            if event.getFileFlags() & EventFileFlags.designationcache:
+                self.desigcache.addItem(event)
+                continue
+
             if event.getFileFlags() & EventFileFlags.destroy:
                 res = self.simulateDestroy(event, fileFactory, fileStore)
 
@@ -250,8 +292,7 @@ class EventStore(object):
                     pass
                 # We received instructions to hot-patch the event list
                 else:
-                    print("NOT IMPLEMENTED YET.")
-                    pass
+                    raise NotImplementedError  # TODO
 
             # TODO resolve @fd@ for create/write/read/etc.
             # add to Application's fds list to track writes/reads to files

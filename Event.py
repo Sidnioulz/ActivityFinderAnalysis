@@ -1,12 +1,11 @@
 """An action performed by an Application at a specific time."""
-
 from enum import Enum
 from Application import Application
 from SqlEvent import SqlEvent
 from File import File, EventFileFlags
 from utils import urlToUnixPath, int16
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
-                      POSIX_OPENDIR_RE, POSIX_UNLINK_RE, \
+                      POSIX_OPENDIR_RE, POSIX_UNLINK_RE, SPACE_REGEXP, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                       O_TRUNC, O_DIRECTORY
 import sys
@@ -25,8 +24,6 @@ class EventSource(Enum):
 
 class EventType(Enum):
     """Supported types of events, from Zeitgeist or PreloadLogger."""
-
-# create, destroy, read, write, designation, programmatic,
 
     invalid = -1
     unknown = 0
@@ -67,6 +64,7 @@ class Event(object):
     posixFDopenRe = re.compile(POSIX_FDOPEN_RE)
     posixOpendirRe = re.compile(POSIX_OPENDIR_RE)
     posixUnlinkRe = re.compile(POSIX_UNLINK_RE)
+    spaceRe = re.compile(SPACE_REGEXP)
 
     def __init__(self,
                  actor: Application,
@@ -111,7 +109,38 @@ class Event(object):
             self.parseSyscall(syscallStr)
         elif cmdlineStr:
             self.source = EventSource.cmdline
-            # TODO mark designation read/create!
+            self.parseCommandLine(cmdlineStr)
+
+    def parseCommandLine(self, cmdlineStr: str):
+        """Parse a command line to record acts of designation onto Files."""
+        # Attn: we can't just split the command-line because spaces did not get
+        # escaped! So we have to match the file names to the whole string and
+        # hope for a match. Files with a relative path cannot be matched thus.
+        # # Split command-line
+        # g = Event.spaceRe.split(cmdlineStr.strip())
+        #
+        # # Collect all files
+        # self.data = []
+        # del g[0]
+        # for component in g:
+        #     # Remove the very likely app parameter
+        #     if component.startswith('-'):
+        #         continue
+        #
+        #     f = File(path=component, tstart=self.time)
+        #     self.data.append(f)
+        self.data = cmdlineStr
+
+        # Tell the EventStore this is an act of designation
+        self.evflags |= EventFileFlags.designationcache
+
+        # Command-lines indicate designation for any future processing
+        self.evflags |= EventFileFlags.designation
+        self.evflags |= EventFileFlags.read
+        self.evflags |= EventFileFlags.write
+        self.evflags |= EventFileFlags.create
+        self.evflags |= EventFileFlags.overwrite
+        self.evflags |= EventFileFlags.destroy
 
     def setDataSyscallFile(self, path: str, ftype: str=''):
         """Set data to a single file (for simple file events)."""
@@ -446,12 +475,20 @@ class Event(object):
 
         # Build path to be used by simulator, and save the corresponding File
         path = filename if filename.startswith('/') else np(cwd+'/'+filename)
-        self.setDataSyscallFile(path)
+        if syscall in ('rmdir',):
+            self.setDataSyscallFile(path, 'inode/directory')
+        else:
+            self.setDataSyscallFile(path)
 
         # Don't log failed syscalls, but inform the reader
-        if error < 0:
-            self._rejectError(syscall, path, 0, error)
-            return
+        if error != 0:
+            if syscall in ('rmdir',) and error == 39:
+                return  # silently, ENOTEMPTY happens all the time
+            elif syscall in ('unlink',) and error == 2:
+                return  # silently, ENOENT happens often with cache cleanups
+            else:
+                self._rejectError(syscall, path, 0, error)
+                return
 
         self.evtype = EventType.filedelete
         self.evflags |= EventFileFlags.write
@@ -488,10 +525,11 @@ class Event(object):
         # opendir()
         elif syscall in ('opendir',):
             self.parsePOSIXOpendir(syscall, content)
+        # unlink()
+        elif syscall in ('unlink', 'remove', 'rmdir'):
+            self.parsePOSIXUnlink(syscall, content)
 
         else:
-            if syscall in ('unlink',):
-                self.parsePOSIXUnlink(syscall, content)
             # TODO continue
             self.type = EventType.invalid
 

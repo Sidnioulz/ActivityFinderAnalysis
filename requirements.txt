@@ -1,3 +1,4 @@
 python-xdg
 py-flags
 python-urllib3
+python-blist
