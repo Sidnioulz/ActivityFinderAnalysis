@@ -8,7 +8,8 @@ from Event import Event
 from constants import PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, \
                       PERLRE, PERLNAMER, \
-                      MONORE, MONONAMER, MONOPROCNAME
+                      MONORE, MONONAMER, MONOPROCNAME, \
+                      SPACE_REGEXP
 
 
 class PreloadLoggerLoader(object):
@@ -16,7 +17,7 @@ class PreloadLoggerLoader(object):
     pattern = re.compile("^\d{4}-\d{2}-\d{2}_\d+_\d+.log$")
     header = re.compile("^@(.*?)[|](\d+)[|](.*)$")
     syscall = re.compile("^(\d+)[|](.*)$")
-    space = re.compile(r'(?<!\\) ')
+    space = re.compile(SPACE_REGEXP)
     pyre = re.compile(PYTHONRE)
     pynamer = re.compile(PYTHONNAMER)
     pyprocname = re.compile(PYTHONPROCNAME)
@@ -317,11 +318,16 @@ class PreloadLoggerLoader(object):
                     app.setCommandLine(g[2])
 
                     if eventStore:
+                        # Add system call events
                         for h in syscalls:
                             event = Event(actor=app,
                                           time=h[0],
                                           syscallStr=h[1])
                             eventStore.append(event)
+
+                        # Add command-line event
+                        event = Event(actor=app, time=tstart, cmdlineStr=g[2])
+                        eventStore.append(event)
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
