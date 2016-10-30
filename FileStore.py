@@ -22,7 +22,6 @@ class FileStore(object):
 
     def getChildren(self, f: File, time: int):
         parent = f.getName() + '/'
-        print(parent)
         children = []
         for item in [k for k in self.nameStore.items()
                      if k[0].startswith(parent)]:
@@ -51,7 +50,8 @@ class FileStore(object):
 
             printpath = last.getName()
             lastDir = printpath.rfind('/')
-            if lastDir > -1:
+            # FIXME /home is still not printed properly, check it
+            if lastDir > 0:
                 printpath = (lastDir+1)*' ' + printpath[lastDir+1:]
                 if last.isFolder():
                     printpath += "/"
