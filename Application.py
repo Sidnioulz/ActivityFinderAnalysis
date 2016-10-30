@@ -23,13 +23,13 @@ class Application(object):
     tend = 0                  # type: int; when it's known to cease existing
     cmdline = ''              # type: str; complete command line, when known
     events = []               # type: list
-    windows = []              # type: list
-    documents = []            # type: list
-    states = []               # type: list
-    uris = []                 # type: list
-    ipc = []                  # type: list
-    parent = None             # type: Application
-    children = []             # type: list
+    # windows = []              # type: list
+    # documents = []            # type: list
+    # states = []               # type: list
+    # uris = []                 # type: list
+    # ipc = []                  # type: list
+    # parent = None             # type: Application
+    # children = []             # type: list
     desktopre = re.compile(DESKTOPIDRE)
 
     def __init__(self,
