@@ -238,6 +238,14 @@ class File(object):
         acc = FileAccess(actor, time, flags)
         self.accesses.append(acc)
 
-    def getAccesses(self):
+    def getAccesses(self, flags: EventFileFlags=None):
         """Get the acts of access on this File."""
-        return self.accesses
+        if not flags:
+            return self.accesses
+        else:
+            ret = []
+            for access in self.accesses:
+                if access.evflags & flags:
+                    ret.append(access)
+
+            return ret
