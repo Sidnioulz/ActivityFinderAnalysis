@@ -291,6 +291,22 @@ class Application(object):
                   "which wasn't opened. This is most likely because a system "
                   "call was not collected." % (self.uid(), fd))
 
+    def resolveFD(self, fd: int, time: int):
+        """Resolve a file descriptor reference for a given fd and time."""
+        fds = self.fds.get(fd)
+        if not fds:
+            print("%%")
+            for fff in self.fds.items():
+                print(fff)
+            print("we couldn't find fd %d" % fd)
+            return None
+
+        for (path, tstart, tend) in fds:
+            if time >= tstart and (not tend or time <= tend):
+                return path
+        else:
+            return None
+
     def clearFDs(self):
         """Clear all fds opened by this Application."""
         self.fds = dict()

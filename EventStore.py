@@ -5,6 +5,7 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
 from utils import time2Str
+from constants import FD_OPEN, FD_CLOSE
 
 
 class EventStore(object):
@@ -280,6 +281,13 @@ class EventStore(object):
             if event.getFileFlags() & EventFileFlags.designationcache:
                 self.desigcache.addItem(event)
                 continue
+
+            if event.data_app:
+                data = event.data_app
+                if data[2] == FD_OPEN:
+                    event.actor.openFD(data[0], data[1], event.time)
+                elif data[2] == FD_CLOSE:
+                    event.actor.closeFD(data[0], event.time)
 
             if event.getFileFlags() & EventFileFlags.destroy:
                 res = self.simulateDestroy(event, fileFactory, fileStore)

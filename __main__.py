@@ -66,13 +66,15 @@ def main(argv):
 
     # Simulate the events to build a file model
     print("\nSimulating all events to build a file model...")
-    fileFactory = FileFactory(fileStore)
+    fileFactory = FileFactory(fileStore, store)
     evStore.simulateAllEvents(fileFactory, fileStore)
     print("Simulated all events.")
 
     # Print the model as proof of concept
     print("\nPrinting the file model...\n")
-    fileStore.printFiles(showDeleted=True, showCreationTime=True)
+    fileStore.printFiles(showDeleted=True,
+                         showCreationTime=True,
+                         onlyDesignated=False)
 
 
 if __name__ == "__main__":

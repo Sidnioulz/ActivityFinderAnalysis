@@ -5,9 +5,10 @@ from SqlEvent import SqlEvent
 from File import File, EventFileFlags
 from utils import urlToUnixPath, int16
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
-                      POSIX_OPENDIR_RE, POSIX_UNLINK_RE, SPACE_REGEXP, \
+                      POSIX_OPENDIR_RE, POSIX_UNLINK_RE, POSIX_CLOSE_RE, \
+                      POSIX_FCLOSE_RE, SPACE_REGEXP, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
-                      O_TRUNC, O_DIRECTORY
+                      O_TRUNC, O_DIRECTORY, FD_OPEN, FD_CLOSE
 import sys
 import re
 from os.path import normpath as np
@@ -64,6 +65,8 @@ class Event(object):
     posixFDopenRe = re.compile(POSIX_FDOPEN_RE)
     posixOpendirRe = re.compile(POSIX_OPENDIR_RE)
     posixUnlinkRe = re.compile(POSIX_UNLINK_RE)
+    posixCloseRe = re.compile(POSIX_CLOSE_RE)
+    posixFcloseRe = re.compile(POSIX_FCLOSE_RE)
     spaceRe = re.compile(SPACE_REGEXP)
 
     def __init__(self,
@@ -146,9 +149,9 @@ class Event(object):
         """Set data to a single file (for simple file events)."""
         self.data = [File(path=path, ftype=ftype)]
 
-    def setDataSyscallFD(self, fd: int):
+    def setDataSyscallFD(self, fd: int, path: str, fdType):
         """Set list of FDs that this Event links to its acting Application."""
-        self.data_app = [fd]
+        self.data_app = (fd, path, fdType)
 
     def setDataZGFiles(self, zge: SqlEvent):
         """Set data to a list of files (for simple file events)."""
@@ -304,7 +307,8 @@ class Event(object):
         # not defined, and that's fine.
         if syscall in ('openat', 'openat64', 'mkdirat'):
             try:
-                path = ("@fdref%d@" % fdref) + path  # FIXME syntax
+                path = ("@fdref:%d@appref:%s@" % (
+                         fdref, self.getActor().uid())) + path
             except NameError:
                 pass
 
@@ -313,7 +317,7 @@ class Event(object):
             self.setDataSyscallFile(path, 'inode/directory')
         else:
             self.setDataSyscallFile(path)
-        self.setDataSyscallFD(fd)
+        self.setDataSyscallFD(fd, path, FD_OPEN)
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
@@ -353,7 +357,7 @@ class Event(object):
         # Build path to be used by simulator, and save the corresponding File
         path = filename if filename.startswith('/') else np(cwd+'/'+filename)
         self.setDataSyscallFile(path)
-        self.setDataSyscallFD(fd)
+        self.setDataSyscallFD(fd, path, FD_OPEN)
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
@@ -390,11 +394,12 @@ class Event(object):
                 return
 
             # Assign relevant variables
-            func = (int, str, int16, int, int, str)
+            func = (int, int16, int, int)
             (fdref, fd, flags, error) = map(lambda f, d: f(d), func, g)
 
         # Build path to be used by simulator, and save the corresponding File
-        path = ("@fdref%d@" % fdref)  # FIXME syntax
+        path = ("@fdref:%d@appref:%s@" % (
+                 fdref, self.getActor().uid()))
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
@@ -406,7 +411,7 @@ class Event(object):
             self.setDataSyscallFile(path, 'inode/directory')
         else:
             self.setDataSyscallFile(path)
-        self.setDataSyscallFD(fd)
+        self.setDataSyscallFD(fd, path, FD_OPEN)
 
         # Parse flags
         self._openFopenParseFlags(flags)
@@ -437,7 +442,7 @@ class Event(object):
         # Build path to be used by simulator, and save the corresponding File
         path = filename if filename.startswith('/') else np(cwd+'/'+filename)
         self.setDataSyscallFile(path, 'inode/directory')
-        self.setDataSyscallFD(fd)
+        self.setDataSyscallFD(fd, path, FD_OPEN)
 
         # Opendir requires the directory to exist, and is a read access
         flags = O_RDONLY
@@ -494,6 +499,41 @@ class Event(object):
         self.evflags |= EventFileFlags.write
         self.evflags |= EventFileFlags.destroy
 
+    def parsePOSIXClose(self, syscall: str, content: str):
+        """Process a POSIX close() or fclose() or closedir() system call."""
+        # Process the event's content
+        if syscall == 'close':
+            res = Event.posixCloseRe.match(content)
+        else:
+            res = Event.posixFcloseRe.match(content)
+
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX close* system call was not logged "
+                  "properly: %s" % content, file=sys.stderr)
+            self.type = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 2:
+                print("Error: POSIX close* system call was not logged "
+                      "properly: %s" % content, file=sys.stderr)
+                self.type = EventType.invalid
+                return
+
+            # Assign relevant variables
+            func = (int if syscall == 'close' else int16, int)
+            (fd, error) = map(lambda f, d: f(d), func, g)
+
+        # Build path to be used by simulator, and save the corresponding File
+        self.setDataSyscallFD(fd, None, FD_CLOSE)
+
+        # Don't log failed syscalls, but inform the reader
+        if error < 0:
+            self._rejectError(syscall, None, 0, error)
+            return
+
     def parseSyscall(self, syscallStr: str):
         """Process a system call string to initialise this Event."""
 
@@ -528,6 +568,9 @@ class Event(object):
         # unlink()
         elif syscall in ('unlink', 'remove', 'rmdir'):
             self.parsePOSIXUnlink(syscall, content)
+        # close()
+        elif syscall in ('close', 'fclose', 'closedir'):
+            self.parsePOSIXClose(syscall, content)
 
         else:
             # TODO continue

@@ -1,5 +1,6 @@
 """Service to retrieve existing files or to create them."""
 from Application import Application
+from ApplicationStore import ApplicationStore
 from File import File, EventFileFlags
 from FileStore import FileStore
 import sys
@@ -8,23 +9,19 @@ import sys
 class FileFactory(object):
     """A service to retrieve existing files or to create them."""
 
-    store = None  # type: FileStore
+    store = None     # type: FileStore
+    appStore = None  # type: ApplicationStore
 
-    def __init__(self, fileStore: FileStore):
+    def __init__(self, fileStore: FileStore, appStore: ApplicationStore):
         """Construct a FileFactory."""
         super(FileFactory, self).__init__()
         if not fileStore:
             raise ValueError("A FileFactory must have a valid FileStore.")
         self.store = fileStore
+        self.appStore = appStore
 
-    def getFile(self, name: str, time: int, ftype: str=''):
-        """Get a File for a given name and time, or creates one.
-
-        Looks up the FileStore for Files that match the given name and exist at
-        the given time. If no File is found, one is created and added to the
-        FileStore.
-        """
-
+    def __getFile(self, name: str, time: int, ftype: str=''):
+        """Internal implementation of getFile()."""
         # Ensure the parent folder is initialised
         parentPath = File.getParentName(name)
         if parentPath:
@@ -64,6 +61,59 @@ class FileFactory(object):
             f.setGuessFlags(True, False)
             self.store.addFile(f)
             return f
+
+    def resolveFDRef(self, name: str, time: int):
+        if not self.appStore:
+            return None
+
+        try:
+            (__, fdref, appref, path) = name.split("@")
+            fdref = int(fdref[6:])
+            appref = appref[7:]
+        except(ValueError) as e:
+            print("Error: FD reference '%s' is syntactically invalid." % name,
+                  file=sys.stderr)
+            return None
+        else:
+            print("Resolving %d ~ %s ~ %s" % (fdref, appref, path))  # FIXME
+
+            app = self.appStore.lookupUid(appref)
+            if not app:
+                return None
+
+            print("WE DID FIND THE OWNER OF THE FD:", app.uid())  # FIXME
+
+            resolved = app.resolveFD(fdref, time)
+            print("RESOLVED: %s .. / .. %s" % (resolved, path))
+            return resolved
+
+    def getFile(self, name: str, time: int, ftype: str=''):
+        """Get a File for a given name and time, or creates one.
+
+        Looks up the FileStore for Files that match the given name and exist at
+        the given time. If no File is found, one is created and added to the
+        FileStore.
+        """
+        # Check if the file's path is a reference to an unresolved FD
+        resolved = self.resolveFDRef(name, time) if name.startswith("@fdref") \
+            else None
+
+        # We managed to translate the fd reference into an actual file name.
+        if resolved:
+            oldFile = self.getFileIfExists(name, time)
+
+            # If the File had been stored under its ref, we must update it
+            if oldFile:
+                oldPath = oldFile.path
+                oldFile.path = resolved
+                self.store.updateFile(oldFile, oldName=oldPath)
+                return oldFile
+            # Else we create a new File, as usual
+            else:
+                return self.__getFile(resolved, time, ftype)
+        # The File is not a FD reference, or the reference can't be solved yet.
+        else:
+            return self.__getFile(name, time, ftype)
 
     def getFileIfExists(self, name: str, time: int):
         """Get a File for a given name and time, if it exists.
