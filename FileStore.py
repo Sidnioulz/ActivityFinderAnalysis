@@ -91,14 +91,18 @@ class FileStore(object):
         except(KeyError) as e:
             return []
 
-    def updateFile(self, file: File):
+    def updateFile(self, file: File, oldName: str=None):
         """Add a File to the FileStore."""
-        filesWithName = self.getFilesForName(file.getName())
+        filesWithName = self.getFilesForName(oldName or file.getName())
 
         for (index, old) in enumerate(filesWithName):
             if old.inode == file.inode:
-                filesWithName[index] = file
-                break
+                if not oldName:
+                    filesWithName[index] = file
+                    break
+                else:
+                    del filesWithName[index]
+                    self.addFile(file)
         else:
             raise ArithmeticError("Attempted to update file '%s' (made on %s)"
                                   ", but it has not yet been added to the "
