@@ -4,7 +4,6 @@ from File import EventFileFlags
 from Application import Application
 from blist import sortedlist
 from utils import time2Str
-from os.path import normpath as np
 
 
 class DesignationCacheItem(object):
@@ -21,7 +20,7 @@ class DesignationCacheItem(object):
                  actor: Application,
                  evflags: EventFileFlags,
                  tstart: int,
-                #  files: list,
+                 # files: list,
                  files: str,
                  duration: int=-1):
         """Construct a DesignationCacheItem."""
@@ -49,24 +48,17 @@ class DesignationCache(object):
         super(DesignationCache, self).__init__()
         self.store = dict()
 
-    @staticmethod
-    def _actkey(actor: Application):
-        """Return a unique key for an Application instance."""
-        return "%s:%d@%d" % (actor.getDesktopId(),
-                             actor.getPid(),
-                             actor.getTimeOfStart())
-
     def addItem(self, event: Event, duration: int=-1):
         """Add a new item to the designation cache."""
-        item = DesignationCacheItem(actor=event.actor,
+        item = DesignationCacheItem(actor=event.getActor(),
                                     evflags=event.getFileFlags(),
                                     files=event.data,
                                     tstart=event.time,
                                     duration=duration)
-        l = self.store.get(DesignationCache._actkey(event.actor)) or \
+        l = self.store.get(event.getActor().uid()) or \
             sortedlist(key=lambda i: i.tstart)
         l.add(item)
-        self.store[DesignationCache._actkey(event.actor)] = l
+        self.store[event.getActor().uid()] = l
 
     def checkForDesignation(self, event: Event, files: list, cwd: str=None):
         """Check for acts of designation that match an Event and its Files.
@@ -80,7 +72,7 @@ class DesignationCache(object):
 
         Returns a list of (File, EventFileFlags) tuples.
         """
-        l = self.store.get(DesignationCache._actkey(event.actor)) or []
+        l = self.store.get(event.getActor().uid()) or []
         lChanged = False
 
         # Check latest acts of designation first, and loop till we're done.
@@ -126,7 +118,7 @@ class DesignationCache(object):
                           "act of designation performed on %s." % (
                            event.getFileFlags(),
                            time2Str(event.getTime()),
-                           DesignationCache._actkey(event.getActor()),
+                           event.getActor().uid(),
                            f.getName(),
                            "designation" if newFlags &
                            EventFileFlags.designation else "programmatic",
@@ -142,6 +134,6 @@ class DesignationCache(object):
 
         # If we've removed expired acts, we should update the store.
         if lChanged:
-            self.store[DesignationCache._actkey(event.actor)] = l
+            self.store[event.getActor().uid()] = l
 
         return res
