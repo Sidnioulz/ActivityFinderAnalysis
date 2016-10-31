@@ -23,6 +23,7 @@ class Application(object):
     tend = 0                  # type: int; when it's known to cease existing
     cmdline = ''              # type: str; complete command line, when known
     events = []               # type: list
+    fds = []               # type: list
     # windows = []              # type: list
     # documents = []            # type: list
     # states = []               # type: list
@@ -41,6 +42,9 @@ class Application(object):
                  interpreterid: str=None):
         """Construct an Application, using a desktopid or a path."""
         super(Application, self).__init__()
+        self.clearEvents()
+        self.clearFDs()
+
         if desktopid:
             self.desktopid = desktopid.lower()
             self.__initFromDesktopID()
@@ -118,6 +122,10 @@ class Application(object):
     def getDesktopId(self):
         """Return the Application's .desktop entry identifier."""
         return self.desktopid
+
+    def uid(self):
+        """Generate a unique string identifier for this Application."""
+        return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
 
     def hasSameDesktopId(self, other, resolveInterpreter: bool=False):
         """Check whether a desktop id is equivalent to the current object's.
@@ -241,5 +249,48 @@ class Application(object):
         return ev
 
     def clearEvents(self):
-        """Clear all events to be modellined for this Application."""
+        """Clear all events to be modelled for this Application."""
         self.events = []
+
+    def openFD(self, fd: int, path: str, time: int):
+        """Add a file descriptor opened by this Application."""
+        fdList = self.fds.get(fd) or []
+
+        # Sanity check, last should be before us.
+        if len(fdList) > 0:
+            if fdList[-1][2] and fdList[-1][2] > time:
+                print("Error: Attempt to open file "
+                      "descriptor %d for File '%s' in Application '%s', but "
+                      "there is already an open file descriptor with this "
+                      "number." % (fd, path, self.uid()))
+
+        # Path, time of opening, time of closing
+        fdList.append((path, time, 0))
+        self.fds[fd] = fdList
+
+    def closeFD(self, fd: int, time: int):
+        """Close a file descriptor open by this Application."""
+        fdList = self.fds.get(fd) or None
+
+        if fdList:
+            last = fdList[-1]
+
+            # Sanity check, last should be currently open, or else we missed a
+            # new FD opening.
+            if last[2] == 0:
+                last = (last[0], last[1], time)
+                fdList[-1] = last
+                self.fds[fd] = fdList
+            else:
+                print("info: Attempt to close fd %d in Application '%s', but "
+                      "it has already been closed. We must've missed a new fd "
+                      "opening event." % (fd, self.uid()))
+
+        else:
+            print("Info: Application '%s' received an event closing fd %d, "
+                  "which wasn't opened. This is most likely because a system "
+                  "call was not collected." % (self.uid(), fd))
+
+    def clearFDs(self):
+        """Clear all fds opened by this Application."""
+        self.fds = dict()
