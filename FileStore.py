@@ -1,5 +1,5 @@
 """Service to store File instances."""
-from File import File
+from File import File, EventFileFlags
 from utils import time2Str
 
 
@@ -46,7 +46,12 @@ class FileStore(object):
         """Print all the files currently being stored."""
         for key in sorted(self.nameStore, key=lambda s: s.lower()):
             files = self.nameStore[key]
-            last = files[-1]
+            last = files[-1]  # TODO handle multiple versions
+
+            if onlyDesignated:
+                flags = EventFileFlags.designation
+                if not last.getAccesses(flags):
+                    continue
 
             printpath = last.getName()
             lastDir = printpath.rfind('/')
