@@ -105,14 +105,34 @@ class ApplicationStore(object):
 
         return events
 
-    def lookupPid(self, pid):
-        return self.pidStore[pid]
+    def lookupUid(self, uid: str):
+        try:
+            func = (str, int, int)
+            (desktopid, pid, tstart) = map(lambda f, d: f(d), func,
+                                           uid.split(":"))
+            ret = self.lookupPidTimestamp(pid, tstart)
+            if ret and ret.desktopid == desktopid:
+                return ret
+            else:
+                return None
+        except(ValueError, KeyError):
+            return None
+
+    def lookupPid(self, pid: int):
+        try:
+            return self.pidStore[pid]
+        except(KeyError):
+            return None
 
     def lookupPidTimestamp(self, pid, timestamp):
-        pids = self.pidStore[pid]
-        for app in pids:
-            if (timestamp >= app.getTimeOfStart() and
-                    timestamp <= app.getTimeOfEnd()):
-                return app
+        try:
+            pids = self.pidStore[pid]
+        except(KeyError):
+            return None
+        else:
+            for app in pids:
+                if (timestamp >= app.getTimeOfStart() and
+                        timestamp <= app.getTimeOfEnd()):
+                    return app
 
-        return None
+            return None
