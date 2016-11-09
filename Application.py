@@ -14,6 +14,7 @@ class Application(object):
     """
 
     init = False              # type: bool
+    entry = None              # type: DesktopEntry
     desktopid = None          # type: str; final id of the app after init
     desktopidoriginal = None  # type: str; original id when App was c'ted
     interpreterid = None      # type: str; id of interpreter, e.g. java, python
@@ -44,6 +45,7 @@ class Application(object):
         super(Application, self).__init__()
         self.clearEvents()
         self.clearFDs()
+        self.entry = None
 
         if desktopid:
             self.desktopid = desktopid.lower()
@@ -82,6 +84,10 @@ class Application(object):
             try:
                 # TODO: resolve symlink on depath and use that link target
                 de.parse(depath)
+                self.entry = de
+            except(DesktopEntry.ParsingError) as e:
+                pass
+            else:
                 res = Application.desktopre.match(depath)
                 try:
                     self.desktopid = res.groups()[0].lower()
@@ -89,8 +95,6 @@ class Application(object):
                     self.desktopid = depath.lower()
                 foundPath = True
                 break
-            except DesktopEntry.ParsingError as e:
-                pass
 
         if not foundPath:
             self.desktopid = None
@@ -281,24 +285,22 @@ class Application(object):
                 last = (last[0], last[1], time)
                 fdList[-1] = last
                 self.fds[fd] = fdList
-            else:
-                print("info: Attempt to close fd %d in Application '%s', but "
-                      "it has already been closed. We must've missed a new fd "
-                      "opening event." % (fd, self.uid()))
+            # else:
+            #     print("Info: Attempt to close fd %d in Application '%s', but"
+            #           " it has already been closed. We must've missed a new"
+            #           " fd opening event." % (fd, self.uid()))
 
-        else:
-            print("Info: Application '%s' received an event closing fd %d, "
-                  "which wasn't opened. This is most likely because a system "
-                  "call was not collected." % (self.uid(), fd))
+        # else:
+        #     print("Info: Application '%s' received an event closing fd %d, "
+        #           "which wasn't opened. This is most likely because a system"
+        #           " call was not collected." % (self.uid(), fd))
 
     def resolveFD(self, fd: int, time: int):
         """Resolve a file descriptor reference for a given fd and time."""
         fds = self.fds.get(fd)
         if not fds:
-            print("%%")
-            for fff in self.fds.items():
-                print(fff)
-            print("we couldn't find fd %d" % fd)
+            print("Info: could not resolve fd '%d' for Application '%s'" % (
+                   fd, self.uid()))
             return None
 
         for (path, tstart, tend) in fds:
@@ -310,3 +312,50 @@ class Application(object):
     def clearFDs(self):
         """Clear all fds opened by this Application."""
         self.fds = dict()
+
+    def getSetting(self,
+                   key: str,
+                   group: str='Desktop Entry',
+                   defaultValue=None,
+                   type: str="string"):
+        """Get a stored setting relative to this app."""
+        if not self.entry:
+            return None
+
+        isList = False
+        if type.endswith(" list"):
+            isList = True
+            type = type[:-5]
+
+        return self.entry.get(key,
+                              group=group,
+                              type=type,
+                              list=isList) or None
+
+    def isSystemApp(self):
+        """Tell if the Application is a system daemon or service."""
+        t = self.getSetting('Type')
+        if not t:
+            raise ValueError("Application %s has no type." % self.uid())
+        return t == 'System'
+
+    def isDesktopApp(self):
+        """Tell if the Application is a Desktop service or component."""
+        t = self.getSetting('Type')
+        if not t:
+            raise ValueError("Application %s has no type." % self.uid())
+        return t == 'Desktop'
+
+    def isStudyApp(self):
+        """Tell if the Application is a process used for data collection."""
+        t = self.getSetting('Type')
+        if not t:
+            raise ValueError("Application %s has no type." % self.uid())
+        return t == 'Study'
+
+    def isUserlandApp(self):
+        """Tell if the Application is an actual app (not sys/desktop/study)."""
+        t = self.getSetting('Type')
+        if not t:
+            raise ValueError("Application %s has no type." % self.uid())
+        return t == 'Application'
