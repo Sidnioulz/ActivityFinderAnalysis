@@ -200,18 +200,22 @@ class SqlLoader(object):
 
                     currentApp.setTimeOfEnd(max(ev.timestamp,
                                                 currentApp.getTimeOfEnd()))
-                if eventStore:
+                # Ignore study artefacts!
+                if eventStore and not currentApp.isStudyApp():
                     event = Event(actor=currentApp,
                                   time=ev.timestamp,
                                   zgEvent=ev)
                     eventStore.append(event)
 
             # Insert into the ApplicationStore if one was given to us
+            instanceCount += len(apps)
             if store:
                 for app in apps:
-                    store.insert(app)
-
-            instanceCount += len(apps)
+                    # Ignore study artefacts!
+                    if not app.isStudyApp():
+                        store.insert(app)
+                    else:
+                        instanceCount -= 1  # We discount this app instance
 
         print("Finished loading DB.\n%d events seen, %d normal, %d without a "
               "PID.\nIn total, %.02f%% events accepted." % (

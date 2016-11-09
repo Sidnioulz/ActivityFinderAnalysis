@@ -317,6 +317,10 @@ class PreloadLoggerLoader(object):
                                       interpreterid=interpreterid)
                     app.setCommandLine(g[2])
 
+                    # Ignore study artefacts!
+                    if app.isStudyApp():
+                        continue
+
                     if eventStore:
                         # Add system call events
                         for h in syscalls:
