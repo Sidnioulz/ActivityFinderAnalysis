@@ -6,7 +6,7 @@ from File import File, EventFileFlags
 from utils import urlToUnixPath, int16
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
                       POSIX_OPENDIR_RE, POSIX_UNLINK_RE, POSIX_CLOSE_RE, \
-                      POSIX_FCLOSE_RE, POSIX_RENAME_RE, SPACE_REGEXP, \
+                      POSIX_FCLOSE_RE, POSIX_RENAME_RE, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                       O_TRUNC, O_DIRECTORY, FD_OPEN, FD_CLOSE
 import sys
@@ -68,7 +68,6 @@ class Event(object):
     posixCloseRe = re.compile(POSIX_CLOSE_RE)
     posixFcloseRe = re.compile(POSIX_FCLOSE_RE)
     posixRenameRe = re.compile(POSIX_RENAME_RE)
-    spaceRe = re.compile(SPACE_REGEXP)
 
     def __init__(self,
                  actor: Application,
@@ -121,7 +120,7 @@ class Event(object):
         # escaped! So we have to match the file names to the whole string and
         # hope for a match. Files with a relative path cannot be matched thus.
         # # Split command-line
-        # g = Event.spaceRe.split(cmdlineStr.strip())
+        # g = space.split(cmdlineStr.strip())
         #
         # # Collect all files
         # self.data = []

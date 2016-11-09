@@ -5,11 +5,9 @@ from Application import Application
 from ApplicationStore import ApplicationStore
 from EventStore import EventStore
 from Event import Event
-from constants import PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
-                      JAVARE, JAVANAMER, JAVAPROCNAME, \
-                      PERLRE, PERLNAMER, \
-                      MONORE, MONONAMER, MONOPROCNAME, \
-                      SPACE_REGEXP
+from utils import space, pyre, pynamer, pyprocname, javare, javanamer, \
+                  javaprocname, perlre, perlnamer, monore, mononamer, \
+                  monoprocname
 
 
 class PreloadLoggerLoader(object):
@@ -17,18 +15,6 @@ class PreloadLoggerLoader(object):
     pattern = re.compile("^\d{4}-\d{2}-\d{2}_\d+_\d+.log$")
     header = re.compile("^@(.*?)[|](\d+)[|](.*)$")
     syscall = re.compile("^(\d+)[|](.*)$")
-    space = re.compile(SPACE_REGEXP)
-    pyre = re.compile(PYTHONRE)
-    pynamer = re.compile(PYTHONNAMER)
-    pyprocname = re.compile(PYTHONPROCNAME)
-    javare = re.compile(JAVARE)
-    javanamer = re.compile(JAVANAMER)
-    javaprocname = re.compile(JAVAPROCNAME)
-    perlre = re.compile(PERLRE)
-    perlnamer = re.compile(PERLNAMER)
-    monore = re.compile(MONORE)
-    mononamer = re.compile(MONONAMER)
-    monoprocname = re.compile(MONOPROCNAME)
     delpattern = None  # TODO
 
     """ PreloadLoggerLoader loads all PreloadLogger log files from a user
@@ -46,17 +32,17 @@ class PreloadLoggerLoader(object):
             return g
 
         if not items:
-            items = self.space.split(g[2])
+            items = space.split(g[2])
 
         # Return if there are no parameters, the interpreter is the app
         if len(items) == 1:
             return g
 
-        res = PreloadLoggerLoader.pynamer.match(items[1])
+        res = pynamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            procres = PreloadLoggerLoader.pyprocname.match(name)
+            procres = pyprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             newcmd = ' '.join(items[1:])
             return (newproc, g[1], newcmd)
@@ -72,7 +58,7 @@ class PreloadLoggerLoader(object):
             return g
 
         if not items:
-            items = self.space.split(g[2])
+            items = space.split(g[2])
 
         # Remove -jar if present
         if len(items) > 1 and items[1] == "-jar":
@@ -82,11 +68,11 @@ class PreloadLoggerLoader(object):
         if len(items) == 1:
             return g
 
-        res = PreloadLoggerLoader.javanamer.match(items[1])
+        res = javanamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            procres = PreloadLoggerLoader.javaprocname.match(name)
+            procres = javaprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             newcmd = ' '.join(items[1:])
             return (newproc, g[1], newcmd)
@@ -102,7 +88,7 @@ class PreloadLoggerLoader(object):
             return g
 
         if not items:
-            items = PreloadLoggerLoader.space.split(g[2])
+            items = space.split(g[2])
 
         # Remove -w if present
         if len(items) > 1 and items[1] == "-w":
@@ -112,7 +98,7 @@ class PreloadLoggerLoader(object):
         if len(items) == 1:
             return g
 
-        res = PreloadLoggerLoader.perlnamer.match(items[1])
+        res = perlnamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
 
         if name:
@@ -130,7 +116,7 @@ class PreloadLoggerLoader(object):
             return g
 
         if not items:
-            items = self.space.split(g[2])
+            items = space.split(g[2])
 
         # Return if there are no parameters, the interpreter is the app
         if len(items) == 1:
@@ -139,11 +125,11 @@ class PreloadLoggerLoader(object):
         # Mono apps in our logs seem to log the command-line properly, e.g. our
         # mono-sgen actor has a command-line starting with "banshee" when the
         # Banshee app is launched. Thus, we only update the process name
-        res = PreloadLoggerLoader.mononamer.match(items[0])
+        res = mononamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            procres = PreloadLoggerLoader.monoprocname.match(name)
+            procres = monoprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             return (newproc, g[1], g[2])
         else:
@@ -231,29 +217,29 @@ class PreloadLoggerLoader(object):
 
                     # Filter interpreters, and rewrite them to get the identity
                     # of the app they launched instead.
-                    items = self.space.split(g[2])
+                    items = space.split(g[2])
                     interpreterid = None
 
                     # Python
-                    if (PreloadLoggerLoader.pyre.match(g[0])):
+                    if (pyre.match(g[0])):
                         interpreterid = g[0]
                         g = self.parsePython(g, items)
                         # print("PYTHON APP: %s" % g[2])
 
                     # Java
-                    if (PreloadLoggerLoader.javare.match(g[0])):
+                    if (javare.match(g[0])):
                         interpreterid = g[0]
                         g = self.parseJava(g, items)
                         # print("JAVA APP: %s" % g[2])
 
                     # Perl
-                    if (PreloadLoggerLoader.perlre.match(g[0])):
+                    if (perlre.match(g[0])):
                         interpreterid = g[0]
                         g = self.parsePerl(g, items)
                         # print("PERL APP: %s" % g[2])
 
                     # Mono
-                    if (PreloadLoggerLoader.monore.match(g[0])):
+                    if (monore.match(g[0])):
                         interpreterid = g[0]
                         g = self.parseMono(g, items)
                         # print("MONO APP: %s" % g[2])

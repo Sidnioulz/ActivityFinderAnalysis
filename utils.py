@@ -1,6 +1,10 @@
 from datetime import datetime
 import os
 from urllib.parse import urlparse, unquote
+import re
+from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
+                      JAVARE, JAVANAMER, JAVAPROCNAME, PERLRE, PERLNAMER, \
+                      MONORE, MONONAMER, MONOPROCNAME
 
 
 def time2Str(timestamp):
@@ -28,3 +32,17 @@ def int16(i):
         return 0
     else:
         return int(i, 16)
+
+# Regular Expression parsers
+space = re.compile(SPACE_REGEXP)
+pyre = re.compile(PYTHONRE)
+pynamer = re.compile(PYTHONNAMER)
+pyprocname = re.compile(PYTHONPROCNAME)
+javare = re.compile(JAVARE)
+javanamer = re.compile(JAVANAMER)
+javaprocname = re.compile(JAVAPROCNAME)
+perlre = re.compile(PERLRE)
+perlnamer = re.compile(PERLNAMER)
+monore = re.compile(MONORE)
+mononamer = re.compile(MONONAMER)
+monoprocname = re.compile(MONOPROCNAME)
