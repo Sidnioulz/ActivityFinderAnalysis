@@ -3,6 +3,7 @@ USAGE_STRING = '__main__.py [--check-missing]'
 
 # Data location constants
 DATAPATH = "../data/current/"
+USERCONFIGPATH = DATAPATH + "user.ini"
 DATABASENAME = "activity.sqlite"
 
 # Path splitting regexp
@@ -67,6 +68,8 @@ POSIX_OPENDIR_RE = '^(.*?)\|DIR (0x[a-f0-9]+|\(nil\)): e(\-?\d+)\|(.*?)$'
 POSIX_UNLINK_RE = '^(.*?)\|e(\-?\d+)\|(.*?)$'
 POSIX_CLOSE_RE = '^fd: (-?\d+)\|e(\-?\d+)\|.*$'
 POSIX_FCLOSE_RE = '^(?:FILE|DIR): (0x[a-f0-9]+)\|e(\-?\d+)\|.*$'
+POSIX_RENAME_RE = '^ (.*?)\|Old file\|\n\n (.*?)\|New file: with flags' \
+                  ' (\-?\d+), e(\-?\d+)\|(.*)\n$'
 O_ACCMODE = 0o3
 O_RDONLY = 0o0
 O_WRONLY = 0o1
@@ -90,3 +93,12 @@ O_NOFOLLOW = 0o400000
 
 O_NOATIME = 0o1000000
 O_CLOEXEC = 0o2000000
+
+# CONFIG CONSTANTS
+USERCFG_VERSION = 1.0
+
+# POLICY CONSTANTS
+DESIGNATION_ACCESS = 1
+OWNED_PATH_ACCESS = 2
+POLICY_ACCESS = 3
+ILLEGAL_ACCESS = 4
