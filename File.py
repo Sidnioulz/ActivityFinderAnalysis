@@ -35,8 +35,23 @@ class EventFileFlags(Flags):
         ret += "1" if self & EventFileFlags.create else "0"
         return ret
 
-    def __eq__(self, other):
-        return int(self) == int(other)
+    def containsAllAccessFlags(self, other):
+        """Tell if other contains access not contained in self.
+
+        For instance, this function returns True if :other: only reads Files,
+        and :self: reads or writes Files. It returns False if :other: copies
+        Files, but :self: only reads them.
+        """
+        if not isinstance(other, self.__class__):
+            return False
+
+        # Ignore the access mode flags and focus on access types.
+        self = (self | EventFileFlags.designationcache |
+                EventFileFlags.designation | EventFileFlags.programmatic)
+        other = (other | EventFileFlags.designationcache |
+                 EventFileFlags.designation | EventFileFlags.programmatic)
+
+        return self & other == other
 
 
 class FileAccess(object):
@@ -66,6 +81,29 @@ class FileAccess(object):
     def getFileFlags(self):
         """Return the EventFileFlags that describe this access event."""
         return self.evflags
+
+    def allowedByFlagFilter(self, filter: EventFileFlags, f: 'File'):
+        if filter.containsAllAccessFlags(self.evflags):
+            return True
+
+        # Filters with only the create flag represent the UNIX sticky bit
+        elif filter == EventFileFlags.create:
+            print("File %s sticky bit'd compared to flags %s" % (f.getName(),
+                  self.evflags))
+            accs = f.getAccesses(filter)
+            # The file was created by the same actor, the sticky bit is valid
+            if accs and accs[0].actor == self.actor:
+                print("Actor was %s, APPROVED" % accs[0].actor.uid())
+                return True
+            else:
+                print("Error: ", accs)
+                if accs:
+                    for acc in accs:
+                        print("(acc %s %d %s)" % (acc.actor.uid(), acc.time,
+                              acc.evflags))
+
+        return False
+
 
 class FileCopy(object):
     """Something to hold info on a File's previous or next version."""
@@ -145,6 +183,7 @@ class File(object):
         self.teg = False
         self.ftype = ftype
         self.accesses = []
+        self.accessCosts = dict()
 
     def setGuessFlags(self, sf: bool, ef: bool):
         """Set whether the start and end times are guessed instead of known."""
@@ -249,3 +288,55 @@ class File(object):
                     ret.append(access)
 
             return ret
+
+    def clearAccessCosts(self):
+        """Remove any past access costs that were recorded."""
+        self.accessCosts.clear()
+
+    def recordAccessCost(self, acc: FileAccess):
+        """Record that a cost was paid to allow a past illegal access.
+
+        This function allows us to remember past accesses to a file which led
+        to a cost for end users. Here are how each type of access are treated:
+         * create: recorded, grants additional rights
+         * overwrite: recorded
+         * destroy: NOT recorded; deleting the same name would be another file.
+         * move: NOT recorded; moving the same name would be another file.
+         * copy: recorded source; not recorded target
+         * read: recorded
+         * write: recorded
+
+         # ALLOW moving and copying to the same destination again
+        """
+        # TODO: if file created, grant r, w, d, o, m:orig/dest, c:orig/dest
+        recordedFlags = acc.evflags & (EventFileFlags.create |
+                                       EventFileFlags.overwrite |
+                                       EventFileFlags.read |
+                                       EventFileFlags.write)
+        if acc.evflags & EventFileFlags.copy and \
+                acc.evflags & EventFileFlags.read:
+            recordedFlags |= EventFileFlags.copy
+        # TODO: move destionations and copy destionations should be allowed
+
+        appAcc = self.accessCosts.get(acc.actor.uid()) or \
+            EventFileFlags.no_flags
+
+        self.accessCosts[acc.actor.uid()] = appAcc | recordedFlags
+
+    def hadPastSimilarAccess(self, acc: FileAccess):
+        """Check if a similar access was recorded for the same app."""
+        appAcc = self.accessCosts.get(acc.actor.uid()) or \
+            EventFileFlags.no_flags
+
+        recordedFlags = acc.evflags & (EventFileFlags.create |
+                                       EventFileFlags.overwrite |
+                                       EventFileFlags.read |
+                                       EventFileFlags.write)
+        if acc.evflags & EventFileFlags.copy and \
+                acc.evflags & EventFileFlags.read:
+            recordedFlags |= EventFileFlags.copy
+
+        # print("Current access:", recordedFlags)
+        # print("Recorded in the past:", appAcc)
+        # print("Returning:", recordedFlags & appAcc == recordedFlags)
+        return (recordedFlags & appAcc == recordedFlags)

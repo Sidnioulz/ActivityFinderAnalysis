@@ -2,23 +2,25 @@ import unittest
 import re
 from Application import Application
 from ApplicationStore import ApplicationStore
+from UserConfigLoader import UserConfigLoader
 from Event import Event
 from EventStore import EventStore
 from FileStore import FileStore
 from File import File, EventFileFlags
 from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
+from LibraryPolicies import OneLibraryPolicy
 from constants import PYTHONRE, PYTHONNAMER
 
 
 class TestEventFlags(unittest.TestCase):
-    store = None  # type: EventStore
-
     def setUp(self):
         self.store = EventStore()
+        self.appStore = ApplicationStore()
 
     def test_merge_equal(self):
         app = Application("firefox.desktop", pid=21, tstart=1, tend=200000)
+        self.appStore.insert(app)
 
         ss = "open64|/home/user/.kde/share/config/kdeglobals|fd " \
              "10: with flag 524288, e0|"
@@ -35,7 +37,7 @@ class TestEventFlags(unittest.TestCase):
         self.store.append(e3)
 
         fS = FileStore()
-        fF = FileFactory(fS)
+        fF = FileFactory(fS, self.appStore)
         self.store.simulateAllEvents(fF, fS)
 
         ef1 = EventFileFlags.no_flags
@@ -53,12 +55,11 @@ class TestEventFlags(unittest.TestCase):
         self.assertEqual(acc[0].evflags, ef3)
 
     def tearDown(self):
+        self.appStore = None
         self.store = None
 
 
 class TestStoreInsertion(unittest.TestCase):
-    store = None  # type: ApplicationStore
-
     def setUp(self):
         self.store = ApplicationStore()
 
@@ -141,8 +142,6 @@ class TestInterpreterRes(unittest.TestCase):
 
 
 class TestPreloadLoggerLoader(unittest.TestCase):
-    loader = None  # type: PreloadLoggerLoader
-
     def setUp(self):
         self.loader = PreloadLoggerLoader('/not/needed')
 
@@ -246,8 +245,6 @@ class TestPreloadLoggerLoader(unittest.TestCase):
 
 
 class TestEventStoreInsertion(unittest.TestCase):
-    store = None  # type: EventStore
-
     def setUp(self):
         self.store = EventStore()
 
@@ -301,12 +298,10 @@ class TestEventStoreInsertion(unittest.TestCase):
 
 
 class TestFileStore(unittest.TestCase):
-    store = None    # type: FileStore
-    factory = None  # type: FileFactory
-
     def setUp(self):
         self.store = FileStore()
-        self.factory = FileFactory(self.store)
+        self.appStore = ApplicationStore()
+        self.factory = FileFactory(self.store, self.appStore)
 
     def test_add(self):
         first = "/path/to/first/file"
@@ -326,6 +321,22 @@ class TestFileStore(unittest.TestCase):
         self.assertTrue(file1 in children)
         self.assertTrue(file2 in children)
 
+    def test_iteration(self):
+        file1 = File("/path/to/file", 0, 0, "image/jpg")
+        file2 = File("/path/to/document", 0, 5, "image/jpg")
+        file3 = File("/path/to/document", 6, 0, "image/jpg")
+        self.store.addFile(file1)
+        self.store.addFile(file2)
+        self.store.addFile(file3)
+
+        rebuilt = []
+        for f in self.store:
+            rebuilt.append(f)
+        self.assertEqual(len(rebuilt), 3)
+        self.assertEqual(rebuilt[0], file2)
+        self.assertEqual(rebuilt[1], file3)
+        self.assertEqual(rebuilt[2], file1)
+
     def getChildren(self, f: File):
         parent = f.getName() + '/'
         children = []
@@ -338,12 +349,10 @@ class TestFileStore(unittest.TestCase):
 
 
 class TestFileFactory(unittest.TestCase):
-    store = None    # type: FileStore
-    factory = None  # type: FileFactory
-
     def setUp(self):
         self.store = FileStore()
-        self.factory = FileFactory(self.store)
+        self.appStore = ApplicationStore()
+        self.factory = FileFactory(self.store, self.appStore)
 
     def test_get_same_twice(self):
         first = "/path/to/first"
@@ -380,8 +389,9 @@ class TestFileFactory(unittest.TestCase):
 
     def test_update_time_end(self):
         app = Application("firefox.desktop", pid=21, tstart=0, tend=300)
-        path = "/path/to/first/file"
+        self.appStore.insert(app)
 
+        path = "/path/to/file"
         f1 = File(path, 0, 0, "image/jpg")
         self.store.addFile(f1)
 
@@ -394,4 +404,83 @@ class TestFileFactory(unittest.TestCase):
 
     def tearDown(self):
         self.factory = None
+        self.appStore = None
         self.store = None
+
+
+class TestOneLibraryPolicy(unittest.TestCase):
+    def setUp(self):
+        self.appStore = ApplicationStore()
+        self.eventStore = EventStore()
+        self.userConf = UserConfigLoader("user.ini")
+        self.pol = OneLibraryPolicy(self.userConf)
+
+    def test_pol_load_app_conf(self):
+        app = Application("ristretto.desktop", pid=21, tstart=0, tend=300)
+        file = File("/home/user/Images/sample.jpg", 140, 0, "image/jpeg")
+        file.addAccess(app, 140, EventFileFlags.create | EventFileFlags.read)
+
+        self.appStore.insert(app)
+        res = self.pol.getAppPolicy(app)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], "image")
+
+    def test_access_recording(self):
+        app = Application("firefox.desktop", pid=21, tstart=1, tend=200000)
+        self.appStore.insert(app)
+
+        path = "/home/user/.kde/file"
+        st = "open64|%s|fd 10: with flag 524288, e0|" % path
+        e1 = Event(actor=app, time=10, syscallStr=st)
+        self.eventStore.append(e1)
+        e2 = Event(actor=app, time=13, syscallStr=st)
+        self.eventStore.append(e2)
+
+        fS = FileStore()
+        fF = FileFactory(fS, self.appStore)
+        self.eventStore.simulateAllEvents(fF, fS)
+
+        file = fF.getFile(name=path, time=20)
+        accs = file.getAccesses()
+        self.assertEqual(len(accs), 2)
+
+        lp = OneLibraryPolicy(self.userConf)
+
+        lp.accessFunc(None, file, accs[0])
+        self.assertEqual(lp.illegalAccess, 1)
+        self.assertEqual(lp.interruptionCost, 1)
+        self.assertEqual(lp.grantingCost, 1)
+        self.assertEqual(lp.cumulGrantCost, 1)
+
+        lp.accessFunc(None, file, accs[1])
+        self.assertEqual(lp.illegalAccess, 2)
+        self.assertEqual(lp.interruptionCost, 1)
+        self.assertEqual(lp.grantingCost, 1)
+        self.assertEqual(lp.cumulGrantCost, 2)
+
+    def test_app_owned_files(self):
+        app = Application("ristretto.desktop", pid=123, tstart=1, tend=200000)
+        self.appStore.insert(app)
+
+        path = "/home/user/.cache/ristretto/file"
+        st = "open64|%s|fd 10: with flag 524288, e0|" % path
+        e1 = Event(actor=app, time=10, syscallStr=st)
+        self.eventStore.append(e1)
+
+        fS = FileStore()
+        fF = FileFactory(fS, self.appStore)
+        self.eventStore.simulateAllEvents(fF, fS)
+
+        file = fF.getFile(name=path, time=20)
+        accs = file.getAccesses()
+        self.assertEqual(len(accs), 1)
+
+        lp = OneLibraryPolicy(self.userConf)
+
+        lp.accessFunc(None, file, accs[0])
+        self.assertEqual(lp.ownedPathAccess, 1)
+
+    def tearDown(self):
+        self.pol = None
+        self.userConf = None
+        self.appStore = None

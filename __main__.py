@@ -6,7 +6,10 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
-from constants import USAGE_STRING, DATAPATH, DATABASENAME
+from UserConfigLoader import UserConfigLoader
+from PolicyEngine import PolicyEngine
+from LibraryPolicies import OneLibraryPolicy
+from constants import USAGE_STRING, DATAPATH, DATABASENAME, USERCONFIGPATH
 import getopt
 import sys
 
@@ -35,6 +38,9 @@ def main(argv):
     store = ApplicationStore()
     evStore = EventStore()
     fileStore = FileStore()
+
+    # Load up user-related variables
+    userConf = UserConfigLoader(USERCONFIGPATH)
 
     # Load up and check the SQLite database
     sql = None
@@ -71,10 +77,16 @@ def main(argv):
     print("Simulated all events.")
 
     # Print the model as proof of concept
-    print("\nPrinting the file model...\n")
-    fileStore.printFiles(showDeleted=True,
-                         showCreationTime=True,
-                         onlyDesignated=False)
+    # print("\nPrinting the file model...\n")
+    # fileStore.printFiles(showDeleted=True,
+    #                      showCreationTime=True,
+    #                      onlyDesignated=False)
+
+    # Policy engine. Create a policy and run a simulation to score it.
+    engine = PolicyEngine(appStore=store, fileStore=fileStore)
+    print("\nRunning the One Library policy...")
+    olp = OneLibraryPolicy(userConf=userConf)
+    engine.runPolicy(olp)
 
 
 if __name__ == "__main__":
