@@ -11,6 +11,11 @@ class FileStore(object):
         super(FileStore, self).__init__()
         self.clear()
 
+    def __iter__(self):
+        for name in sorted(self.nameStore):
+            for f in self.nameStore[name]:
+                yield f
+
     def clear(self):
         """Empty the FileStore."""
         self.nameStore = dict()   # type: dict
