@@ -221,18 +221,22 @@ class EventStore(object):
         # the folder, but only of the overridden children!
 
         # Get each file, set its starting time and type, and update the store
+        baseFlags = event.evflags
         for subj in event.getData():
             old = subj[0]
             new = subj[1]
 
-            print("Info: copying '%s' to '%s' at time %s" % (
-                old.getName(), new.getName(), time2Str(event.getTime())
-            ))
+            # print("Info: copying '%s' to '%s' at time %s" % (
+            #     old.getName(), new.getName(), time2Str(event.getTime())))
 
             # Delete any File on the new path as it would get overwritten.
             newFile = fileFactory.getFileIfExists(new.getName(),
                                                   event.getTime())
             if newFile:
+                baseFlags = event.evflags
+                event.evflags = (baseFlags |
+                                 EventFileFlags.write |
+                                 EventFileFlags.destroy)
                 res = self.desigcache.checkForDesignation(event, [newFile])
                 fileFactory.deleteFile(newFile,
                                        event.getActor(),
@@ -240,6 +244,10 @@ class EventStore(object):
                                        res[0][1])
 
             # Create a file on the new path which is identical to the old File.
+            event.evflags = (baseFlags |
+                             EventFileFlags.write |
+                             EventFileFlags.create |
+                             EventFileFlags.overwrite)
             newFile = self.__doCreateFile(new.getName(),
                                           old.getType(),
                                           event,
@@ -247,13 +255,23 @@ class EventStore(object):
                                           fileStore)
 
             # Delete the old file for move events only.
+            oldFile = fileFactory.getFile(old.getName(), event.getTime())
             if not keepOld:
-                oldFile = fileFactory.getFile(old.getName(), event.getTime())
+                event.evflags = (baseFlags |
+                                 EventFileFlags.read |
+                                 EventFileFlags.write |
+                                 EventFileFlags.destroy)
                 res = self.desigcache.checkForDesignation(event, [oldFile])
                 fileFactory.deleteFile(oldFile,
                                        event.getActor(),
                                        event.getTime(),
                                        res[0][1])
+            else:
+                event.evflags = (baseFlags | EventFileFlags.read)
+                res = self.desigcache.checkForDesignation(event, [oldFile])
+                oldFile.addAccess(actor=event.getActor(),
+                                  flags=res[0][1],
+                                  time=event.getTime())
 
             # Update the files' links
             ctype = 'copy' if keepOld else 'move'
@@ -292,7 +310,7 @@ class EventStore(object):
             if event.getFileFlags() & EventFileFlags.destroy:
                 res = self.simulateDestroy(event, fileFactory, fileStore)
 
-            if event.getFileFlags() & EventFileFlags.create:
+            elif event.getFileFlags() & EventFileFlags.create:
                 res = self.simulateCreate(event, fileFactory, fileStore)
 
                 # We received a list of files that were created
@@ -302,20 +320,17 @@ class EventStore(object):
                 else:
                     raise NotImplementedError  # TODO
 
-            # TODO resolve @fd@ for create/write/read/etc.
-            # add to Application's fds list to track writes/reads to files
+            elif event.getFileFlags() & (EventFileFlags.read |
+                                         EventFileFlags.write):
+                self.simulateAccess(event, fileFactory, fileStore)
 
-            if event.getFileFlags() & EventFileFlags.move:
+            # Keep me last, or use elif guards: I WILL change your event flags!
+            elif event.getFileFlags() & EventFileFlags.move or \
+                    event.getFileFlags() & EventFileFlags.copy:
                 res = self.simulateCopy(event,
                                         fileFactory,
                                         fileStore,
-                                        keepOld=False)
+                                        keepOld=event.getFileFlags() &
+                                        EventFileFlags.copy)
 
-            if event.getFileFlags() & EventFileFlags.copy:
-                res = self.simulateCopy(event,
-                                        fileFactory,
-                                        fileStore)
-
-            if event.getFileFlags() & (EventFileFlags.read |
-                                       EventFileFlags.write):
-                self.simulateAccess(event, fileFactory, fileStore)
+        # TODO: filter out invalid @fdref events
