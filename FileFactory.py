@@ -75,16 +75,14 @@ class FileFactory(object):
                   file=sys.stderr)
             return None
         else:
-            print("Resolving %d ~ %s ~ %s" % (fdref, appref, path))  # FIXME
+            # print("Resolving %d ~ %s ~ %s" % (fdref, appref, path))  # FIXME
 
             app = self.appStore.lookupUid(appref)
             if not app:
                 return None
 
-            print("WE DID FIND THE OWNER OF THE FD:", app.uid())  # FIXME
-
             resolved = app.resolveFD(fdref, time)
-            print("RESOLVED: %s .. / .. %s" % (resolved, path))
+            # print("RESOLVED: %s .. / .. %s" % (resolved, path))
             return resolved
 
     def getFile(self, name: str, time: int, ftype: str=''):
