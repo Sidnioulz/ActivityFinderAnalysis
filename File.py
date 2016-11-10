@@ -88,20 +88,17 @@ class FileAccess(object):
 
         # Filters with only the create flag represent the UNIX sticky bit
         elif filter == EventFileFlags.create:
-            print("File %s sticky bit'd compared to flags %s" % (f.getName(),
-                  self.evflags))
             accs = f.getAccesses(filter)
             # The file was created by the same actor, the sticky bit is valid
             if accs and accs[0].actor == self.actor:
-                print("Actor was %s, APPROVED" % accs[0].actor.uid())
                 return True
             else:
-                print("Error: ", accs)
-                if accs:
-                    for acc in accs:
-                        print("(acc %s %d %s)" % (acc.actor.uid(), acc.time,
-                              acc.evflags))
-
+                from FileFactory import FileFactory
+                fileFactory = FileFactory.get()
+                parentPath = File.getParentName(f.path)
+                parent = fileFactory.getFileIfExists(parentPath, self.time)
+                if parent:
+                    return self.allowedByFlagFilter(filter, parent)
         return False
 
 
@@ -308,7 +305,6 @@ class File(object):
 
          # ALLOW moving and copying to the same destination again
         """
-        # TODO: if file created, grant r, w, d, o, m:orig/dest, c:orig/dest
         recordedFlags = acc.evflags & (EventFileFlags.create |
                                        EventFileFlags.overwrite |
                                        EventFileFlags.read |
@@ -316,6 +312,10 @@ class File(object):
         if acc.evflags & EventFileFlags.copy and \
                 acc.evflags & EventFileFlags.read:
             recordedFlags |= EventFileFlags.copy
+        elif acc.evflags & EventFileFlags.create:
+            recordedFlags |= (EventFileFlags.read | EventFileFlags.write |
+                              EventFileFlags.destroy | EventFileFlags.move |
+                              EventFileFlags.copy | EventFileFlags.overwrite)
         # TODO: move destionations and copy destionations should be allowed
 
         appAcc = self.accessCosts.get(acc.actor.uid()) or \
