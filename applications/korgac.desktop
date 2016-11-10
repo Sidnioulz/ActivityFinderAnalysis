@@ -217,5 +217,5 @@ X-DBUS-StartupType=Unique
 X-DBUS-ServiceName=org.kde.korganizer
 Categories=Qt;KDE;Office;Calendar;
 InitialPreference=10
-RWPaths=^~/\.config/akonadi/akonadiconnectionrc;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;
-ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;
+RWPaths=^~/\.config/akonadi/akonadiconnectionrc;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;^~/\.kde/share/config/(emailidentities|korganizerrc);
+ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;^~/\.XCompose;

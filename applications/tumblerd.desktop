@@ -2,7 +2,7 @@
 Exec=tumblerd
 Icon=thunar
 Terminal=false
-Type=Application
+Type=System
 Categories=XFCE;
 Name=tumblerd
 RWPaths=^~/\.local/share/thumbnailers;^~/\.thumbnails/;

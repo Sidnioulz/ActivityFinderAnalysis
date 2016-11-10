@@ -161,5 +161,5 @@ InitialPreference=7
 Categories=Qt;KDE;Graphics;Office;Viewer;
 MimeType=application/vnd.kde.okular-archive;
 LibraryCaps=documents;
-RWPaths=^~/\.XCompose;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;
+RWPaths=^~/\.XCompose;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;^~/\.kde/share/(apps/okular|config/okularrc);
 ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;

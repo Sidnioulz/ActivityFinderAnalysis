@@ -6,5 +6,5 @@ StartupNotify=false
 Terminal=false
 Categories=Utility;KDE;
 Name=KDE Configuration
-RWPaths=^~/\.config/menus;^~/\.XCompose;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;
+RWPaths=^~/\.config/menus;^~/\.XCompose;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;^/tmp/ksocket\-@USER@/kdeinit4__;
 ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;
