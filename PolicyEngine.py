@@ -1,6 +1,6 @@
 """An engine for running algorithms that implement an access control policy."""
 
-from File import File, FileAccess
+from File import File, FileAccess, EventFileFlags
 from FileStore import FileStore
 from ApplicationStore import ApplicationStore
 from constants import ILLEGAL_ACCESS
@@ -94,7 +94,8 @@ class PolicyEngine(object):
                 ret = policy.accessFunc(self, file, acc)
                 if ret == ILLEGAL_ACCESS:
                     t = self.illegalAppStore.get(acc.actor.desktopid) or set()
-                    t.add(file.getName())
+                    t.add(file.getName()+("\tWRITE" if acc.evflags &
+                                          EventFileFlags.write else "\tREAD"))
                     self.illegalAppStore[acc.actor.desktopid] = t
 
         policy.printScores()
@@ -104,5 +105,5 @@ class PolicyEngine(object):
         for key in sorted(self.illegalAppStore):
             if key == 'catfish':  # too noisy
                 continue
-            for file in self.illegalAppStore[key]:
+            for file in sorted(self.illegalAppStore[key]):
                 print("%s: %s" % (key, file))
