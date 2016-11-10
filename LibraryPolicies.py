@@ -130,12 +130,11 @@ class OneLibraryPolicy(Policy):
             paths.append((re.compile('^/usr/share/myspell'), rof))
 
             # Interpretor-specific files
-            if (pyre.match(actor.getDesktopId()) or (actor.getInterpreterId()
-                    and pyre.match(actor.getInterpreterId()))):
+            if ((actor.getInterpreterId() and
+                 pyre.match(actor.getInterpreterId())) or
+                    pyre.match(actor.getDesktopId())):
                 paths.append((re.compile('^/usr/lib/python2\.7/.*\.pyc'), rwf))
-                # FIXME
-
-            # TODO:             # /usr/share/(vala|vala-0.32)/vapi/%s*
+            # If I ever support Vala: /usr/share/(vala|vala-0.32)/vapi/%s*
 
             # Append the app-specific system paths
             appSpecificROPaths = actor.getSetting('ROPaths',
