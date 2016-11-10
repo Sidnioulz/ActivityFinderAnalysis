@@ -6,7 +6,7 @@ from PolicyEngine import Policy, PolicyEngine
 from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
                       ILLEGAL_ACCESS
-
+from utils import pyre
 import re
 
 
@@ -55,11 +55,9 @@ class OneLibraryPolicy(Policy):
             paths = []
             home = self.userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
             desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+            user = self.userConf.getSetting("Username") or "user"
+            host = self.userConf.getSetting("Hostname") or "localhost"
             did = re.escape(actor.desktopid)
-
-# FIXME *: '^/usr/lib/python2\.7/.*\.pyc'
-# python3.4 python 3.5 python
-
 
             # Full privileges in one's home!
             rwf = (EventFileFlags.read | EventFileFlags.write |
@@ -71,6 +69,9 @@ class OneLibraryPolicy(Policy):
             paths.append((re.compile('^%s/\.config/%s' % (home, did)), rwf))
             paths.append((re.compile('^%s/\.local/share/%s' % (home, did)),
                          rwf))
+            paths.append((re.compile('^%s/\.local/share/+(mime/|recently\-'
+                         'used\.xbel)' % (home)), rwf))
+            paths.append((re.compile('^/run/user/[0-9]+/dconf/user$'), rwf))
             paths.append((re.compile('^/dev/null$'), rwf))
 
             # Append the app-specific home paths
@@ -78,11 +79,14 @@ class OneLibraryPolicy(Policy):
                                                   type='string list') or []
             for path in appSpecificRWPaths:
                 path = path.replace('@XDG_DESKTOP_DIR@', desk)
+                path = path.replace('@USER@', user)
+                path = path.replace('@HOSTNAME@', host)
                 path = path.replace('~', home)
                 paths.append((re.compile(path), rwf))
 
             # Sticky bit in /tmp: one can touch what they created
             paths.append((re.compile('^/tmp/'), EventFileFlags.create))
+            paths.append((re.compile('^/var/tmp/'), EventFileFlags.create))
 
             # Read-only / copy-only installed files
             rof = (EventFileFlags.read | EventFileFlags.copy)
@@ -117,30 +121,32 @@ class OneLibraryPolicy(Policy):
             paths.append((re.compile('^%s/\.ICEauthority' % (home)), rof))
             paths.append((re.compile('^%s/\.config/(pango/pangorc|dconf/user|'
                                      'user-dirs.dirs)' % (home)), rof))
-            paths.append((re.compile('^%s/\.local/share/+(mime/|recently\-'
-                                     'used\.xbel)' % (home)), rof))
             paths.append((re.compile('^%s/\.local/share/applications(/|/mime'
                                      'info\.cache|/mimeapps\.list)?$' %
                                      (home)), rof))
-            paths.append((re.compile('^/run/user/\d+/dconf/user'), rof))
             paths.append((re.compile('%s/\.icons/.*?/(index\.theme|cursors/)' %
                          (home)), rof))
             paths.append((re.compile('%s/\.(config/)?enchant/' % (home)), rof))
             paths.append((re.compile('^/usr/share/myspell'), rof))
+
+            # Interpretor-specific files
+            if (pyre.match(actor.getDesktopId()) or (actor.getInterpreterId()
+                    and pyre.match(actor.getInterpreterId()))):
+                paths.append((re.compile('^/usr/lib/python2\.7/.*\.pyc'), rwf))
+                # FIXME
+
+            # TODO:             # /usr/share/(vala|vala-0.32)/vapi/%s*
 
             # Append the app-specific system paths
             appSpecificROPaths = actor.getSetting('ROPaths',
                                                   type='string list') or []
             for path in appSpecificROPaths:
                 path = path.replace('@XDG_DESKTOP_DIR@', desk)
+                path = path.replace('@USER@', user)
+                path = path.replace('@HOSTNAME@', host)
                 path = path.replace('~', home)
                 paths.append((re.compile(path), rof))
 
-            # /usr/include/%s-3.14
-            # /usr/share/(vala|vala-0.32)/vapi/%s*
-            #
-            # /home/steve/.cache/mozilla/firefox
-            # /home/steve/.mozilla/firefox
             self.appPathCache[actor] = paths
 
         return self.appPathCache[actor]
