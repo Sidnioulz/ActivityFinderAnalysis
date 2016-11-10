@@ -127,6 +127,10 @@ class Application(object):
         """Return the Application's .desktop entry identifier."""
         return self.desktopid
 
+    def getInterpreterId(self):
+        """Return the Application's interpreter .desktop id if it exists."""
+        return self.interpreterid
+
     def uid(self):
         """Generate a unique string identifier for this Application."""
         return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
