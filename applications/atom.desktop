@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Atom
+Comment=A hackable text editor for the 21st Century
+GenericName=Text Editor
+Exec=electron --app=/usr/lib/atom %U
+Icon=atom
+Type=Application
+StartupNotify=true
+Categories=GNOME;GTK;Utility;TextEditor;Development;
+MimeType=text/plain;
+RWPaths=^~/\.atom;^~/\.config/Atom;
+LibraryCaps=documents;

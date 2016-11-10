@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=mono-sgen
+Icon=mono-sgen
+Terminal=false
+Type=Application
+Categories=System;
+Name=Mono runtime thing

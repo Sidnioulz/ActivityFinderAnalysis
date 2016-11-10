@@ -1,0 +1,9 @@
+[Desktop Entry]
+MimeType=text/calendar;
+Comment=KDE Activity Manager Daemon
+Exec=kactivitymanagerd
+Type=Desktop
+Name=kactivitymanagerd
+Categories=Qt;KDE;Utility;
+ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;
+RWPaths=^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;

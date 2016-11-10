@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=java
+Icon=java
+Terminal=false
+Type=Application
+Categories=System;
+Name=Java interpreter

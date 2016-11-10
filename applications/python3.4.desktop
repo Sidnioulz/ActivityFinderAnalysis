@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=python3.4
+Icon=python
+Terminal=false
+Type=Application
+Categories=System;
+Name=Python 3.4 interpreter

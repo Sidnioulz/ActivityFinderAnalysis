@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=System
+Exec=oneconf-service
+StartupNotify=false
+Terminal=false
+Categories=System;
+Name=Ubuntu One Configuration Sync Service

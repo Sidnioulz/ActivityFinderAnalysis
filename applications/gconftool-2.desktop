@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=System
+Exec=/usr/bin/gconftool-2
+StartupNotify=false
+Terminal=false
+Categories=Utility;
+Name=GConf Editing Utility
+RWPaths=^~/\.gconf/;

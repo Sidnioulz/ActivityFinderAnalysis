@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Desktop
+Name=GPaste AppIndicator
+Name[fr]=Indicateur d'application GPaste
+Name[pt_BR]=Aplicativo Indicador do GPaste
+Comment=Unity application indicator to manage GPaste
+Comment[fr]=Indicateur d'application pour unity pour gérer GPaste
+Comment[pt_BR]=Aplicativo indicador do Unity para gerenciar o GPaste
+Keywords=Clipboard;Manager;
+Keywords[fr]=Presse-Papier;Gestionnaire;
+Icon=gtk-paste
+Exec=/home/study/build-env/libexec/gpaste/gpaste-app-indicator
+DBusActivatable=true
+Terminal=false
+Categories=GTK;GNOME;Utility;Applet;
+StartupNotify=true
+OnlyShowIn=Unity;

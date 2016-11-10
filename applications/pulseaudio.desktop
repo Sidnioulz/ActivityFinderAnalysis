@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=PulseAudio Audio Server
+Comment=Manage audio hardware
+Icon=multimedia-volume-control
+Exec=pulseaudio
+Type=System
+StartupNotify=true
+Terminal=false
+Categories=Audio;Mixer;
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;^/run/user/[0-9]+/pulse;

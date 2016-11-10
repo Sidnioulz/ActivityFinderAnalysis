@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=xfdesktop4
+Icon=xfdesktop4
+Terminal=false
+Type=Desktop
+Categories=XFCE;
+Name=xfdesktop4
+RWPaths=^@XDG_DESKTOP_DIR@;~/\.config/xfce4/desktop;^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;^~/\.config/menus/applications-merged$;

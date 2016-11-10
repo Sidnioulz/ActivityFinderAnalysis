@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=X11 Graphical Server
+Exec=/usr/bin/X
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+Icon=x11

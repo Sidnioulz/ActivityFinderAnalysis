@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=DBus IPC Sender Service
+Exec=/usr/bin/dbus-send
+Terminal=false
+Type=System
+StartupNotify=false
+Categories=Utility;
+ROPaths=^/sys/kernel/security/apparmor/\.access;
+RWPaths=^~/\.local/share/dbus\-1/;

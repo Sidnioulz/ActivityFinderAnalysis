@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=System
+Exec=/usr/lib/GConf/gconfd-2
+StartupNotify=false
+Terminal=false
+Categories=System;
+Name=GConf Daemon
+RWPaths=^~/\.gconf(\.|/)?;

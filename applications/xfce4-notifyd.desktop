@@ -1,0 +1,9 @@
+[Desktop Entry]
+Exec=xfce4-notifyd
+Icon=xfce4-notifyd
+Terminal=false
+Type=Desktop
+Categories=XFCE;
+Name=xfce4-notifyd
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;
+

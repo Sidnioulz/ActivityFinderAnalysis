@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=GNU Debugger
+Exec=/usr/bin/gdb
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=Utility;
+RWPaths=^~/\.gdb_history;

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=System
+Exec=/usr/bin/gsettings
+StartupNotify=false
+Terminal=false
+Categories=Utility;
+Name=GNOME Settings Editing Utility

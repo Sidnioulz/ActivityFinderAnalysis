@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Desktop
+Exec=kde4-config
+StartupNotify=false
+Terminal=false
+Categories=Utility;KDE;
+Name=KDE Configuration
+RWPaths=^~/\.config/menus;^~/\.XCompose;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;
+ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;

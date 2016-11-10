@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=perl
+Icon=perl
+Terminal=false
+Type=Application
+Categories=System;
+Name=Perl interpreter

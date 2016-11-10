@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=xfce4-panel
+Icon=xfce4-panel
+Terminal=false
+Type=Desktop
+Categories=XFCE;
+Name=xfce4-panel
+RWPaths=^~/\.config/menus/;^~/\.config/xfce4(/|\-)panel;^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

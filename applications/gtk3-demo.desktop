@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=GTK+ Demo
+Comment=GTK+ code examples and demonstrations
+Exec=gtk3-demo
+Icon=gtk3-demo
+Terminal=false
+Type=Desktop
+StartupNotify=true
+Categories=GTK;
+NoDisplay=true
+X-Ubuntu-Gettext-Domain=gtk30

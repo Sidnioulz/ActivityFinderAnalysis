@@ -1,0 +1,9 @@
+[Desktop Entry]
+Exec=knotify4
+Icon=knotify4
+Terminal=false
+Type=Desktop
+Categories=KDE;
+Name=knotify4
+RWPaths=^~/\.config/kde\.org.*;^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;
+ROPaths=^~/\.kde/(share|lib)/;^~/\.config/Trolltech\.conf;^/tmp/kde\-@USER@/xauth\-.*;

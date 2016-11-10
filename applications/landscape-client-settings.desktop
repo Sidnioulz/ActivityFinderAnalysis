@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Landscape Service
+Comment=Landscape Management Service Preferences
+Exec=landscape-client-ui-install
+Icon=preferences-management-service
+Terminal=False
+Type=Desktop
+StartupNotify=true
+Categories=GNOME;GTK;Settings;X-GNOME-SystemSettings;X-GNOME-Settings-Panel;X-Unity-Settings-Panel;
+OnlyShowIn=GNOME;Unity;
+X-Unity-Settings-Panel=landscape
+X-GNOME-Settings-Panel=landscape
+X-Ubuntu-Gettext-Domain=landscape-client

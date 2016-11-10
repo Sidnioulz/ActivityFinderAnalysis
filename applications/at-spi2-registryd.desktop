@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Accessibility Framework for Desktop Apps
+Exec=/usr/bin/at-spi2-registryd
+Terminal=true
+Type=Desktop
+StartupNotify=false
+Categories=Utility;

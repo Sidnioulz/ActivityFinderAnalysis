@@ -1,0 +1,9 @@
+[Desktop Entry]
+Exec=xfwm4
+Icon=xfwm4
+Terminal=false
+Type=Desktop
+Categories=XFCE;
+Name=xfwm4
+RWPaths=^/dev/dri;~/\.config/menus/;~/\.config/xfce4/xfwm4;^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;
+

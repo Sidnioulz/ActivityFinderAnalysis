@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=TeamViewer Desktop Sharing
+Exec=teamviewer
+Icon=teamviewer
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=GTK;Settings;RemoteAccess;Network;

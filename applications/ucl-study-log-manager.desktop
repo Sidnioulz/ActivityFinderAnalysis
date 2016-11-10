@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=ucl-study-log-manager
+Icon=ucl-study-log-manager
+Terminal=false
+Type=Study
+Categories=XFCE;
+Name=UCL Study Log Manager

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=indicator-messages-service
+Icon=indicator-messages-service
+Terminal=false
+Type=Desktop
+Categories=GNOME;
+Name=indicator-messages-service

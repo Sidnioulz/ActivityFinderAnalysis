@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Icon Browser
+Comment=An application that shows themed icons
+Exec=gtk3-icon-browser
+Icon=gtk3-icon-browser
+Terminal=false
+Type=Desktop
+StartupNotify=true
+Categories=GTK;
+NoDisplay=true
+X-Ubuntu-Gettext-Domain=gtk30

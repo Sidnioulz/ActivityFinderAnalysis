@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=wine-preloader
+Icon=wine-preloader
+Terminal=false
+Type=Application
+Categories=System;
+Name=Wine Preloader

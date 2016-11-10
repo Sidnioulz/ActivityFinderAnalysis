@@ -1,0 +1,14 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Name=PROGLABEL
+Name[fr]=PROGLABEL
+GenericName=
+GenericName[fr]=
+Comment=
+Comment[fr]=
+Exec=python CHEMIN/PROGNAME.pyw
+Icon=CHEMIN/images/icon.png
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=Education;

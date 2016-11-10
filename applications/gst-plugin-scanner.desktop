@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=GStreamer Plugin Scaner
+Exec=/usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner
+Terminal=false
+Type=System
+Categories=Utility;

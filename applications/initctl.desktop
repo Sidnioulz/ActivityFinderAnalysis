@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=SystemV Initiation Daemon
+Exec=/usr/bin/init
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+ROPaths=^/run/user/[0-9]+/upstart/sessions/;
+RWPaths=^~/(\.init|\.config(/upstart)?|\.cache);

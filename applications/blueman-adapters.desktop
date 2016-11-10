@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=Bluetooth Adapters
+Comment=Set Bluetooth Adapter Properties
+Exec=blueman-adapters
+Icon=blueman-device
+Terminal=false
+Type=Desktop
+Categories=X-XFCE;Settings;HardwareSettings;X-XFCE-SettingsDialog;GTK;
+StartupNotify=true
+OnlyShowIn=XFCE;MATE;
+NoDisplay=false
+X-XfceSettingsName=Bluetooth
+X-XfcePluggable=false
+X-Ubuntu-Gettext-Domain=blueman
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;

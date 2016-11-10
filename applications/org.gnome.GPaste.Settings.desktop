@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Desktop
+Name=GPaste daemon settings
+Comment=Manage the GPaste daemon settings
+Keywords=Clipboard;Manager;Settings;Preferences;Configuration;
+Keywords[fr]=Presse-Papier;Gestionnaire;Réglages;Préférences;Configuration;
+Icon=gtk-paste
+Exec=/usr/lib/gpaste/gpaste/gpaste-settings
+DBusActivatable=true
+Terminal=false
+Categories=GTK;GNOME;Settings;X-GNOME-PersonalSettings;
+StartupNotify=true
+X-Ubuntu-Gettext-Domain=GPaste

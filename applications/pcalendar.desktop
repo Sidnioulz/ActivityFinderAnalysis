@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Periodic Calendar
+GenericName=Periodic Calendar
+Keywords=Menstrual cycle tracking
+Comment=Utility for tracking menstrual cycles and predicting fertility periods
+Comment[es]=Aplicación para el seguimiento del ciclo menstrual y la predicción de los periodos de fertilidad
+Icon=pcalendar
+Exec=pcalendar
+Terminal=false
+StartupNotify=false
+Categories=Application;Utility;Calendar;Java;
+MimeType=application/x-periodic-calendar;application/x-periodic-calendar-encrypted;

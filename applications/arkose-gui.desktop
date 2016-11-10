@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=Arkose Desktop Application Sandboxing
+Comment=Desktop application sandboxing
+Exec=/usr/bin/arkose-gui
+Icon=gnome-run
+Terminal=false
+Type=System
+StartupNotify=false
+Categories=GNOME;KDE;System;
+X-Ubuntu-Gettext-Domain=arkose-gui
+MimeType=application/octet-stream;

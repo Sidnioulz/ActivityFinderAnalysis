@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Theme Configuration
+GenericName=Theme Configuration
+Comment=Configure GTK theme colors
+Exec=gtk-theme-config
+Terminal=false
+Type=Desktop
+Icon=gtk-theme-config
+Categories=GNOME;GTK;Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;
+Keywords=color;gtk;highlight;theme;widget;
+
+X-GNOME-Gettext-Domain=gtk-theme-config
+

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Command-Line for System-wide Power Management
+Exec=/usr/bin/upower
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=Utility;

@@ -1,0 +1,33 @@
+[Desktop Entry]
+Name=Color picker
+Name[de_DE]=Farbwähler
+Name[en_GB]=Colour picker
+Name[fr]=Sélecteur de couleur
+Name[nl]=Kleurenkiezer
+Name[sr]=Бирач боја
+Name[sv]=Färgväljare
+Name[uk]=Збирач кольору
+Comment=Choose colors from the picker or the screen
+Comment[de_DE]=Wählen Sie Farben vom Farbrad oder dem Bildschirm
+Comment[en_GB]=Choose colours from the picker or the screen
+Comment[fr]=Choisissez les couleurs depuis le sélecteur ou l’écran
+Comment[nl]=Kies kleuren van de kiezer of van het scherm
+Comment[sr]=Изаберите боју из бирача или са екрана
+Comment[sv]=Välj färger från väljaren eller skärmen
+Comment[uk]=Виберіть колір зі збирача або зі знімку
+TryExec=gcolor3
+Exec=gcolor3
+Icon=gcolor3
+StartupNotify=true
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;Graphics;
+# Extra keywords that can be used to search for Gcolor3 in GNOME Shell and Unity
+Keywords=Color;Picker;Palette;
+Keywords[de_DE]=Farbe;Farbauswahl;Farbpalette;
+Keywords[en_GB]=Colour;Picker;Palette
+Keywords[fr]=Couleur;Sélecteur;Palette
+Keywords[nl]=Kleur;Kiezer;Palet;
+Keywords[sr]=Боја;Бирач;Палета;Color;Picker;Pallete;Boja:Birač;Paleta
+Keywords[sv]=Färg;Väljare;Palett;
+Keywords[uk]=Колір;Збирач;Палітра;

@@ -1,6 +1,6 @@
 ## BEFORE RUNNING THESE SCRIPTS
 
-You must create a folder at the path ../applications/usr/share/applications/.
+You must create a folder at the path ./applications/.
 This folder must contain all the .desktop files of the apps used by your users.
 The Application class will match the desktopid given to it to an exact name in
 that folder. If you have an app with multiple binaries (e.g. app and appd) and

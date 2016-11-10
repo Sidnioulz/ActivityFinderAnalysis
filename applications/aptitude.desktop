@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Aptitude Package Manager
+Exec=/usr/bin/aptitude
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=PackageManager;System;
+Icon=package
+MimeType=application/vnd.debian.binary-package;

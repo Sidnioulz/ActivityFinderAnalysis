@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=python
+Icon=python
+Terminal=false
+Type=Application
+Categories=System;
+Name=Python interpreter

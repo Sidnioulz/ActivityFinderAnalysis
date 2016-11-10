@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Bash Shell
+Exec=/usr/bin/bash
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+Icon=terminal
+RWPaths=^~/\.bash.*;^/dev/tty;

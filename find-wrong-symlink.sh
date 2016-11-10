@@ -3,7 +3,7 @@
 #ln -s /location/to/link2 newlink
 #mv -T newlink linkname
 
-cd ../applications/usr/share/applications/
+cd ./applications/
 
 for i in `find . -type l -ls | tr -s " " | cut -d" " -f 12`; do
   dest=`ls $i -la`

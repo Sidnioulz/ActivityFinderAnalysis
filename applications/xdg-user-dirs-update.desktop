@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Update XDG user dir configuration
+Exec=/usr/bin/xdg-user-dirs-update
+Terminal=false
+Type=System
+Categories=Utility;

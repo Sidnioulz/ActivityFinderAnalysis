@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Zeitgeist Explorer
+GenericName=Zeitgeist Explorer
+Comment=A tool which can be used to monitor and explore the events logged by zeitgeist
+Exec=zeitgeist-explorer
+Icon=zeitgeist-explorer
+Terminal=false
+X-MultipleArgs=false
+Type=Study
+OnlyShowIn=GNOME;Unity;
+Categories=GNOME;GTK;Settings;X-GNOME-SystemSettings;

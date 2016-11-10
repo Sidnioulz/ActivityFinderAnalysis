@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Desktop
+Name=GPaste Applet
+Comment=Tray icon to manage GPaste
+Keywords=Clipboard;Manager;
+Keywords[fr]=Presse-Papier;Gestionnaire;
+Icon=gtk-paste
+Exec=/usr/lib/gpaste/gpaste/gpaste-applet
+DBusActivatable=true
+Terminal=false
+Categories=GTK;GNOME;Utility;TrayIcon;
+StartupNotify=true
+OnlyShowIn=GNOME;
+X-Ubuntu-Gettext-Domain=GPaste

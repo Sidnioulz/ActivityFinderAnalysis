@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=indicator-sound-service
+Icon=indicator-sound-service
+Terminal=false
+Type=Desktop
+Categories=GNOME;
+Name=indicator-sound-service
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;

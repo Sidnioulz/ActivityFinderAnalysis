@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Obex Bluetooth Data Server
+Exec=/usr/bin/obex-data-server --no-daemon 
+Terminal=false
+Type=System
+Categories=Utility;

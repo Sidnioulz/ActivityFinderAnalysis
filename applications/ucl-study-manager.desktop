@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=ucl-study-manager
+Icon=ucl-study-manager
+Terminal=false
+Type=Study
+Categories=XFCE;
+Name=UCL Study Manager

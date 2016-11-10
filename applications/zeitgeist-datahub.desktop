@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=zeitgeist-datahub
+Icon=zeitgeist-datahub
+Terminal=false
+Type=Study
+Categories=GNOME;
+Name=zeitgeist-datahub

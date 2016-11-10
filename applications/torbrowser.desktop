@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Tor Browser
+Comment=Launch the Tor Browser Bundle
+Exec=/usr/bin/torbrowser-launcher %u
+Terminal=false
+Type=Application
+Icon=/usr/share/pixmaps/torbrowser80.xpm
+Categories=Network;WebBrowser;

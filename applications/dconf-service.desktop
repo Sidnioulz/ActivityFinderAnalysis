@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=System
+Exec=dconf-service
+StartupNotify=false
+Terminal=false
+Categories=System;
+Name=DConf Daemon
+RWPaths=^~/\.config/dconf/user(\..*)?;^/run/user/[0-9]+/dconf/user;

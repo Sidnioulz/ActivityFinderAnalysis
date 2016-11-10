@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=indicator-power-service
+Icon=indicator-power-service
+Terminal=false
+Type=Desktop
+Categories=GNOME;
+Name=indicator-power-service

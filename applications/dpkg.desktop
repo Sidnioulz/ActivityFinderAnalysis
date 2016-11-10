@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=DPKG Package Manager
+Exec=/usr/bin/dpkg
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=PackageManager;System;
+Icon=package
+MimeType=application/vnd.debian.binary-package;
+RWPaths=^~/\.dpkg\.cfg;

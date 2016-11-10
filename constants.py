@@ -10,7 +10,7 @@ DATABASENAME = "activity.sqlite"
 SPACE_REGEXP = r'(?<!\\) '
 
 # Application constants
-DESKTOPPATHS = ['../applications/usr/share/applications/',
+DESKTOPPATHS = ['./applications/',
                 '/usr/share/applications/',
                 '~/.local/share/applications/']
 

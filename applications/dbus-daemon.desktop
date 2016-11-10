@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=DBus IPC Service Daemon
+Exec=/usr/bin/dbus-daemon
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+RWPaths=^~/\.local/share/dbus\-1/;^/sys/kernel/security/apparmor/\.access;

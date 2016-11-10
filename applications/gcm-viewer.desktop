@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=Color Profile Viewer
+Comment=Inspect and compare installed color profiles
+Icon=gnome-color-manager
+Exec=gcm-viewer
+Terminal=false
+Type=Desktop
+Categories=GNOME;GTK;System;
+NotShowIn=GNOME;
+Keywords=Color;ICC;
+StartupNotify=true
+X-GNOME-Bugzilla-Bugzilla=GNOME
+X-GNOME-Bugzilla-Product=gnome-color-manager
+X-GNOME-Bugzilla-Component=gnome-color-manager
+X-Ubuntu-Gettext-Domain=gnome-color-manager

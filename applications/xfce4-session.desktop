@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Desktop
+Exec=xfce4-session
+StartupNotify=false
+Terminal=false
+Categories=System;X-XFCE;X-Xfce-Toplevel;
+OnlyShowIn=XFCE;
+Name=Xfce4 Session Daemon
+RWPaths=^~/\.config/autostart;^~/\.ICEauthority$;^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Upstart Initiation Daemon
+Exec=/usr/bin/upstart
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+RWPaths=^/run/user/[0-9]+/\.?upstart;

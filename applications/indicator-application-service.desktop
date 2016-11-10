@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=indicator-application-service
+Icon=indicator-application-service
+Terminal=false
+Type=Desktop
+Categories=GNOME;
+Name=indicator-application-service
