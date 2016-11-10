@@ -4,6 +4,7 @@ from File import File, FileAccess, EventFileFlags
 from FileStore import FileStore
 from ApplicationStore import ApplicationStore
 from constants import ILLEGAL_ACCESS
+from utils import debugEnabled
 
 
 class Policy(object):
@@ -92,7 +93,7 @@ class PolicyEngine(object):
         for file in self.fileStore:
             for acc in file.getAccesses():
                 ret = policy.accessFunc(self, file, acc)
-                if ret == ILLEGAL_ACCESS:
+                if ret == ILLEGAL_ACCESS and debugEnabled():
                     t = self.illegalAppStore.get(acc.actor.desktopid) or set()
                     t.add(file.getName()+("\tWRITE" if acc.evflags &
                                           EventFileFlags.write else "\tREAD"))
@@ -100,10 +101,9 @@ class PolicyEngine(object):
 
         policy.printScores()
 
-        # FIXME TODO: cache up the P5 apps, and for every new app, re-print the
-        # file paths of ILLEGAL accesses only
-        for key in sorted(self.illegalAppStore):
-            if key == 'catfish':  # too noisy
-                continue
-            for file in sorted(self.illegalAppStore[key]):
-                print("%s: %s" % (key, file))
+        if debugEnabled():
+            for key in sorted(self.illegalAppStore):
+                if key == 'catfish':  # too noisy
+                    continue
+                for file in sorted(self.illegalAppStore[key]):
+                    print("%s: %s" % (key, file))

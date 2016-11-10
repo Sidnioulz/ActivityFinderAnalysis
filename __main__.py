@@ -12,17 +12,17 @@ from LibraryPolicies import OneLibraryPolicy
 from constants import USAGE_STRING, DATAPATH, DATABASENAME, USERCONFIGPATH
 import getopt
 import sys
+from utils import __setCheckMissing, __setDebug, \
+                  checkMissingEnabled, debugEnabled
 
 
 # Main function
 # @profile
 def main(argv):
-    # Application parameters
-    __opt_check = False
-
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "h", ["help", "check-missing"])
+        (opts, args) = getopt.getopt(argv, "hcd", ["help", "check-missing",
+                                                   "debug"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -31,8 +31,10 @@ def main(argv):
             if opt in ('-h', '--help'):
                 print(USAGE_STRING)
                 sys.exit()
-            elif opt in ("--check-missing"):
-                __opt_check = True
+            elif opt in ('c', '--check-missing'):
+                __setCheckMissing(True)
+            elif opt in ('-d', '--debug'):
+                __setDebug(True)
 
     # Make the application, event and file stores
     store = ApplicationStore()
@@ -50,7 +52,7 @@ def main(argv):
     except ValueError as e:
         print("Failed to parse SQL: %s" % e.args[0], file=sys.stderr)
         sys.exit(-1)
-    if __opt_check:
+    if checkMissingEnabled():
         print("Checking for missing application identities...")
         sql.listMissingActors()
     sql.loadDb(store, evStore)
@@ -59,7 +61,7 @@ def main(argv):
     # Load up the PreloadLogger file parser
     print("\nLoading the PreloadLogger logs in folder: %s..." % DATAPATH)
     pll = PreloadLoggerLoader(DATAPATH)
-    if __opt_check:
+    if checkMissingEnabled():
         print("Checking for missing application identities...")
         pll.listMissingActors()
     pll.loadDb(store, evStore)
@@ -77,10 +79,11 @@ def main(argv):
     print("Simulated all events.")
 
     # Print the model as proof of concept
-    # print("\nPrinting the file model...\n")
-    # fileStore.printFiles(showDeleted=True,
-    #                      showCreationTime=True,
-    #                      onlyDesignated=False)
+    if debugEnabled():
+        print("\nPrinting the file model...\n")
+        fileStore.printFiles(showDeleted=True,
+                             showCreationTime=True,
+                             onlyDesignated=False)
 
     # Policy engine. Create a policy and run a simulation to score it.
     engine = PolicyEngine(appStore=store, fileStore=fileStore)

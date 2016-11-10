@@ -6,6 +6,28 @@ from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, PERLRE, PERLNAMER, \
                       MONORE, MONONAMER, MONOPROCNAME
 
+__opt_check = False
+__opt_debug = False
+
+def __setCheckMissing(opt):
+    global __opt_check
+    __opt_check = opt
+
+
+def __setDebug(opt):
+    global __opt_debug
+    __opt_debug = opt
+
+
+def checkMissingEnabled():
+    global __opt_check
+    return __opt_check
+
+
+def debugEnabled():
+    global __opt_debug
+    return __opt_debug
+
 
 def time2Str(timestamp):
     """Transforms a Zeitgeist timestamp into a human-readable string."""
