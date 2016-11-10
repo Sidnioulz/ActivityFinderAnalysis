@@ -15,8 +15,9 @@ from constants import PYTHONRE, PYTHONNAMER
 
 class TestEventFlags(unittest.TestCase):
     def setUp(self):
-        self.store = EventStore()
-        self.appStore = ApplicationStore()
+        self.eventStore = EventStore.get()
+        self.appStore = ApplicationStore.get()
+        self.fileFactory = FileFactory.get()
 
     def test_merge_equal(self):
         app = Application("firefox.desktop", pid=21, tstart=1, tend=200000)
@@ -25,20 +26,18 @@ class TestEventFlags(unittest.TestCase):
         ss = "open64|/home/user/.kde/share/config/kdeglobals|fd " \
              "10: with flag 524288, e0|"
         e1 = Event(actor=app, time=10, syscallStr=ss)
-        self.store.append(e1)
+        self.eventStore.append(e1)
 
         cmd = "@firefox|2294|firefox -p /home/user/.kde/file"
         e2 = Event(actor=app, time=1, cmdlineStr=cmd)
-        self.store.append(e2)
+        self.eventStore.append(e2)
 
         st = "open64|/home/user/.kde/file|fd " \
              "10: with flag 524288, e0|"
         e3 = Event(actor=app, time=13, syscallStr=st)
-        self.store.append(e3)
+        self.eventStore.append(e3)
 
-        fS = FileStore()
-        fF = FileFactory(fS, self.appStore)
-        self.store.simulateAllEvents(fF, fS)
+        self.eventStore.simulateAllEvents()
 
         ef1 = EventFileFlags.no_flags
         ef1 |= EventFileFlags.programmatic
@@ -49,19 +48,21 @@ class TestEventFlags(unittest.TestCase):
         ef3 |= EventFileFlags.designation
         ef3 |= EventFileFlags.read
 
-        file = fF.getFile("/home/user/.kde/file", 20)
+        file = self.fileFactory.getFile("/home/user/.kde/file", 20)
         acc = file.getAccesses()
         self.assertEqual(len(acc), 1)
         self.assertEqual(acc[0].evflags, ef3)
 
     def tearDown(self):
-        self.appStore = None
-        self.store = None
+        EventStore.reset()
+        ApplicationStore.reset()
+        FileFactory.reset()
+        FileStore.reset()
 
 
-class TestStoreInsertion(unittest.TestCase):
+class TestApplicationStoreInsertion(unittest.TestCase):
     def setUp(self):
-        self.store = ApplicationStore()
+        self.store = ApplicationStore.get()
 
     def test_merge_equal(self):
         self.store.clear()
@@ -76,7 +77,8 @@ class TestStoreInsertion(unittest.TestCase):
         self.assertEqual(len(self.store.lookupPid(21)), 3)
 
     def tearDown(self):
-        self.store = None
+        EventStore.reset()
+        ApplicationStore.reset()
 
 
 class TestInterpreterRes(unittest.TestCase):
@@ -246,7 +248,7 @@ class TestPreloadLoggerLoader(unittest.TestCase):
 
 class TestEventStoreInsertion(unittest.TestCase):
     def setUp(self):
-        self.store = EventStore()
+        self.store = EventStore.get()
 
     def test_insert_sorted(self):
         self.store.clear()
@@ -294,29 +296,29 @@ class TestEventStoreInsertion(unittest.TestCase):
         self.assertEqual(sorte, alle)
 
     def tearDown(self):
-        self.store = None
+        EventStore.reset()
 
 
 class TestFileStore(unittest.TestCase):
     def setUp(self):
-        self.store = FileStore()
-        self.appStore = ApplicationStore()
-        self.factory = FileFactory(self.store, self.appStore)
+        self.fileStore = FileStore.get()
+        self.appStore = ApplicationStore.get()
+        self.factory = FileFactory.get()
 
     def test_add(self):
         first = "/path/to/first/file"
         file1 = File(first, 0, 0, "image/jpg")
-        self.store.addFile(file1)
-        self.assertEqual(len(self.store.getFilesForName(first)), 1)
+        self.fileStore.addFile(file1)
+        self.assertEqual(len(self.fileStore.getFilesForName(first)), 1)
 
     def test_get_children(self):
         file1 = File("/path/to/file", 0, 0, "image/jpg")
         file2 = File("/path/to/document", 0, 0, "image/jpg")
-        self.store.addFile(file1)
-        self.store.addFile(file2)
+        self.fileStore.addFile(file1)
+        self.fileStore.addFile(file2)
 
         fparent = File("/path/to", 0, 0, "inode/directory")
-        children = self.store.getChildren(fparent, 0)
+        children = self.fileStore.getChildren(fparent, 0)
         self.assertEqual(len(children), 2)
         self.assertTrue(file1 in children)
         self.assertTrue(file2 in children)
@@ -325,12 +327,12 @@ class TestFileStore(unittest.TestCase):
         file1 = File("/path/to/file", 0, 0, "image/jpg")
         file2 = File("/path/to/document", 0, 5, "image/jpg")
         file3 = File("/path/to/document", 6, 0, "image/jpg")
-        self.store.addFile(file1)
-        self.store.addFile(file2)
-        self.store.addFile(file3)
+        self.fileStore.addFile(file1)
+        self.fileStore.addFile(file2)
+        self.fileStore.addFile(file3)
 
         rebuilt = []
-        for f in self.store:
+        for f in self.fileStore:
             rebuilt.append(f)
         self.assertEqual(len(rebuilt), 3)
         self.assertEqual(rebuilt[0], file2)
@@ -347,12 +349,17 @@ class TestFileStore(unittest.TestCase):
 
         return children
 
+    def tearDown(self):
+        FileStore.reset()
+        ApplicationStore.reset()
+        FileFactory.reset()
+
 
 class TestFileFactory(unittest.TestCase):
     def setUp(self):
-        self.store = FileStore()
-        self.appStore = ApplicationStore()
-        self.factory = FileFactory(self.store, self.appStore)
+        self.fileStore = FileStore.get()
+        self.appStore = ApplicationStore.get()
+        self.factory = FileFactory.get()
 
     def test_get_same_twice(self):
         first = "/path/to/first"
@@ -368,7 +375,7 @@ class TestFileFactory(unittest.TestCase):
         second = "/path/to/second/file"
 
         exist1 = File(first, 0, 0, "image/jpg")
-        self.store.addFile(exist1)
+        self.fileStore.addFile(exist1)
 
         file1 = self.factory.getFile(first, 0)
         self.assertEqual(exist1.inode, file1.inode)
@@ -377,8 +384,8 @@ class TestFileFactory(unittest.TestCase):
 
         exist2 = File(second, 0, 3, "text/html")
         exist3 = File(second, 4, 0, "text/html")
-        self.store.addFile(exist2)
-        self.store.addFile(exist3)
+        self.fileStore.addFile(exist2)
+        self.fileStore.addFile(exist3)
 
         file3 = self.factory.getFile(second, 0)
         self.assertNotEqual(exist3.inode, file3.inode)
@@ -393,25 +400,27 @@ class TestFileFactory(unittest.TestCase):
 
         path = "/path/to/file"
         f1 = File(path, 0, 0, "image/jpg")
-        self.store.addFile(f1)
+        self.fileStore.addFile(f1)
 
         f2 = self.factory.getFile(path, 0)
         self.factory.deleteFile(f2, app, 100, EventFileFlags.no_flags)
-        self.store.updateFile(f2)
+        self.fileStore.updateFile(f2)
 
         f3 = self.factory.getFile(path, 0)
         self.assertEqual(f3.getTimeOfEnd(), 100)
 
     def tearDown(self):
-        self.factory = None
-        self.appStore = None
-        self.store = None
+        FileStore.reset()
+        ApplicationStore.reset()
+        FileFactory.reset()
 
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
-        self.appStore = ApplicationStore()
-        self.eventStore = EventStore()
+        self.appStore = ApplicationStore.get()
+        self.eventStore = EventStore.get()
+        self.fileStore = FileStore.get()
+        self.fileFactory = FileFactory.get()
         self.userConf = UserConfigLoader("user.ini")
         self.pol = OneLibraryPolicy(self.userConf)
 
@@ -436,11 +445,9 @@ class TestOneLibraryPolicy(unittest.TestCase):
         e2 = Event(actor=app, time=13, syscallStr=st)
         self.eventStore.append(e2)
 
-        fS = FileStore()
-        fF = FileFactory(fS, self.appStore)
-        self.eventStore.simulateAllEvents(fF, fS)
+        self.eventStore.simulateAllEvents()
 
-        file = fF.getFile(name=path, time=20)
+        file = self.fileFactory.getFile(name=path, time=20)
         accs = file.getAccesses()
         self.assertEqual(len(accs), 2)
 
@@ -457,6 +464,7 @@ class TestOneLibraryPolicy(unittest.TestCase):
         self.assertEqual(lp.interruptionCost, 1)
         self.assertEqual(lp.grantingCost, 1)
         self.assertEqual(lp.cumulGrantCost, 2)
+        FileFactory.reset()
 
     def test_app_owned_files(self):
         app = Application("ristretto.desktop", pid=123, tstart=1, tend=200000)
@@ -467,11 +475,9 @@ class TestOneLibraryPolicy(unittest.TestCase):
         e1 = Event(actor=app, time=10, syscallStr=st)
         self.eventStore.append(e1)
 
-        fS = FileStore()
-        fF = FileFactory(fS, self.appStore)
-        self.eventStore.simulateAllEvents(fF, fS)
+        self.eventStore.simulateAllEvents()
 
-        file = fF.getFile(name=path, time=20)
+        file = self.fileFactory.getFile(name=path, time=20)
         accs = file.getAccesses()
         self.assertEqual(len(accs), 1)
 
@@ -479,8 +485,12 @@ class TestOneLibraryPolicy(unittest.TestCase):
 
         lp.accessFunc(None, file, accs[0])
         self.assertEqual(lp.ownedPathAccess, 1)
+        FileFactory.reset()
 
     def tearDown(self):
         self.pol = None
         self.userConf = None
-        self.appStore = None
+        ApplicationStore.reset()
+        EventStore.reset()
+        FileStore.reset()
+        FileFactory.reset()

@@ -8,16 +8,26 @@ import sys
 
 class FileFactory(object):
     """A service to retrieve existing files or to create them."""
+    __file_factory = None
 
-    store = None     # type: FileStore
-    appStore = None  # type: ApplicationStore
+    @staticmethod
+    def get():
+        """Return the FileFactory for the entire application."""
+        if not FileFactory.__file_factory:
+            FileFactory.__file_factory = FileFactory(FileStore.get(),
+                                                     ApplicationStore.get())
+        return FileFactory.__file_factory
+
+    @staticmethod
+    def reset():
+        FileFactory.__file_factory = None
 
     def __init__(self, fileStore: FileStore, appStore: ApplicationStore):
         """Construct a FileFactory."""
         super(FileFactory, self).__init__()
         if not fileStore:
             raise ValueError("A FileFactory must have a valid FileStore.")
-        self.store = fileStore
+        self.fileStore = fileStore
         self.appStore = appStore
 
     def __getFile(self, name: str, time: int, ftype: str=''):
@@ -27,7 +37,7 @@ class FileFactory(object):
         if parentPath:
             self.getFile(parentPath, time, ftype='inode/directory')
 
-        files = self.store.getFilesForName(name)
+        files = self.fileStore.getFilesForName(name)
         prevTend = 0
         for file in files:
             tstart = file.getTimeOfStart()
@@ -43,7 +53,7 @@ class FileFactory(object):
                       "to being simulated." % name, file=sys.stderr)
                 f = File(path=name, tstart=prevTend, tend=tstart, ftype=ftype)
                 f.setGuessFlags(True, True)
-                self.store.addFile(f)
+                self.fileStore.addFile(f)
                 return file
             # Current file is valid as it has not ended yet
             elif not tend:
@@ -59,7 +69,7 @@ class FileFactory(object):
             # Make a new file starting where the last one ended, and not ending
             f = File(path=name, tstart=prevTend, tend=0, ftype=ftype)
             f.setGuessFlags(True, False)
-            self.store.addFile(f)
+            self.fileStore.addFile(f)
             return f
 
     def resolveFDRef(self, name: str, time: int):
@@ -104,7 +114,7 @@ class FileFactory(object):
             if oldFile:
                 oldPath = oldFile.path
                 oldFile.path = resolved
-                self.store.updateFile(oldFile, oldName=oldPath)
+                self.fileStore.updateFile(oldFile, oldName=oldPath)
                 return oldFile
             # Else we create a new File, as usual
             else:
@@ -121,7 +131,7 @@ class FileFactory(object):
         not create new Files if they do not exist. Use @getFile for that.
         """
 
-        files = self.store.getFilesForName(name)
+        files = self.fileStore.getFilesForName(name)
         for file in files:
             tstart = file.getTimeOfStart()
             tend = file.getTimeOfEnd()
@@ -146,7 +156,7 @@ class FileFactory(object):
         """
         # Delete children if folder
         if file.isFolder():
-            for child in self.store.getChildren(file, time):
+            for child in self.fileStore.getChildren(file, time):
                 self.deleteFile(child, deleter, time, evflags)
 
         # Record access on file
@@ -154,4 +164,4 @@ class FileFactory(object):
 
         # Delete file
         file.setTimeOfEnd(time)
-        self.store.updateFile(file)
+        self.fileStore.updateFile(file)

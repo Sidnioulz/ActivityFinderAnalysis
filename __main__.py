@@ -3,7 +3,6 @@
 from ApplicationStore import ApplicationStore
 from EventStore import EventStore
 from FileStore import FileStore
-from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
@@ -37,9 +36,9 @@ def main(argv):
                 __setDebug(True)
 
     # Make the application, event and file stores
-    store = ApplicationStore()
-    evStore = EventStore()
-    fileStore = FileStore()
+    store = ApplicationStore.get()
+    evStore = EventStore.get()
+    fileStore = FileStore.get()
 
     # Load up user-related variables
     userConf = UserConfigLoader(USERCONFIGPATH)
@@ -74,8 +73,7 @@ def main(argv):
 
     # Simulate the events to build a file model
     print("\nSimulating all events to build a file model...")
-    fileFactory = FileFactory(fileStore, store)
-    evStore.simulateAllEvents(fileFactory, fileStore)
+    evStore.simulateAllEvents()
     print("Simulated all events.")
 
     # Print the model as proof of concept
@@ -86,7 +84,7 @@ def main(argv):
                              onlyDesignated=False)
 
     # Policy engine. Create a policy and run a simulation to score it.
-    engine = PolicyEngine(appStore=store, fileStore=fileStore)
+    engine = PolicyEngine()  # FIXME
     print("\nRunning the One Library policy...")
     olp = OneLibraryPolicy(userConf=userConf)
     engine.runPolicy(olp)

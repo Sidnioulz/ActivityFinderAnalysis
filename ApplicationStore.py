@@ -14,6 +14,18 @@ class ApplicationStore(object):
     retrieve the actual applications once all data sources have been inserted
     into the store.
     """
+    __app_store = None
+
+    @staticmethod
+    def get():
+        """Return the ApplicationStore for the entire application."""
+        if not ApplicationStore.__app_store:
+            ApplicationStore.__app_store = ApplicationStore()
+        return ApplicationStore.__app_store
+
+    @staticmethod
+    def reset():
+        ApplicationStore.__app_store = None
 
     def __init__(self):
         """Construct an ApplicationStore."""

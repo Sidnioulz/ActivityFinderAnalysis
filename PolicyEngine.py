@@ -75,13 +75,11 @@ class Policy(object):
 class PolicyEngine(object):
     """An engine for running algorithms that implement a file AC policy."""
 
-    def __init__(self,
-                 appStore: ApplicationStore,
-                 fileStore: FileStore):
+    def __init__(self):
         """Construct a PolicyEngine."""
         super(PolicyEngine, self).__init__()
-        self.appStore = appStore
-        self.fileStore = fileStore
+        self.appStore = ApplicationStore.get()
+        self.fileStore = FileStore.get()
 
     def runPolicy(self, policy: Policy=None):
         """Run a Policy over all the Files, and print the resulting scores."""

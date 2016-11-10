@@ -14,6 +14,18 @@ class EventStore(object):
     allow their simulation and the building of a filesystem and information
     flow models.
     """
+    __event_store = None
+
+    @staticmethod
+    def get():
+        """Return the EventStore for the entire application."""
+        if not EventStore.__event_store:
+            EventStore.__event_store = EventStore()
+        return EventStore.__event_store
+
+    @staticmethod
+    def reset():
+        EventStore.__event_store = None
 
     def __init__(self):
         """Construct an EventStore."""
@@ -284,12 +296,13 @@ class EventStore(object):
 
         return newFiles
 
-    def simulateAllEvents(self,
-                          fileFactory: FileFactory,
-                          fileStore: FileStore):
+    def simulateAllEvents(self):
         """Simulate all events to instantiate Files in the FileStore."""
         if not self._sorted:
             self.sort()
+
+        fileStore = FileStore.get()
+        fileFactory = FileFactory.get()
 
         # Dispatch event to the appropriate handler
         for event in self.store:

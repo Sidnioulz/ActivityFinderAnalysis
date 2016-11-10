@@ -5,6 +5,18 @@ from utils import time2Str
 
 class FileStore(object):
     """A service to store File instances."""
+    __file_store = None
+
+    @staticmethod
+    def get():
+        """Return the FileStore for the entire application."""
+        if not FileStore.__file_store:
+            FileStore.__file_store = FileStore()
+        return FileStore.__file_store
+
+    @staticmethod
+    def reset():
+        FileStore.__file_store = None
 
     def __init__(self):
         """Construct a FileStore."""
