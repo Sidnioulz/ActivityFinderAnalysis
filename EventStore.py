@@ -4,7 +4,6 @@ from Event import Event, EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
-from utils import time2Str
 from constants import FD_OPEN, FD_CLOSE
 
 

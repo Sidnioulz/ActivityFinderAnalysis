@@ -3,7 +3,6 @@ from Event import Event
 from File import EventFileFlags
 from Application import Application
 from blist import sortedlist
-from utils import time2Str
 
 
 class DesignationCacheItem(object):
