@@ -2,6 +2,7 @@
 from os.path import dirname
 from Application import Application
 from flags import Flags
+import sys
 
 
 class EventFileFlags(Flags):
@@ -96,9 +97,10 @@ class FileAccess(object):
                 from FileFactory import FileFactory
                 fileFactory = FileFactory.get()
                 parentPath = File.getParentName(f.path)
-                parent = fileFactory.getFileIfExists(parentPath, self.time)
-                if parent:
-                    return self.allowedByFlagFilter(filter, parent)
+                if parentPath:
+                    parent = fileFactory.getFileIfExists(parentPath, self.time)
+                    if parent:
+                        return self.allowedByFlagFilter(filter, parent)
         return False
 
 
@@ -260,6 +262,20 @@ class File(object):
     def getType(self):
         """Return the MIME type of the file."""
         return self.ftype
+
+    def isHidden(self):
+        """Return True if the file is hidden (name starts with a dot)."""
+        lastDir = self.path.rfind('/')
+
+        if len(self.path) == lastDir+1 and self.path != "/":
+            print("Found a path ending with '/'. This is unexpected. Path: %s"
+                  % self.path, file=sys.stderr)
+            lastDir = self.path[:-1].rfind('/')
+
+        if lastDir >= 0:
+            return len(self.path) > lastDir+1 and self.path[lastDir+1] == '.'
+        else:
+            return self.path[0] == '.'
 
     def isFolder(self):
         """Return True if the file is a folder."""
