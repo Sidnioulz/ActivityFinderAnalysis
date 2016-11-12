@@ -81,7 +81,9 @@ def main(argv):
         print("\nPrinting the file model...\n")
         fileStore.printFiles(showDeleted=True,
                              showCreationTime=True,
-                             onlyDesignated=False)
+                             showDocumentsOnly=True,
+                             userHome=userConf.getSetting("HomeDir"),
+                             showDesignatedOnly=False)
 
     # Policy engine. Create a policy and run a simulation to score it.
     engine = PolicyEngine()  # FIXME

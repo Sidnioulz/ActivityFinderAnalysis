@@ -59,18 +59,31 @@ class FileStore(object):
     def printFiles(self,
                    showDeleted: bool=False,
                    showCreationTime: bool=False,
-                   onlyDesignated: bool=False):
+                   showDocumentsOnly: bool=False,
+                   userHome: str=None,
+                   showDesignatedOnly: bool=False):
         """Print all the files currently being stored."""
+
         for key in sorted(self.nameStore, key=lambda s: s.lower()):
             files = self.nameStore[key]
             last = files[-1]  # TODO handle multiple versions
+            printpath = last.getName()
 
-            if onlyDesignated:
+            # Print only files accessed by designation, if asked to
+            if showDesignatedOnly:
                 flags = EventFileFlags.designation
                 if not last.getAccesses(flags):
                     continue
 
-            printpath = last.getName()
+            # Print only user documents, if we have a home to compare to
+            if showDocumentsOnly and userHome:
+                if last.isHidden():
+                    continue
+                if not printpath.startswith("/media") and \
+                   not printpath.startswith(userHome):
+                    continue
+
+            # Ensure we print folders with a /, and files with leading space
             lastDir = printpath.rfind('/')
             # FIXME /home is still not printed properly, check it
             if lastDir > 0:
@@ -88,6 +101,7 @@ class FileStore(object):
                            time2Str(last.getTimeOfStart())))
                 else:
                     print("%s" % printpath)
+            # Deleted files, if the callee wants them too
             elif showDeleted:
                 if showCreationTime and last.getTimeOfStart():
                     print("%s\tCREATED on %s, DELETED on %s" % (
@@ -98,8 +112,6 @@ class FileStore(object):
                     print("%s\tDELETED on %s" % (
                            printpath,
                            time2Str(last.getTimeOfEnd())))
-
-        # TODO onlyDesignated
 
     def getFilesForName(self, name):
         """Return all Files that have the given name as a path."""
