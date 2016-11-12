@@ -102,6 +102,9 @@ class FileFactory(object):
         the given time. If no File is found, one is created and added to the
         FileStore.
         """
+        if name.endswith('/') and len(name) > 1:
+            name = name[:-1]
+
         # Check if the file's path is a reference to an unresolved FD
         resolved = self.resolveFDRef(name, time) if name.startswith("@fdref") \
             else None
@@ -130,6 +133,8 @@ class FileFactory(object):
         the given time. If no File is found, returns None. This function does
         not create new Files if they do not exist. Use @getFile for that.
         """
+        if name.endswith('/') and len(name) > 1:
+            name = name[:-1]
 
         files = self.fileStore.getFilesForName(name)
         for file in files:
