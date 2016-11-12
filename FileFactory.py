@@ -136,7 +136,6 @@ class FileFactory(object):
         """
         if name.endswith('/') and len(name) > 1:
             name = name[:-1]
-            ftype = ftype if ftype else "inode/directory"
 
         files = self.fileStore.getFilesForName(name)
         for file in files:
