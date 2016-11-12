@@ -104,6 +104,7 @@ class FileFactory(object):
         """
         if name.endswith('/') and len(name) > 1:
             name = name[:-1]
+            ftype = ftype if ftype else "inode/directory"
 
         # Check if the file's path is a reference to an unresolved FD
         resolved = self.resolveFDRef(name, time) if name.startswith("@fdref") \
@@ -135,6 +136,7 @@ class FileFactory(object):
         """
         if name.endswith('/') and len(name) > 1:
             name = name[:-1]
+            ftype = ftype if ftype else "inode/directory"
 
         files = self.fileStore.getFilesForName(name)
         for file in files:
