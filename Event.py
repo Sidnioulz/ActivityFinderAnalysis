@@ -355,6 +355,13 @@ class Event(object):
             func = (str, int16, int, int, str)
             (filename, fd, flags, error, cwd) = map(lambda f, d: f(d), func, g)
 
+        # Ignore abstract sockets
+        if filename.startswith('@/'):
+            print("Info: opening of abstract socket '%s' will be ignored." %
+                  filename)
+            self.type = EventType.invalid
+            return
+
         # Build path to be used by simulator, and save the corresponding File
         path = filename if filename.startswith('/') else np(cwd+'/'+filename)
 
