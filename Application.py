@@ -264,6 +264,13 @@ class Application(object):
         """Add a file descriptor opened by this Application."""
         fdList = self.fds.get(fd) or []
 
+        # FD duplication can lead to us having to loop resolutions
+        if path.startswith('@'):
+            from FileFactory import FileFactory
+            fc = FileFactory.get()
+            resolved = fc.resolveFDRef(path, time)
+            path = resolved or path
+
         # Sanity check, last should be before us.
         if len(fdList) > 0:
             if fdList[-1][2] and fdList[-1][2] > time:

@@ -312,12 +312,12 @@ class EventStore(object):
                 self.desigcache.addItem(event)
                 continue
 
-            if event.data_app:
-                data = event.data_app
+            for data in event.data_app:
                 if data[2] == FD_OPEN:
                     event.actor.openFD(data[0], data[1], event.time)
                 elif data[2] == FD_CLOSE:
                     event.actor.closeFD(data[0], event.time)
+                ## FIXME CONTINUE
 
             if event.getFileFlags() & EventFileFlags.destroy:
                 res = self.simulateDestroy(event, fileFactory, fileStore)

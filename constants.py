@@ -70,6 +70,8 @@ POSIX_CLOSE_RE = '^fd: (-?\d+)\|e(\-?\d+)\|.*$'
 POSIX_FCLOSE_RE = '^(?:FILE|DIR): (0x[a-f0-9]+)\|e(\-?\d+)\|.*$'
 POSIX_RENAME_RE = '^ (.*?)\|Old file\|\n\n (.*?)\|New file: with flags' \
                   ' (\-?\d+), e(\-?\d+)\|(.*)\n$'
+POSIX_DUP_RE = '^ fd: (\-?\d+)\|Old fd\|(.*?)\n\n fd: (\-?\d+)\|New fd: (\(null\)|e\-?\d+)\|(.*?)\n$'
+
 O_ACCMODE = 0o3
 O_RDONLY = 0o0
 O_WRONLY = 0o1

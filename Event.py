@@ -6,7 +6,7 @@ from File import File, EventFileFlags
 from utils import urlToUnixPath, int16
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
                       POSIX_OPENDIR_RE, POSIX_UNLINK_RE, POSIX_CLOSE_RE, \
-                      POSIX_FCLOSE_RE, POSIX_RENAME_RE, \
+                      POSIX_FCLOSE_RE, POSIX_RENAME_RE, POSIX_DUP_RE, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                       O_TRUNC, O_DIRECTORY, FD_OPEN, FD_CLOSE
 import sys
@@ -51,15 +51,6 @@ class Event(object):
     target subjects (e.g. Files or other Applications).
     """
 
-    time = 0       # type: int; when the event occurred
-    evtype = None  # type: EventType; type of the event
-    evflags = EventFileFlags.no_flags  # type: EventFileFlags
-    actor = None   # type: Application; responsible for performing the event
-    source = EventSource.unknown  # type: EventSource; source of the event
-    subjects = []  # type: list; other entities affected by the event
-    data = None    # binary data specific to each Event. Read the code...
-    data_app = None  # binary data specific to each Event's actor.
-
     posixOpenRe = re.compile(POSIX_OPEN_RE)
     posixFopenRe = re.compile(POSIX_FOPEN_RE)
     posixFDopenRe = re.compile(POSIX_FDOPEN_RE)
@@ -68,6 +59,7 @@ class Event(object):
     posixCloseRe = re.compile(POSIX_CLOSE_RE)
     posixFcloseRe = re.compile(POSIX_FCLOSE_RE)
     posixRenameRe = re.compile(POSIX_RENAME_RE)
+    posixDupRe = re.compile(POSIX_DUP_RE)
 
     def __init__(self,
                  actor: Application,
@@ -77,19 +69,22 @@ class Event(object):
                  cmdlineStr: str=None):
         """Construct an Event, using a Zeitgeist or PreloadLogger log entry."""
         super(Event, self).__init__()
-
         # Initialise actor and time of occurrence
         if not actor:
             raise ValueError("Events must be performed by a valid "
                              "Application.")
         if not time:
             raise ValueError("Events must have a time of occurrence.")
-        self.actor = actor
-        self.time = time
+        self.actor = actor  # type: Application; responsible for the event
+        self.time = time    # type: int; when the event occurred
 
-        self.type = EventType.unknown
-        self.evflags = EventFileFlags.no_flags
-        self.data = []
+        self.type = EventType.unknown           # type: EventType
+        self.evflags = EventFileFlags.no_flags  # type: EventFileFlags
+        self.source = EventSource.unknown       # type: EventSource
+
+        self.subjects = []    # type: list; entities affected by the Event.
+        self.data = []        # binary data specific to each Event.
+        self.data_app = []    # binary data specific to each Event's actor.
 
         # Verify there's only one source
         if not zgEvent and not syscallStr and not cmdlineStr:
@@ -151,7 +146,7 @@ class Event(object):
 
     def setDataSyscallFD(self, fd: int, path: str, fdType):
         """Set list of FDs that this Event links to its acting Application."""
-        self.data_app = (fd, path, fdType)
+        self.data_app.append((fd, path, fdType))
 
     def setDataSyscallFilesDual(self, oldpath: str, newpath: str):
         """Set data to a list of file couples (for copy/move events)."""
@@ -586,6 +581,62 @@ class Event(object):
         self.evflags |= EventFileFlags.copy
         self.setDataSyscallFilesDual(oldpath, newpath)
 
+    def parsePOSIXDup(self, syscall: str, content: str):
+        """Process a POSIX dup*() system call.
+
+        WARNING: Do not tamper with the way the error code is processed, it was
+        incorrectly stored in PreloadLogger. We thus cannot know when there was
+        an error and we must assume that the operation was always correct.
+        """
+
+        # Process the event's content
+        res = Event.posixDupRe.match(content)
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX dup* system call was not logged "
+                  "properly: %s" % content, file=sys.stderr)
+            self.type = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 5:
+                print("Error: POSIX dup* system call was not logged "
+                      "properly: %s" % content, file=sys.stderr)
+                self.type = EventType.invalid
+                return
+
+            # Assign relevant variables
+            func = (int, str, int, str, str)
+            (oldfd, oldcwd, newfd, __, newcwd) = \
+                map(lambda f, d: f(d), func, g)
+
+        # No error checking in this syscall due to a bug in PreloadLogger.
+
+        # Ignore duplications of FD 0, 1 or 2. Note that this is weak, a better
+        # approach would be for Application.resolveFD to detect when a FD
+        # references the stdin/out/err descriptors, and only then to abort
+        # the current Event. This is much harder architecturally, though.
+        if oldfd in (0, 1, 2) or newfd in (0, 1, 2):
+            self.type = EventType.invalid
+            return
+
+        # Close the file descriptor at the previous address, for dup2 and dup3.
+        if syscall in ('dup2', 'dup3'):
+            if oldfd != newfd:
+                self.setDataSyscallFD(newfd, None, FD_CLOSE)
+            else:
+                self._rejectError(syscall, str(newfd), 0, 0)
+                return
+
+        # Build path to be used by simulator, and save the corresponding File
+        newpath = ("@fdref:%d@appref:%s@" % (oldfd, self.getActor().uid()))
+        self.setDataSyscallFD(newfd, newpath, FD_OPEN)
+
+        self.evflags |= EventFileFlags.read
+        self.evtype = EventType.fileread
+        self.setDataSyscallFile(newpath)
+
     def parseSyscall(self, syscallStr: str):
         """Process a system call string to initialise this Event."""
 
@@ -614,18 +665,21 @@ class Event(object):
         # Variants of the fdopen() system calls
         elif syscall in ('fdopen', 'fdopendir'):
             self.parsePOSIXFDopen(syscall, content)
-        # opendir()
+        # folder opening
         elif syscall in ('opendir',):
             self.parsePOSIXOpendir(syscall, content)
-        # unlink()
+        # file deletion
         elif syscall in ('unlink', 'remove', 'rmdir'):
             self.parsePOSIXUnlink(syscall, content)
-        # close()
+        # file descriptor closing
         elif syscall in ('close', 'fclose', 'closedir'):
             self.parsePOSIXClose(syscall, content)
-        # rename()
+        # file renaming
         elif syscall in ('rename', 'renameat', 'renameat2', ):
             self.parsePOSIXRename(syscall, content)
+        # file description duplication
+        elif syscall in ('dup', 'dup2', 'dup3', ):
+            self.parsePOSIXDup(syscall, content)
         else:
             # TODO continue
             self.type = EventType.invalid
