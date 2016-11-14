@@ -7,7 +7,7 @@ from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import PolicyEngine
-from LibraryPolicies import OneLibraryPolicy
+from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
 from constants import USAGE_STRING, DATAPATH, DATABASENAME, USERCONFIGPATH
 import getopt
 import sys
@@ -101,10 +101,13 @@ def main(argv):
                             showDesignatedOnly=False)
 
     # Policy engine. Create a policy and run a simulation to score it.
-    engine = PolicyEngine()  # FIXME
+    engine = PolicyEngine()
+
     print("\nRunning the One Library policy...")
-    olp = OneLibraryPolicy(userConf=userConf)
-    engine.runPolicy(olp)
+    engine.runPolicy(OneLibraryPolicy(userConf=userConf))
+
+    print("\nRunning the Compound Library policy...")
+    engine.runPolicy(CompoundLibraryPolicy(userConf=userConf))
 
 
 if __name__ == "__main__":

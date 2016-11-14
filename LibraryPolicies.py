@@ -13,9 +13,11 @@ import re
 class OneLibraryPolicy(Policy):
     """Libraries made up of a single location. One library set per app."""
 
-    def __init__(self, userConf: UserConfigLoader):
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 name: str='OneLibraryPolicy'):
         """Construct a OneLibraryPolicy."""
-        super(OneLibraryPolicy, self).__init__(name='OneLibraryPolicy')
+        super(OneLibraryPolicy, self).__init__(name)
 
         self.appPathCache = dict()
         self.appPolicyCache = dict()
@@ -27,7 +29,6 @@ class OneLibraryPolicy(Policy):
         self.videoLibrary = dict()
 
         self.loadUserLibraryPreferences(userConf)
-        # TODO map app desktop entries to library names
 
     def loadUserLibraryPreferences(self, userConf: UserConfigLoader):
         """Load user's library and folder names."""
@@ -35,10 +36,6 @@ class OneLibraryPolicy(Policy):
         self.imageLibrary[userConf.getSetting('XdgImageDir')] = 0
         self.musicLibrary[userConf.getSetting('XdgMusicDir')] = 0
         self.videoLibrary[userConf.getSetting('XdgVideoDir')] = 0
-
-        # TODO: subclass this, call super for defaults and then add the below:
-        # self.pictureLibrary[additionalPictureDir] = 1
-        # self.confCost ++ (the vals of the libraries)
 
     def getAppPolicy(self, actor: Application):
         """Return the library capabilities policy for one Application."""
@@ -189,3 +186,42 @@ class OneLibraryPolicy(Policy):
             self.grantingCost += 1
         f.recordAccessCost(acc)
         return ILLEGAL_ACCESS
+
+
+class CompoundLibraryPolicy(OneLibraryPolicy):
+    """Libraries made up of compound locations. One library set per app."""
+
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 name: str='CompoundLibraryPolicy'):
+        """Construct a CompoundLibraryPolicy."""
+        super(CompoundLibraryPolicy, self).__init__(userConf, name)
+
+    def loadUserLibraryPreferences(self, userConf: UserConfigLoader):
+        super(CompoundLibraryPolicy, self).loadUserLibraryPreferences(userConf)
+
+        """Load user's extra libraries."""
+        confCost = 0
+        for d in userConf.getSetting('ExtraDocumentsDirs',
+                                     defaultValue=[],
+                                     type='stringlist'):
+            self.documentsLibrary[d] = 1
+            confCost += 1
+        for d in userConf.getSetting('ExtraImageDirs',
+                                     defaultValue=[],
+                                     type='stringlist'):
+            self.imageLibrary[d] = 1
+            confCost += 1
+        for d in userConf.getSetting('ExtraMusicDirs',
+                                     defaultValue=[],
+                                     type='stringlist'):
+            self.musicLibrary[d] = 1
+            confCost += 1
+        for d in userConf.getSetting('ExtraVideoDirs',
+                                     defaultValue=[],
+                                     type='stringlist'):
+            self.videoLibrary[d] = 1
+            confCost += 1
+
+        # Record the cost of configuring the policy
+        self.configCost += confCost
