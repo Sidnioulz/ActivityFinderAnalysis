@@ -1,6 +1,8 @@
 """Service to store File instances."""
 from File import File, EventFileFlags
 from utils import time2Str
+import os
+import shutil
 
 
 class FileStore(object):
@@ -85,7 +87,6 @@ class FileStore(object):
 
             # Ensure we print folders with a /, and files with leading space
             lastDir = printpath.rfind('/')
-            # FIXME /home is still not printed properly, check it
             if lastDir > 0:
                 printpath = (lastDir+1)*' ' + printpath[lastDir+1:]
                 if last.isFolder():
@@ -112,6 +113,67 @@ class FileStore(object):
                     print("%s\tDELETED on %s" % (
                            printpath,
                            time2Str(last.getTimeOfEnd())))
+
+    def makeFiles(self,
+                  outputDir: str,
+                  showDeleted: bool=False,
+                  showDocumentsOnly: bool=False,
+                  userHome: str=None,
+                  showDesignatedOnly: bool=False):
+        """Make all the files currently being stored into a folder."""
+
+        if not outputDir:
+            raise ValueError("You must provide an output location to make "
+                             "Files.")
+        else:
+            if os.path.exists(outputDir):
+                backup = outputDir + ".backup"
+                if os.path.exists(backup):
+                    shutil.rmtree(backup)
+                os.replace(outputDir, backup)
+            os.makedirs(outputDir, exist_ok=False)
+
+        for key in sorted(self.nameStore, key=lambda s: s.lower()):
+            files = self.nameStore[key]
+            last = files[-1]  # TODO handle multiple versions
+            printpath = last.getName()
+            outpath = outputDir + printpath
+
+            # Print only files accessed by designation, if asked to
+            if showDesignatedOnly:
+                flags = EventFileFlags.designation
+                if not last.getAccesses(flags):
+                    continue
+
+            # Print only user documents, if we have a home to compare to
+            if showDocumentsOnly and userHome:
+                if last.isHidden():
+                    continue
+                if not printpath.startswith("/media") and \
+                   not printpath.startswith(userHome):
+                    continue
+
+            # Non-deleted files
+            os.makedirs(outputDir + File.getParentName(printpath),
+                        exist_ok=True)
+
+            if not last.getTimeOfEnd():
+                if last.isFolder():
+                    os.makedirs(outpath)
+                else:
+                    with open(outpath, 'a'):
+                        os.utime(outpath, None)
+            # Deleted files, if the callee wants them too
+            elif showDeleted:
+                if last.isFolder():
+                    os.makedirs(outpath)
+                    # TODO folder metadata on deletion
+                else:
+                    outpathdel = "%s (DELETED on %s)" % (
+                                 outpath,
+                                 time2Str(last.getTimeOfEnd()))
+                    with open(outpathdel, 'a'):
+                        os.utime(outpathdel, None)
 
     def getFilesForName(self, name):
         """Return all Files that have the given name as a path."""

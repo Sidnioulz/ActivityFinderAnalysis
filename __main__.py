@@ -11,8 +11,8 @@ from LibraryPolicies import OneLibraryPolicy
 from constants import USAGE_STRING, DATAPATH, DATABASENAME, USERCONFIGPATH
 import getopt
 import sys
-from utils import __setCheckMissing, __setDebug, \
-                  checkMissingEnabled, debugEnabled
+from utils import __setCheckMissing, __setDebug, __setOutputFs, \
+                  checkMissingEnabled, debugEnabled, outputFsEnabled
 
 
 # Main function
@@ -20,8 +20,8 @@ from utils import __setCheckMissing, __setDebug, \
 def main(argv):
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hcd", ["help", "check-missing",
-                                                   "debug"])
+        (opts, args) = getopt.getopt(argv, "hcdf:", ["help", "check-missing",
+                                                     "debug", "output-fs="])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -34,6 +34,11 @@ def main(argv):
                 __setCheckMissing(True)
             elif opt in ('-d', '--debug'):
                 __setDebug(True)
+            elif opt in ('-f', '--output-fs'):
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                __setOutputFs(arg[1:] if arg[0] == '=' else arg)
 
     # Make the application, event and file stores
     store = ApplicationStore.get()
@@ -84,6 +89,16 @@ def main(argv):
                              showDocumentsOnly=True,
                              userHome=userConf.getSetting("HomeDir"),
                              showDesignatedOnly=False)
+
+    # Make the filesystem corresponding to the model
+    if outputFsEnabled():
+        print("\nMaking a copy of the file model at '%s'...\n" %
+              outputFsEnabled())
+        fileStore.makeFiles(outputDir=outputFsEnabled(),
+                            showDeleted=True,
+                            showDocumentsOnly=True,
+                            userHome=userConf.getSetting("HomeDir"),
+                            showDesignatedOnly=False)
 
     # Policy engine. Create a policy and run a simulation to score it.
     engine = PolicyEngine()  # FIXME

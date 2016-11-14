@@ -8,6 +8,7 @@ from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
 
 __opt_check = False
 __opt_debug = False
+__opt_output_fs = None
 
 
 def __setCheckMissing(opt):
@@ -22,6 +23,12 @@ def __setDebug(opt):
     __opt_debug = opt
 
 
+def __setOutputFs(opt):
+    """Set the return value of :outputFsEnabled():."""
+    global __opt_output_fs
+    __opt_output_fs = opt
+
+
 def checkMissingEnabled():
     """Return True if the --check-missing flag was passed, False otherwise."""
     global __opt_check
@@ -32,6 +39,12 @@ def debugEnabled():
     """Return True if the --debug flag was passed, False otherwise."""
     global __opt_debug
     return __opt_debug
+
+
+def outputFsEnabled():
+    """Return the value passed to the --output-fs flag, if any."""
+    global __opt_output_fs
+    return __opt_output_fs
 
 
 def time2Str(timestamp):
