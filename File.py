@@ -2,6 +2,7 @@
 from os.path import dirname
 from Application import Application
 from flags import Flags
+from utils import time2Str
 import sys
 
 
@@ -157,6 +158,15 @@ class File(object):
         if isinstance(other, self.__class__):
             return self.inode == other.inode
         return False
+
+    def __str__(self):
+        """Human-readable version of the File."""
+        ret = "<File %d - '%s' created on '%s'%s" % (
+               self.inode,
+               self.path,
+               time2Str(self.tstart),
+               ", deleted on '%s'" % time2Str(self.tend) if self.tend else '')
+        return ret
 
     def __init__(self,
                  path: str,
