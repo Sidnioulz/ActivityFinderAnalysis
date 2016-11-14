@@ -415,6 +415,27 @@ class TestFileFactory(unittest.TestCase):
         FileFactory.reset()
 
 
+class TestFile(unittest.TestCase):
+    def setUp(self):
+        self.factory = FileFactory.get()
+
+    def test_file_hidden(self):
+        first = "/path/to/first"
+        second = "/path/to/.second"
+        third = "/path/.to/third"
+
+        file1 = self.factory.getFile(first, 0)
+        file2 = self.factory.getFile(second, 0)
+        file3 = self.factory.getFile(third, 0)
+
+        self.assertFalse(file1.isHidden())
+        self.assertTrue(file2.isHidden())
+        self.assertTrue(file3.isHidden())
+
+    def tearDown(self):
+        FileFactory.reset()
+
+
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
         self.appStore = ApplicationStore.get()
