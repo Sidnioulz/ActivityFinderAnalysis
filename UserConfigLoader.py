@@ -27,7 +27,7 @@ class UserConfigLoader(object):
     def getSetting(self, key: str, defaultValue=None, type: str="string"):
         """Get a stored setting relative to the current participant."""
         if not self.ini:
-            return None
+            return defaultValue
 
         isList = False
         if type.endswith(" list"):
@@ -37,4 +37,4 @@ class UserConfigLoader(object):
         return self.ini.get(key,
                             group='User Config',
                             type=type,
-                            list=isList) or None
+                            list=isList) or defaultValue
