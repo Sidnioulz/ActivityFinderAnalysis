@@ -9,28 +9,33 @@ from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
 __opt_check = False
 __opt_debug = False
 
+
 def __setCheckMissing(opt):
+    """Set the return value of :checkMissingEnabled():."""
     global __opt_check
     __opt_check = opt
 
 
 def __setDebug(opt):
+    """Set the return value of :debugEnabled():."""
     global __opt_debug
     __opt_debug = opt
 
 
 def checkMissingEnabled():
+    """Return True if the --check-missing flag was passed, False otherwise."""
     global __opt_check
     return __opt_check
 
 
 def debugEnabled():
+    """Return True if the --debug flag was passed, False otherwise."""
     global __opt_debug
     return __opt_debug
 
 
 def time2Str(timestamp):
-    """Transforms a Zeitgeist timestamp into a human-readable string."""
+    """Transform a Zeitgeist timestamp into a human-readable string."""
     (timestamp, remainder) = divmod(timestamp, 1000)
     string = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
     string += (".%d" % remainder)
@@ -49,11 +54,12 @@ def uq(s):
 
 
 def int16(i):
-    """A unary function to convert strings to hexadecimal integers."""
+    """Convert strings to hexadecimal integers (unary version)."""
     if i == "(nil)":
         return 0
     else:
         return int(i, 16)
+
 
 # Regular Expression parsers
 space = re.compile(SPACE_REGEXP)
