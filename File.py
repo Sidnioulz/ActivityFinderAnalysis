@@ -3,7 +3,6 @@ from os.path import dirname
 from Application import Application
 from flags import Flags
 from utils import time2Str
-import sys
 
 
 class EventFileFlags(Flags):
