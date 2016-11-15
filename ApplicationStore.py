@@ -98,6 +98,11 @@ class ApplicationStore(object):
 
         self.pidStore[app.getPid()] = pids
 
+        # Update the name store
+        apps = self.nameStore.get(app.getDesktopId()) or []
+        apps.append(app)
+        self.nameStore[app.getDesktopId()] = apps
+
     def getAppLaunchEvents(self):
         """Return Events that embed info obtained from Apps' command lines."""
         allApps = []
@@ -118,6 +123,7 @@ class ApplicationStore(object):
         return events
 
     def lookupUid(self, uid: str):
+        """Return the only Application that has the given UID."""
         try:
             func = (str, int, int)
             (desktopid, pid, tstart) = map(lambda f, d: f(d), func,
@@ -131,12 +137,22 @@ class ApplicationStore(object):
             return None
 
     def lookupPid(self, pid: int):
+        """Lookup Applications that have had the given PID."""
         try:
             return self.pidStore[pid]
         except(KeyError):
             return None
 
+    def lookupDesktopId(self, desktopId: str, limit: int=0):
+        """Lookup Applications that have the given Desktop identifier."""
+        apps = self.nameStore.get(desktopId) or []
+        if limit:
+            return apps[limit]
+        else:
+            return apps
+
     def lookupPidTimestamp(self, pid, timestamp):
+        """Return the only Application that had given PID at the given time."""
         try:
             pids = self.pidStore[pid]
         except(KeyError):
