@@ -8,11 +8,14 @@ from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import PolicyEngine
 from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
-from constants import USAGE_STRING, DATAPATH, DATABASENAME, USERCONFIGPATH
+from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 import getopt
 import sys
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled
+
+USAGE_STRING = 'Usage: __main__.py [--check-missing --help --debug ' \
+               '--output-fs=<DIR>]'
 
 
 # Main function
@@ -104,11 +107,12 @@ def main(argv):
     engine = PolicyEngine()
 
     print("\nRunning the One Library policy...")
-    engine.runPolicy(OneLibraryPolicy(userConf=userConf))
+    engine.runPolicy(OneLibraryPolicy(userConf=userConf),
+                     outputDir=outputFsEnabled())
 
     print("\nRunning the Compound Library policy...")
-    engine.runPolicy(CompoundLibraryPolicy(userConf=userConf))
-
+    engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
+                     outputDir=outputFsEnabled())
 
 if __name__ == "__main__":
     main(sys.argv[1:])

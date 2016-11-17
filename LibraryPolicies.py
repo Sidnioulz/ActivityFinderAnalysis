@@ -17,11 +17,10 @@ class OneLibraryPolicy(Policy):
                  userConf: UserConfigLoader,
                  name: str='OneLibraryPolicy'):
         """Construct a OneLibraryPolicy."""
-        super(OneLibraryPolicy, self).__init__(name)
+        super(OneLibraryPolicy, self).__init__(userConf, name)
 
         self.appPathCache = dict()
         self.appPolicyCache = dict()
-        self.userConf = userConf
 
         self.documentsLibrary = dict()
         self.imageLibrary = dict()
@@ -151,7 +150,7 @@ class OneLibraryPolicy(Policy):
         """Assess the security and usability score of a FileAccess."""
         # Designation accesses are considered cost-free.
         if acc.evflags & EventFileFlags.designation:
-            self.desigAccess += 1
+            self.incrementScore('desigAccess', f, acc.actor)
             f.recordAccessCost(acc)
             return DESIGNATION_ACCESS
 
@@ -159,7 +158,7 @@ class OneLibraryPolicy(Policy):
         ownedPaths = self.generateOwnedPaths(acc.actor)
         for (path, evflags) in ownedPaths:
             if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
-                self.ownedPathAccess += 1
+                self.incrementScore('ownedPathAccess', f, acc.actor)
                 f.recordAccessCost(acc)
                 return OWNED_PATH_ACCESS
 
@@ -173,17 +172,17 @@ class OneLibraryPolicy(Policy):
             else:
                 for (path, cost) in attr.items():
                     if(f.getName().startswith(path)):
-                        self.policyAccess += 1
+                        self.incrementScore('policyAccess', f, acc.actor)
                         f.recordAccessCost(acc)
                         return POLICY_ACCESS
 
         # We could not justify the access, increase the usabiltiy cost.
-        self.illegalAccess += 1
-        self.cumulGrantCost += 1
+        self.incrementScore('illegalAccess', f, acc.actor)
+        self.incrementScore('cumulGrantCost', f, acc.actor)
         # If a prior interruption granted access, don't overcount.
         if not f.hadPastSimilarAccess(acc):
-            self.interruptionCost += 1
-            self.grantingCost += 1
+            self.incrementScore('interruptionCost', f, acc.actor)
+            self.incrementScore('grantingCost', f, acc.actor)
         f.recordAccessCost(acc)
         return ILLEGAL_ACCESS
 
@@ -224,4 +223,4 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
             confCost += 1
 
         # Record the cost of configuring the policy
-        self.configCost += confCost
+        self.incrementScore('configCost', None, None, increment=confCost)
