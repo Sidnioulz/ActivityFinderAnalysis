@@ -1,4 +1,5 @@
 """Service to retrieve existing files or to create them."""
+
 from Application import Application
 from ApplicationStore import ApplicationStore
 from File import File, EventFileFlags
