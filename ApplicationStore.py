@@ -147,7 +147,7 @@ class ApplicationStore(object):
         """Lookup Applications that have the given Desktop identifier."""
         apps = self.nameStore.get(desktopId) or []
         if limit:
-            return apps[limit]
+            return apps[:limit]
         else:
             return apps
 
