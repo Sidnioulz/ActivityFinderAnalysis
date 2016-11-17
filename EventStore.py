@@ -5,6 +5,7 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
 from constants import FD_OPEN, FD_CLOSE
+import sys
 
 
 class EventStore(object):
@@ -228,9 +229,6 @@ class EventStore(object):
         """Simulate a file copy or move Event, based on :keepOld:."""
         newFiles = []
 
-        # FIXME: attn, for syscalls, a cp to a folder doesn't cause deletion of
-        # the folder, but only of the overridden children!
-
         # Get each file, set its starting time and type, and update the store
         baseFlags = event.evflags
         for subj in event.getData():
@@ -244,6 +242,14 @@ class EventStore(object):
             newFile = fileFactory.getFileIfExists(new.getName(),
                                                   event.getTime())
             if newFile:
+                # FIXME: attn, for syscalls, a cp to a folder doesn't cause
+                # deletion of the folder, but only of the overridden children!
+
+                if newFile.isFolder():
+                    print("Warning: user copied to a folder. Must support "
+                          "in-depth copy! Folder is: %s" % newFile.getName(),
+                          file=sys.stderr)
+                    sys.exit(0)
                 baseFlags = event.evflags
                 event.evflags = (baseFlags |
                                  EventFileFlags.write |
@@ -317,7 +323,6 @@ class EventStore(object):
                     event.actor.openFD(data[0], data[1], event.time)
                 elif data[2] == FD_CLOSE:
                     event.actor.closeFD(data[0], event.time)
-                ## FIXME CONTINUE
 
             if event.getFileFlags() & EventFileFlags.destroy:
                 res = self.simulateDestroy(event, fileFactory, fileStore)
