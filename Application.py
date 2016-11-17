@@ -199,7 +199,7 @@ class Application(object):
         running.
         """
         if not isinstance(other, Application):
-            raise ValueError("Only other Application instances can be merged.")
+            raise TypeError("Only other Application instances can be merged.")
 
         if self.init != other.init:
             raise ValueError("Initialised Applications cannot be merged with "
