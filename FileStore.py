@@ -79,10 +79,7 @@ class FileStore(object):
 
             # Print only user documents, if we have a home to compare to
             if showDocumentsOnly and userHome:
-                if last.isHidden():
-                    continue
-                if not printpath.startswith("/media") and \
-                   not printpath.startswith(userHome):
+                if not last.isUserDocument(userHome):
                     continue
 
             # Ensure we print folders with a /, and files with leading space
@@ -135,45 +132,41 @@ class FileStore(object):
 
         for key in sorted(self.nameStore, key=lambda s: s.lower()):
             files = self.nameStore[key]
-            last = files[-1]  # TODO handle multiple versions
-            printpath = last.getName()
-            outpath = outputDir + printpath
+            lastCnt = 0
+            for last in reversed(files):
+                outpath = outputDir + last.getName()
 
-            # Print only files accessed by designation, if asked to
-            if showDesignatedOnly:
-                flags = EventFileFlags.designation
-                if not last.getAccesses(flags):
-                    continue
+                # Deal with previous versions
+                if lastCnt:
+                    outpath += ".prev.%d" % lastCnt
+                lastCnt += 1
 
-            # Print only user documents, if we have a home to compare to
-            if showDocumentsOnly and userHome:
-                if last.isHidden():
-                    continue
-                if not printpath.startswith("/media") and \
-                   not printpath.startswith(userHome):
-                    continue
+                # Print only files accessed by designation, if asked to
+                if showDesignatedOnly:
+                    flags = EventFileFlags.designation
+                    if not last.getAccesses(flags):
+                        continue
 
-            # Non-deleted files
-            os.makedirs(outputDir + File.getParentName(printpath),
-                        exist_ok=True)
+                # Print only user documents, if we have a home to compare to
+                if showDocumentsOnly and userHome:
+                    if not last.isUserDocument(userHome):
+                        continue
 
-            if not last.getTimeOfEnd():
-                if last.isFolder():
-                    os.makedirs(outpath)
-                else:
-                    with open(outpath, 'a'):
-                        os.utime(outpath, None)
-            # Deleted files, if the callee wants them too
-            elif showDeleted:
-                if last.isFolder():
-                    os.makedirs(outpath)
-                    # TODO folder metadata on deletion
-                else:
-                    outpathdel = "%s (DELETED on %s)" % (
-                                 outpath,
-                                 time2Str(last.getTimeOfEnd()))
-                    with open(outpathdel, 'a'):
-                        os.utime(outpathdel, None)
+                # Ensure all parent folders exist
+                os.makedirs(outputDir + '/' +
+                            File.getParentName(last.getName()),
+                            exist_ok=True)
+
+                if not last.getTimeOfEnd() or showDeleted:
+                    if last.isFolder():
+                        os.makedirs(outpath)
+                        with open(outpath+"/.ucl-metadata", 'a') as f:
+                            os.utime(outpath+"/.ucl-metadata", None)
+                            last.writeStatistics(f)
+                    else:
+                        with open(outpath, 'a') as f:
+                            os.utime(outpath, None)
+                            last.writeStatistics(f)
 
     def getFilesForName(self, name):
         """Return all Files that have the given name as a path."""

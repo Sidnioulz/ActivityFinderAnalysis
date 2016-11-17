@@ -272,6 +272,17 @@ class File(object):
         """Return the MIME type of the file."""
         return self.ftype
 
+    def isUserDocument(self, userHome: str):
+        """Return True if the file is not hidden, and in ~ or /media."""
+        if self.isHidden():
+            return False
+
+        if not self.path.startswith("/media") and \
+           not self.path.startswith(userHome):
+            return False
+
+        return True
+
     def isHidden(self):
         """Return True if the file is hidden (name starts with a dot)."""
         hasParent = True
@@ -369,3 +380,11 @@ class File(object):
         # print("Recorded in the past:", appAcc)
         # print("Returning:", recordedFlags & appAcc == recordedFlags)
         return (recordedFlags & appAcc == recordedFlags)
+
+    def writeStatistics(self, out):
+        """Write information on creation, deletion and accesses to the File."""
+        print("FILE %d@%s" % (self.inode, self.path), file=out)
+        print("CREATED %d" % self.tstart, file=out)
+        print("DELETED %d" % self.tend, file=out)
+        for a in self.accesses:
+            print("*%s|%d|%s" % (a.actor.uid(), a.time, a.evflags), file=out)
