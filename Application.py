@@ -133,7 +133,7 @@ class Application(object):
 
     def uid(self):
         """Generate a unique string identifier for this Application."""
-        return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
+        return "%s(%s):%d:%d" % (self.desktopid, self.interpreterid, self.pid, self.tstart)
 
     def hasSameDesktopId(self, other, resolveInterpreter: bool=False):
         """Check whether a desktop id is equivalent to the current object's.
@@ -232,6 +232,8 @@ class Application(object):
         self.setTimeOfEnd(max(other.getTimeOfEnd(),
                               self.getTimeOfEnd()))
         self.events += list(set(other.events) - set(self.events))
+
+        return self
 
     def setCommandLine(self, cmd):
         """Set the command line used to start this Application."""
