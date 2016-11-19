@@ -205,7 +205,8 @@ class ApplicationStore(object):
                     app.interpreterid = interpreters.get(app.desktopid)
                     changed = True
                     interpretersAdded += 1
-            self.pidStore[pid] = self._mergePidList(pid, apps) if changed else apps
+            self.pidStore[pid] = self._mergePidList(pid, apps) if changed \
+                else apps
             instancesEliminated += listLen - len(self.pidStore[pid])
 
         # Ensure the name store is up-to-date again
