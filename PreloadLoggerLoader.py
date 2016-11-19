@@ -3,7 +3,6 @@ import os
 import re
 from Application import Application
 from ApplicationStore import ApplicationStore
-from EventStore import EventStore
 from Event import Event
 from utils import space, pyre, pynamer, pyprocname, javare, javanamer, \
                   javaprocname, perlre, perlnamer, monore, mononamer, \
@@ -146,7 +145,6 @@ class PreloadLoggerLoader(object):
     or to exit if some Application instances are not properly initialised. """
     def loadDb(self,
                store: ApplicationStore = None,
-               eventStore: EventStore = None,
                checkInitialised: bool = False):
 
         count = 0              # Counter of fetched files, for stats
@@ -307,17 +305,16 @@ class PreloadLoggerLoader(object):
                     if app.isStudyApp():
                         continue
 
-                    if eventStore:
-                        # Add system call events
-                        for h in syscalls:
-                            event = Event(actor=app,
-                                          time=h[0],
-                                          syscallStr=h[1])
-                            eventStore.append(event)
+                    # Add command-line event
+                    event = Event(actor=app, time=tstart, cmdlineStr=g[2])
+                    app.addEvent(event)
 
-                        # Add command-line event
-                        event = Event(actor=app, time=tstart, cmdlineStr=g[2])
-                        eventStore.append(event)
+                    # Add system call events
+                    for h in syscalls:
+                        event = Event(actor=app,
+                                      time=h[0],
+                                      syscallStr=h[1])
+                        app.addEvent(event)
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
@@ -330,7 +327,8 @@ class PreloadLoggerLoader(object):
 
                     # Insert into the ApplicationStore if one is available
                     if store:
-                        store.insert(app)
+                        finalActor = store.insert(app)
+                        app.sendEventsToStore(finalActor=finalActor)
                         instanceCount += 1
 
         if checkInitialised and hasErrors:

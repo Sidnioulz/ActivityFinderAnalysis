@@ -7,6 +7,7 @@ DATABASENAME = "activity.sqlite"
 SPACE_REGEXP = r'(?<!\\) '
 
 # Application constants
+APPMERGEWINDOW = 60 * 60 * 1000
 DESKTOPPATHS = ['./applications/',
                 '/usr/share/applications/',
                 '~/.local/share/applications/']

@@ -62,7 +62,7 @@ def main(argv):
     if checkMissingEnabled():
         print("Checking for missing application identities...")
         sql.listMissingActors()
-    sql.loadDb(store, evStore)
+    sql.loadDb(store)
     print("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
@@ -71,7 +71,7 @@ def main(argv):
     if checkMissingEnabled():
         print("Checking for missing application identities...")
         pll.listMissingActors()
-    pll.loadDb(store, evStore)
+    pll.loadDb(store)
     print("Loaded the PreloadLogger logs.")
 
     # Sort all the events in found Applications
@@ -113,6 +113,7 @@ def main(argv):
     print("\nRunning the Compound Library policy...")
     engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
                      outputDir=outputFsEnabled())
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

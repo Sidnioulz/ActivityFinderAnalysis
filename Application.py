@@ -241,21 +241,6 @@ class Application(object):
         """Return the command line used to start this Application."""
         return self.cmdline
 
-    def addEvent(self, event):
-        """Add an event to this Application for future modelling."""
-        self.events.append(event)
-
-    def getAllEvents(self):
-        """Return this Application's events."""
-        for event in self.events:
-            yield event
-
-    def takeAllEvents(self):
-        """Return this Application's events and clears them."""
-        ev = self.events
-        self.events = []
-        return ev
-
     def clearEvents(self):
         """Clear all events to be modelled for this Application."""
         self.events = []
@@ -370,3 +355,16 @@ class Application(object):
         if not t:
             raise ValueError("Application %s has no type." % self.uid())
         return t == 'Application'
+
+    def addEvent(self, event: 'Event'):
+        """Keep an Event temporarily till its final actor is resolved."""
+        self.events.append(event)
+
+    def sendEventsToStore(self, finalActor: 'Application'=None):
+        """Send this app's Events to the EventStore, and clear them."""
+        from EventStore import EventStore
+        eventStore = EventStore.get()
+        for event in self.events:
+            event.actor = finalActor or self
+            eventStore.append(event)
+        self.events = []

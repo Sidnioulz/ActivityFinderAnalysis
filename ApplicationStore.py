@@ -2,6 +2,7 @@
 from utils import time2Str
 from Application import Application
 from Event import Event
+from constants import APPMERGEWINDOW
 import sys
 
 
@@ -39,7 +40,8 @@ class ApplicationStore(object):
 
     def insert(self, app: Application):
         """Insert an Application in the store."""
-        # print("Insert %s:%d into store" % (app.getDesktopId(), app.getPid()))
+        finalApp = None
+
         if app.getPid() == 0:
             raise ValueError("Applications must have a valid PID.")
 
@@ -52,8 +54,10 @@ class ApplicationStore(object):
             raise ValueError("Applications must have valid times of start and "
                              "end.")
 
+        # Get the list of instances for this PID, and find this app's place.
         pids = self.pidStore.get(app.getPid(), list())  # type: list
 
+        neighbourCheckupIndex = -1
         for (index, bpp) in enumerate(pids):
             bstart = bpp.getTimeOfStart()
             bend = bpp.getTimeOfEnd()
@@ -65,6 +69,7 @@ class ApplicationStore(object):
             # other item after ours, we found our position
             if (bstart > tend):
                 pids.insert(index, app)
+                neighbourCheckupIndex = index
                 break
 
             # time period conflict, merge apps if same id or alert of a problem
@@ -72,6 +77,7 @@ class ApplicationStore(object):
                 if app.hasSameDesktopId(bpp, resolveInterpreter=True):
                     bpp.merge(app)
                     pids[index] = bpp
+                    neighbourCheckupIndex = index
                 else:
                     # TODO: split the larger Application, if there is one, else
                     # abandon the ship.
@@ -95,6 +101,44 @@ class ApplicationStore(object):
         # app is the last item on the list!
         else:
             pids.append(app)
+            finalApp = app
+
+        # Now, we check if the neighbours to the newly inserted Application
+        # have the same Desktop ID. If they do, and if they are within a given
+        # proximity window, we merge the items. This is needed to help Events
+        # from Zeitgeist and PreloadLogger to synchronise.
+        if neighbourCheckupIndex >= 0:
+
+            # Check previous first
+            prevIndex = neighbourCheckupIndex - 1
+            if prevIndex >= 0:
+                currentApp = pids[neighbourCheckupIndex]
+                prevApp = pids[prevIndex]
+
+                if prevApp.hasSameDesktopId(app) and \
+                        (prevApp.getTimeOfEnd() + APPMERGEWINDOW >
+                         currentApp.getTimeOfStart()):
+                    prevApp.merge(currentApp)
+                    pids[prevIndex] = prevApp
+
+                    # Eliminate the leftover and point to the newly merged app
+                    del pids[neighbourCheckupIndex]
+                    neighbourCheckupIndex = prevIndex
+                    finalApp = prevApp
+
+            # Then check next
+            nextIndex = neighbourCheckupIndex + 1
+            if nextIndex < len(pids):
+                currentApp = pids[neighbourCheckupIndex]
+                nextApp = pids[nextIndex]
+
+                if nextApp.hasSameDesktopId(app) and \
+                        (currentApp.getTimeOfEnd() + APPMERGEWINDOW >
+                         nextApp.getTimeOfStart()):
+                    currentApp.merge(nextApp)
+                    pids[neighbourCheckupIndex] = currentApp
+                    del pids[nextIndex]
+                    finalApp = currentApp
 
         self.pidStore[app.getPid()] = pids
 
@@ -102,6 +146,7 @@ class ApplicationStore(object):
         apps = self.nameStore.get(app.getDesktopId()) or []
         apps.append(app)
         self.nameStore[app.getDesktopId()] = apps
+        return finalApp
 
     def getAppLaunchEvents(self):
         """Return Events that embed info obtained from Apps' command lines."""

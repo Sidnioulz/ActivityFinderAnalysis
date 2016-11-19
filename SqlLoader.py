@@ -3,7 +3,6 @@ import sys
 import re
 from Application import Application
 from ApplicationStore import ApplicationStore
-from EventStore import EventStore
 from Event import Event
 from SqlEvent import SqlEvent, SqlEventSubject
 from constants import EV_ID, EV_TIMESTAMP, EV_INTERPRETATION, \
@@ -96,9 +95,7 @@ class SqlLoader(object):
         if hasErrors is True:
             sys.exit(-1)
 
-    def loadDb(self,
-               store: ApplicationStore = None,
-               eventStore: EventStore = None):
+    def loadDb(self, store: ApplicationStore = None):
         """Browse the SQLite db and create all the relevant app instances."""
 
         # Load up our events from the Zeitgeist database
@@ -195,11 +192,11 @@ class SqlLoader(object):
                     currentApp.setTimeOfEnd(max(ev.timestamp,
                                                 currentApp.getTimeOfEnd()))
                 # Ignore study artefacts!
-                if eventStore and not currentApp.isStudyApp():
+                if not currentApp.isStudyApp():
                     event = Event(actor=currentApp,
                                   time=ev.timestamp,
                                   zgEvent=ev)
-                    eventStore.append(event)
+                    currentApp.addEvent(event)
 
             # Insert into the ApplicationStore if one was given to us
             instanceCount += len(apps)
@@ -207,7 +204,8 @@ class SqlLoader(object):
                 for app in apps:
                     # Ignore study artefacts!
                     if not app.isStudyApp():
-                        store.insert(app)
+                        finalActor = store.insert(app)
+                        app.sendEventsToStore(finalActor=finalActor)
                     else:
                         instanceCount -= 1  # We discount this app instance
 
