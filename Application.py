@@ -127,10 +127,10 @@ class Application(object):
     def getInterpreterId(self):
         """Return the Application's interpreter .desktop id if it exists."""
         return self.interpreterid
-        return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
 
     def uid(self):
         """Generate a unique string identifier for this Application."""
+        return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
 
     def hasSameDesktopId(self, other, resolveInterpreter: bool=False):
         """Check whether a desktop id is equivalent to the current object's.
