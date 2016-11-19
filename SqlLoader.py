@@ -177,6 +177,7 @@ class SqlLoader(object):
             for ev in pevent:
                 (evId, __) = Application.getDesktopIdFromDesktopUri(
                     ev.actor_uri)
+
                 if evId != currentId:
                     currentId = evId
                     currentApp = Application(desktopid=evId,
@@ -203,8 +204,7 @@ class SqlLoader(object):
                 for app in apps:
                     # Ignore study artefacts!
                     if not app.isStudyApp():
-                        finalActor = store.insert(app)
-                        app.sendEventsToStore(finalActor=finalActor)
+                        store.insert(app)
                     else:
                         instanceCount -= 1  # We discount this app instance
 

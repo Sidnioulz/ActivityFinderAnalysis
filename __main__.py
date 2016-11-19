@@ -82,15 +82,10 @@ def main(argv):
           "instances by merging them with another as a result." % (
            interpretersAdded, instancesEliminated))
 
-    # Resolve actor ids in all apps' events
-    print("\nResolving cross-references to Applications now that all Loaders "
-          "have been called, and Applications merged...")
-    store.resolveActorReferences()  # TODO
-    print("\nResolved all Application cross-references.")
-
-    # Sort all the events in found Applications
+    # Update events' actor ids in the ApplicationStore, then take them and send
+    # them to the EvnetStore. Finally, sort the EventStore by timestamp.
     print("\nInserting and sorting all events...")
-    # TODO event insert
+    store.sendEventsToStore()
     evStore.sort()
     print("Sorted all %d events in the event store." % evStore.getEventCount())
 

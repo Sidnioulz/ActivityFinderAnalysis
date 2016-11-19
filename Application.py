@@ -127,10 +127,10 @@ class Application(object):
     def getInterpreterId(self):
         """Return the Application's interpreter .desktop id if it exists."""
         return self.interpreterid
+        return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
 
     def uid(self):
         """Generate a unique string identifier for this Application."""
-        return "%s(%s):%d:%d" % (self.desktopid, self.interpreterid, self.pid, self.tstart)
 
     def hasSameDesktopId(self, other, resolveInterpreter: bool=False):
         """Check whether a desktop id is equivalent to the current object's.
@@ -357,11 +357,16 @@ class Application(object):
         """Keep an Event temporarily till its final actor is resolved."""
         self.events.append(event)
 
-    def sendEventsToStore(self, finalActor: 'Application'=None):
+    def sendEventsToStore(self):
         """Send this app's Events to the EventStore, and clear them."""
+        # Get the EventStore
         from EventStore import EventStore
         eventStore = EventStore.get()
+
+        # Send each Event, after updating it to point to the updated self.
         for event in self.events:
-            event.actor = finalActor or self
+            event.actor = self
             eventStore.append(event)
+
+        # Clear events, to save RAM.
         self.events = []

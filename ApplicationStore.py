@@ -213,6 +213,12 @@ class ApplicationStore(object):
 
         return (interpretersAdded, instancesEliminated)
 
+    def sendEventsToStore(self):
+        """Send Applications' events to the EventStore with a correct actor."""
+        for (pid, apps) in self.pidStore.items():
+            for app in apps:
+                app.sendEventsToStore()
+
     def _regenNameStore(self):
         """Regenerate the desktopid index of this ApplicationStore."""
         self.nameStore = dict()

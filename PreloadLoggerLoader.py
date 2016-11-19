@@ -327,8 +327,7 @@ class PreloadLoggerLoader(object):
 
                     # Insert into the ApplicationStore if one is available
                     if store:
-                        finalActor = store.insert(app)
-                        app.sendEventsToStore(finalActor=finalActor)
+                        store.insert(app)
                         instanceCount += 1
 
         if checkInitialised and hasErrors:
