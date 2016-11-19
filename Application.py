@@ -2,6 +2,7 @@
 from xdg import DesktopEntry
 from constants import DESKTOPPATHS, DESKTOPIDRE
 import re
+import os
 
 
 class Application(object):
@@ -80,9 +81,8 @@ class Application(object):
         de = DesktopEntry.DesktopEntry()
         foundPath = False
         for path in DESKTOPPATHS:
-            depath = path + defile
+            depath = os.path.realpath(path + defile)
             try:
-                # TODO: resolve symlink on depath and use that link target
                 de.parse(depath)
                 self.entry = de
             except(DesktopEntry.ParsingError) as e:
