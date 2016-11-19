@@ -37,6 +37,68 @@ class ApplicationStore(object):
         """Empty the ApplicationStore."""
         self.pidStore = dict()   # type: dict
         self.nameStore = dict()  # type: dict
+        self.nameStoreClean = True
+
+    def _mergePidList(self, pid, pids: list):
+        """Ensure a time-sorted PID list has its similar neighbours merged."""
+        newPids = []
+
+        # Check if the previous item has the same id and finished late enough.
+        mergeTarget = None
+        for (index, app) in enumerate(pids):
+            if not mergeTarget:
+                mergeTarget = app
+                newPids.append(app)
+                continue
+
+            if mergeTarget.hasSameDesktopId(app, resolveInterpreter=True) and \
+                    (mergeTarget.getTimeOfEnd() + APPMERGEWINDOW >
+                     app.getTimeOfStart()):
+                mergeTarget.merge(app)
+                newPids[-1] = mergeTarget
+            else:
+                mergeTarget = app
+                newPids.append(app)
+
+        return newPids
+
+    def _mergePidItem(self, pids: list, checkupIndex: int):
+        """Merge an app with identical neighbours in a time-sorted PID list."""
+        finalApp = pids[checkupIndex]
+
+        # Check if the previous item has the same id and finished late enough.
+        prevIndex = checkupIndex - 1
+        if prevIndex >= 0:
+            currentApp = pids[checkupIndex]
+            prevApp = pids[prevIndex]
+
+            if prevApp.hasSameDesktopId(currentApp, resolveInterpreter=True) \
+                    and (prevApp.getTimeOfEnd() + APPMERGEWINDOW >
+                         currentApp.getTimeOfStart()):
+                # Merge the currently-being-checked app into the previous one.
+                prevApp.merge(currentApp)
+                pids[prevIndex] = prevApp
+
+                # Eliminate the leftover and point to the newly merged app.
+                del pids[checkupIndex]
+                checkupIndex = prevIndex
+                finalApp = prevApp
+
+        # Then check if the next app has the same id and started early enough.
+        nextIndex = checkupIndex + 1
+        if nextIndex < len(pids):
+            currentApp = pids[checkupIndex]
+            nextApp = pids[nextIndex]
+
+            if currentApp.hasSameDesktopId(nextApp, resolveInterpreter=True) \
+                    and (currentApp.getTimeOfEnd() + APPMERGEWINDOW >
+                         nextApp.getTimeOfStart()):
+                currentApp.merge(nextApp)
+                pids[checkupIndex] = currentApp
+                del pids[nextIndex]
+                finalApp = currentApp
+
+        return (pids, finalApp)
 
     def insert(self, app: Application):
         """Insert an Application in the store."""
@@ -108,45 +170,60 @@ class ApplicationStore(object):
         # proximity window, we merge the items. This is needed to help Events
         # from Zeitgeist and PreloadLogger to synchronise.
         if neighbourCheckupIndex >= 0:
-
-            # Check previous first
-            prevIndex = neighbourCheckupIndex - 1
-            if prevIndex >= 0:
-                currentApp = pids[neighbourCheckupIndex]
-                prevApp = pids[prevIndex]
-
-                if prevApp.hasSameDesktopId(app) and \
-                        (prevApp.getTimeOfEnd() + APPMERGEWINDOW >
-                         currentApp.getTimeOfStart()):
-                    prevApp.merge(currentApp)
-                    pids[prevIndex] = prevApp
-
-                    # Eliminate the leftover and point to the newly merged app
-                    del pids[neighbourCheckupIndex]
-                    neighbourCheckupIndex = prevIndex
-                    finalApp = prevApp
-
-            # Then check next
-            nextIndex = neighbourCheckupIndex + 1
-            if nextIndex < len(pids):
-                currentApp = pids[neighbourCheckupIndex]
-                nextApp = pids[nextIndex]
-
-                if nextApp.hasSameDesktopId(app) and \
-                        (currentApp.getTimeOfEnd() + APPMERGEWINDOW >
-                         nextApp.getTimeOfStart()):
-                    currentApp.merge(nextApp)
-                    pids[neighbourCheckupIndex] = currentApp
-                    del pids[nextIndex]
-                    finalApp = currentApp
+            (pids, finalApp) = self._mergePidItem(pids, neighbourCheckupIndex)
 
         self.pidStore[app.getPid()] = pids
-
-        # Update the name store
-        apps = self.nameStore.get(app.getDesktopId()) or []
-        apps.append(finalApp)
-        self.nameStore[app.getDesktopId()] = apps
+        self.nameStoreClean = False
         return finalApp
+
+    def resolveInterpreters(self):
+        """Ensure all interpreted apps have their known interpreter set.
+
+        Identify desktopids for which an interpreterid is known, and ensure all
+        Applications with that desktopid have it set. Then, re-merge all apps
+        in the store to eliminate past inconsistencies."""
+
+        interpretersAdded = 0
+        instancesEliminated = 0
+
+        # First, get all the interpreters from the apps.
+        interpreters = dict()
+        if not self.nameStoreClean:
+            self._regenNameStore()
+        for (desktopid, apps) in self.nameStore.items():
+            for app in apps:
+                if app.interpreterid:
+                    interpreters[desktopid] = app.interpreterid
+                    break
+
+        # Update all apps in the pidStore.
+        for (pid, apps) in self.pidStore.items():
+            listLen = len(apps)
+            changed = False
+            for (index, app) in enumerate(apps):
+                if not app.interpreterid:
+                    app.interpreterid = interpreters.get(app.desktopid)
+                    changed = True
+                    interpretersAdded += 1
+            self.pidStore[pid] = self._mergePidList(pid, apps) if changed else apps
+            instancesEliminated += listLen - len(self.pidStore[pid])
+
+        # Ensure the name store is up-to-date again
+        self._regenNameStore()
+
+        return (interpretersAdded, instancesEliminated)
+
+    def _regenNameStore(self):
+        """Regenerate the desktopid index of this ApplicationStore."""
+        self.nameStore = dict()
+
+        for (pid, apps) in self.pidStore.items():
+            for app in apps:
+                desktopList = self.nameStore.get(app.desktopid) or []
+                desktopList.append(app)
+                self.nameStore[app.desktopid] = desktopList
+
+        self.nameStoreClean = True
 
     def getAppLaunchEvents(self):
         """Return Events that embed info obtained from Apps' command lines."""
@@ -190,6 +267,9 @@ class ApplicationStore(object):
 
     def lookupDesktopId(self, desktopId: str, limit: int=0):
         """Lookup Applications that have the given Desktop identifier."""
+        if not self.nameStoreClean:
+            self._regenNameStore()
+
         apps = self.nameStore.get(desktopId) or []
         if limit:
             return apps[:limit]

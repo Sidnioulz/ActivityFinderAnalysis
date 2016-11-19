@@ -74,8 +74,23 @@ def main(argv):
     pll.loadDb(store)
     print("Loaded the PreloadLogger logs.")
 
+    # Resolve actor ids in all apps' events
+    print("\nUsing PreloadLogger Applications to resolve interpreters in "
+          " Zeitgeist Applications...")
+    (interpretersAdded, instancesEliminated) = store.resolveInterpreters()
+    print("Resolved interpreter ids in %d Applications, and removed %d "
+          "instances by merging them with another as a result." % (
+           interpretersAdded, instancesEliminated))
+
+    # Resolve actor ids in all apps' events
+    print("\nResolving cross-references to Applications now that all Loaders "
+          "have been called, and Applications merged...")
+    store.resolveActorReferences()  # TODO
+    print("\nResolved all Application cross-references.")
+
     # Sort all the events in found Applications
-    print("\nSorting all events...")
+    print("\nInserting and sorting all events...")
+    # TODO event insert
     evStore.sort()
     print("Sorted all %d events in the event store." % evStore.getEventCount())
 
