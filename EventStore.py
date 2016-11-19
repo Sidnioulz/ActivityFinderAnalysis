@@ -1,6 +1,6 @@
 """A store for Event objects."""
 from DesignationCache import DesignationCache
-from Event import Event, EventFileFlags
+from Event import Event, EventFileFlags, EventSource
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
@@ -310,12 +310,24 @@ class EventStore(object):
         fileStore = FileStore.get()
         fileFactory = FileFactory.get()
 
-        # Dispatch event to the appropriate handler
+        # First, parse for Zeitgeist designation events in order to instantiate
+        # the designation cache.
         for event in self.store:
+            if event.getSource() == EventSource.zeitgeist:
+                # The event grants 5 minutes of designation both ways.
+                self.desigcache.addItem(event,
+                                        start=event.getTime() - 5*60*1000,
+                                        duration=10*60*1000)
+                self.desigcache.addPidWatch(event.actor.pid)
             # The current Event is an act of designation for future Events
             # related to the same Application and Files. Save it.
-            if event.getFileFlags() & EventFileFlags.designationcache:
+            elif event.getFileFlags() & EventFileFlags.designationcache:
                 self.desigcache.addItem(event)
+
+        # Then, dispatch each event to the appropriate handler
+        for event in self.store:
+            # Designation events are already processed.
+            if event.getFileFlags() & EventFileFlags.designationcache:
                 continue
 
             for data in event.data_app:
