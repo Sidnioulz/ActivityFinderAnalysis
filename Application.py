@@ -17,7 +17,6 @@ class Application(object):
     init = False              # type: bool
     entry = None              # type: DesktopEntry
     desktopid = None          # type: str; final id of the app after init
-    desktopidoriginal = None  # type: str; original id when App was c'ted
     interpreterid = None      # type: str; id of interpreter, e.g. java, python
     path = None               # type: str; path to executable
     pid = 0                   # type: int; UNIX process ID
@@ -63,48 +62,46 @@ class Application(object):
         self.tend = tend
         self.interpreterid = interpreterid.lower() if interpreterid else None
 
-    def __initFromDesktopID(self):
-        """Initialise an application using an XDG desktop identifier."""
-        if self.desktopid is None:
-            return
+    @staticmethod
+    def getDesktopIdFromDesktopUri(uri: str):
+        """Calculate the Application Desktop Id for a given URI."""
+        if not uri:
+            return (None, None)
 
-        if self.desktopid.startswith("application://"):
-            defile = self.desktopid[14:]
-        else:
-            defile = self.desktopid
+        desktopid = None
 
-        if not self.desktopid.endswith(".desktop"):
+        defile = uri[14:] if uri.startswith("application://") else uri
+        if not uri.endswith(".desktop"):
             defile += ".desktop"
 
-        self.desktopidoriginal = defile
-
         de = DesktopEntry.DesktopEntry()
-        foundPath = False
         for path in DESKTOPPATHS:
             depath = os.path.realpath(path + defile)
             try:
                 de.parse(depath)
-                self.entry = de
             except(DesktopEntry.ParsingError) as e:
                 pass
             else:
                 res = Application.desktopre.match(depath)
                 try:
-                    self.desktopid = res.groups()[0].lower()
+                    desktopid = res.groups()[0].lower()
                 except(ValueError, KeyError) as e:
-                    self.desktopid = depath.lower()
-                foundPath = True
+                    desktopid = depath.lower()
                 break
 
-        if not foundPath:
-            self.desktopid = None
-            return
+        return (desktopid, de)
 
-        if not self.path:
+    def __initFromDesktopID(self):
+        """Initialise an application using an XDG desktop identifier."""
+        (did, entry) = Application.getDesktopIdFromDesktopUri(self.desktopid)
+
+        if not did:
             # TODO get path from Exec/TryExec for de entry
-            pass
-
-        self.init = True
+            return
+        else:
+            self.desktopid = did
+            self.entry = entry
+            self.init = True
 
     def __initFromPath(self):
         """Initialise an Application based on the path of its executable.
@@ -224,8 +221,6 @@ class Application(object):
             self.path = other.path
         if (not self.cmdline) and other.cmdline:
             self.cmdline = other.cmdline
-        if (not self.desktopidoriginal) and other.desktopidoriginal:
-            self.desktopidoriginal = other.desktopidoriginal
 
         self.setTimeOfStart(min(other.getTimeOfStart(),
                                 self.getTimeOfStart()))

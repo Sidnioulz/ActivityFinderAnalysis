@@ -170,17 +170,16 @@ class SqlLoader(object):
         # For each PID, we'll now identify the successive Application instances
         for (pkey, pevent) in eventsPerPid.items():
             pevent = sorted(pevent, key=lambda x: x.timestamp)
-            currentActorUri = ''  # currently matched actor URI
+            currentId = ''     # currently matched Desktop Id
             currentApp = None  # currently matched Application
             apps = []          # temp storage for found Applications
 
             for ev in pevent:
-                if ev.actor_uri != currentActorUri:
-                    # TODO validate that currentApp and the new event's app
-                    # don't actually have the same desktop id in the end, once
-                    # aliases are resolved
-                    currentActorUri = ev.actor_uri
-                    currentApp = Application(desktopid=ev.actor_uri,
+                (evId, __) = Application.getDesktopIdFromDesktopUri(
+                    ev.actor_uri)
+                if evId != currentId:
+                    currentId = evId
+                    currentApp = Application(desktopid=evId,
                                              pid=int(pkey),
                                              tstart=ev.timestamp,
                                              tend=ev.timestamp)
