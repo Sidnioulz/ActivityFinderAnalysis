@@ -144,7 +144,7 @@ class ApplicationStore(object):
 
         # Update the name store
         apps = self.nameStore.get(app.getDesktopId()) or []
-        apps.append(app)
+        apps.append(finalApp)
         self.nameStore[app.getDesktopId()] = apps
         return finalApp
 
