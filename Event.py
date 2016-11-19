@@ -78,7 +78,7 @@ class Event(object):
         self.actor = actor  # type: Application; responsible for the event
         self.time = time    # type: int; when the event occurred
 
-        self.type = EventType.unknown           # type: EventType
+        self.evtype = EventType.unknown           # type: EventType
         self.evflags = EventFileFlags.no_flags  # type: EventFileFlags
         self.source = EventSource.unknown       # type: EventSource
 
@@ -236,7 +236,7 @@ class Event(object):
 
         else:
             # TODO continue
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
 
     def _rejectError(self, syscall, path, flags, error):
         """Print a warning that a syscall failed and invalidate the Event."""
@@ -247,7 +247,7 @@ class Event(object):
                self.actor.getDesktopId(), self.actor.getPid(),
                error),
               file=sys.stderr)
-        self.type = EventType.invalid
+        self.evtype = EventType.invalid
 
     def _openFopenParseFlags(self, flags):
         """Parse flags for open syscalls (and for fopen, as PL maps them)."""
@@ -282,7 +282,7 @@ class Event(object):
             if syscall not in ('openat', 'openat64', 'mkdirat'):
                 print("Error: POSIX open* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
             else:
                 print("TODO: find RE parser for: ", syscall, "***", content)
@@ -293,7 +293,7 @@ class Event(object):
             if len(g) != 5:
                 print("Error: POSIX open* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -341,14 +341,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX fopen/freopen system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 5:
                 print("Error: POSIX fopen/freopen system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -359,7 +359,7 @@ class Event(object):
         if filename.startswith('@/'):
             print("Info: opening of abstract socket '%s' will be ignored." %
                   filename)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
 
         # Build path to be used by simulator, and save the corresponding File
@@ -393,14 +393,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX fdopen/fdopendir system call was not "
                   "logged properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 4:
                 print("Error: POSIX fdopen/fdopendir system call was not "
                       "logged properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -434,14 +434,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX opendir system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 4:
                 print("Error: POSIX opendir system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -475,14 +475,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX unlink system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 3:
                 print("Error: POSIX unlink system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -523,14 +523,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX close* system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 2:
                 print("Error: POSIX close* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -561,14 +561,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX rename system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 5:
                 print("Error: POSIX rename system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -603,14 +603,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX dup* system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 5:
                 print("Error: POSIX dup* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.type = EventType.invalid
+                self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
@@ -625,7 +625,7 @@ class Event(object):
         # references the stdin/out/err descriptors, and only then to abort
         # the current Event. This is much harder architecturally, though.
         if oldfd in (0, 1, 2) or newfd in (0, 1, 2):
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
             return
 
         # Close the file descriptor at the previous address, for dup2 and dup3.
@@ -689,7 +689,7 @@ class Event(object):
             self.parsePOSIXDup(syscall, content)
         else:
             # TODO continue
-            self.type = EventType.invalid
+            self.evtype = EventType.invalid
 
     def getTime(self):
         """Return the Event's time of occurrence."""
@@ -710,3 +710,7 @@ class Event(object):
     def getData(self):
         """Return the Event's custom data."""
         return self.data
+
+    def getSource(self):
+        """Return the source of the Event (zeitgeist, preload-logger, etc.)."""
+        return self.source
