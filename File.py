@@ -71,6 +71,14 @@ class FileAccess(object):
         self.time = time
         self.evflags = EventFileFlags(evflags)
 
+    def __str__(self):
+        """Human-readable version of the FileAccess."""
+        ret = "<FileAccess from %s at time %s: %s" % (
+               self.actor.uid(),
+               self.time,
+               self.evflags)
+        return ret
+
     def getActor(self):
         """Return the actor that accessed the File."""
         return self.actor
