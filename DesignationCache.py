@@ -40,7 +40,6 @@ class DesignationCache(object):
         """Construct a DesignationCache."""
         super(DesignationCache, self).__init__()
         self.store = dict()
-        self.pidwatches = set()
 
     def addItem(self, event: Event, start: int=-1, duration: int=-1):
         """Add a new item to the designation cache."""
@@ -78,9 +77,6 @@ class DesignationCache(object):
         l.add(item)
         self.store[event.getActor().uid()] = l
 
-    def addPidWatch(self, pid):
-        self.pidwatches.add(pid)
-
     def checkForDesignation(self, event: Event, files: list):
         """Check for acts of designation that match an Event and its Files.
 
@@ -95,9 +91,6 @@ class DesignationCache(object):
         """
         l = self.store.get(event.getActor().uid()) or []
         lChanged = False
-
-        if event.actor.pid in self.pidwatches:
-            print(event.source, event.actor.uid())
 
         # Bypass Zeitgeist events as they're all by designation.
         if event.getSource() == EventSource.zeitgeist:

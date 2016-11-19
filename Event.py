@@ -357,8 +357,8 @@ class Event(object):
 
         # Ignore abstract sockets
         if filename.startswith('@/'):
-            print("Info: opening of abstract socket '%s' will be ignored." %
-                  filename)
+            # print("Info: opening of abstract socket '%s' will be ignored." %
+            #       filename)
             self.evtype = EventType.invalid
             return
 

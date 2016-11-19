@@ -5,6 +5,7 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
 from constants import FD_OPEN, FD_CLOSE
+from utils import time2Str, debugEnabled
 import sys
 
 
@@ -235,8 +236,10 @@ class EventStore(object):
             old = subj[0]
             new = subj[1]
 
-            # print("Info: copying '%s' to '%s' at time %s" % (
-            #     old.getName(), new.getName(), time2Str(event.getTime())))
+            if debugEnabled():
+                print("Info: copying '%s' to '%s' at time %s, by actor %s." % (
+                    old.getName(), new.getName(), time2Str(event.getTime()),
+                    event.actor.uid()))
 
             # Delete any File on the new path as it would get overwritten.
             newFile = fileFactory.getFileIfExists(new.getName(),
@@ -312,23 +315,30 @@ class EventStore(object):
 
         # First, parse for Zeitgeist designation events in order to instantiate
         # the designation cache.
+        if debugEnabled():
+            print("Instantiating Zeitgeist acts of designation...")
         for event in self.store:
             if event.getSource() == EventSource.zeitgeist:
                 # The event grants 5 minutes of designation both ways.
                 self.desigcache.addItem(event,
                                         start=event.getTime() - 5*60*1000,
                                         duration=10*60*1000)
-                self.desigcache.addPidWatch(event.actor.pid)
             # The current Event is an act of designation for future Events
             # related to the same Application and Files. Save it.
             elif event.getFileFlags() & EventFileFlags.designationcache:
                 self.desigcache.addItem(event)
 
+        if debugEnabled():
+            print("Done. Starting simulation...")
         # Then, dispatch each event to the appropriate handler
         for event in self.store:
             # Designation events are already processed.
             if event.getFileFlags() & EventFileFlags.designationcache:
                 continue
+
+            if debugEnabled():
+                print("Simulating Event %s from %s at time %s." % (
+                    event.evflags, event.actor.uid(), time2Str(event.time)))
 
             for data in event.data_app:
                 if data[2] == FD_OPEN:
