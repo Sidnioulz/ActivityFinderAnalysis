@@ -1,9 +1,1 @@
-[Desktop Entry]
-Name=Apt Package Manager
-Exec=/usr/bin/apt-get
-Terminal=true
-Type=System
-StartupNotify=false
-Categories=PackageManager;System;
-Icon=package
-MimeType=application/vnd.debian.binary-package;
+/home/steve/Research/PhD/IFModel/code/applications/./apt-get.desktop

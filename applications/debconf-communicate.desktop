@@ -1,7 +1,1 @@
-[Desktop Entry]
-Name=Debian Package Configuration system
-Exec=/usr/bin/debconf
-Terminal=true
-Type=System
-StartupNotify=false
-Categories=System;
+/home/steve/Research/PhD/IFModel/code/applications/./debconf.desktop

@@ -1,8 +1,1 @@
-[Desktop Entry]
-Exec=gvfsd
-Type=System
-Categories=GNOME;System;
-Terminal=false
-StartupNotify=true
-Name=GNOME Virtual Filesystem Daemon
-ROPaths=^/dev/fuse;
+/home/steve/Research/PhD/IFModel/code/applications/./gvfs.desktop
