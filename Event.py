@@ -3,7 +3,7 @@ from enum import Enum
 from Application import Application
 from SqlEvent import SqlEvent
 from File import File, EventFileFlags
-from utils import urlToUnixPath, int16
+from utils import urlToUnixPath, int16, debugEnabled
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
                       POSIX_OPENDIR_RE, POSIX_UNLINK_RE, POSIX_CLOSE_RE, \
                       POSIX_FCLOSE_RE, POSIX_RENAME_RE, POSIX_DUP_RE, \
@@ -241,12 +241,13 @@ class Event(object):
     def _rejectError(self, syscall, path, flags, error):
         """Print a warning that a syscall failed and invalidate the Event."""
         # Don't log failed syscalls, but inform the reader
-        print("Info: system call %s(%s, %d) from Application %s:%d "
-              "failed with error %d, and will not be logged." % (
-               syscall, path, flags,
-               self.actor.getDesktopId(), self.actor.getPid(),
-               error),
-              file=sys.stderr)
+        if debugEnabled():
+            print("Info: system call %s(%s, %d) from Application %s:%d "
+                  "failed with error %d, and will not be logged." % (
+                   syscall, path, flags,
+                   self.actor.getDesktopId(), self.actor.getPid(),
+                   error),
+                  file=sys.stderr)
         self.evtype = EventType.invalid
 
     def _openFopenParseFlags(self, flags):
@@ -314,7 +315,7 @@ class Event(object):
                 pass
 
         # Don't log failed syscalls, but inform the reader
-        if error < 0:
+        if error < 0 or fd == -1:
             self._rejectError(syscall, path, flags, error)
             return
 
@@ -366,7 +367,7 @@ class Event(object):
         path = filename if filename.startswith('/') else np(cwd+'/'+filename)
 
         # Don't log failed syscalls, but inform the reader
-        if error < 0:
+        if error < 0 or fd == -1:
             self._rejectError(syscall, path, flags, error)
             return
 
@@ -411,7 +412,7 @@ class Event(object):
         path = ("@fdref:%d@appref:%s@" % (fdref, self.getActor().uid()))
 
         # Don't log failed syscalls, but inform the reader
-        if error < 0:
+        if error < 0 or fd == -1:
             self._rejectError(syscall, path, flags, error)
             return
 
@@ -455,7 +456,7 @@ class Event(object):
         flags = O_RDONLY
 
         # Don't log failed syscalls, but inform the reader
-        if error < 0:
+        if error < 0 or fd == -1:
             self._rejectError(syscall, path, flags, error)
             return
 
@@ -538,7 +539,7 @@ class Event(object):
             (fd, error) = map(lambda f, d: f(d), func, g)
 
         # Don't log failed syscalls, but inform the reader
-        if error < 0:
+        if error < 0 or fd == -1:
             self._rejectError(syscall, None, 0, error)
             return
 
@@ -619,6 +620,9 @@ class Event(object):
                 map(lambda f, d: f(d), func, g)
 
         # No error checking in this syscall due to a bug in PreloadLogger.
+        if -1 in (oldfd, newfd):
+            self._rejectError(syscall, ("%d/%d" % (oldfd, newfd)), 0, -1)
+            return
 
         # Ignore duplications of FD 0, 1 or 2. Note that this is weak, a better
         # approach would be for Application.resolveFD to detect when a FD
