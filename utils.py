@@ -69,7 +69,7 @@ def uq(s):
 def int16(i):
     """Convert strings to hexadecimal integers (unary version)."""
     if i == "(nil)":
-        return 0
+        return -1
     else:
         return int(i, 16)
 
