@@ -245,6 +245,8 @@ class PreloadLoggerLoader(object):
                     # Parse file content to calculate the timestamps
                     tstart = float("inf")
                     tend = 0
+                    prevTimestamp = 0
+                    timeDelta = 0
                     syscalls = []
                     for binary in content:
                         try:
@@ -282,8 +284,21 @@ class PreloadLoggerLoader(object):
                         tstart = min(tstart, timestamp)
                         tend = max(tend, timestamp)
 
-                        # Append the system call to our syscall list
-                        syscalls.append([timestamp, h[1]])
+                        # Append the system call to our syscall list. Note that
+                        # we do something odd with the timestamp: because PL
+                        # only logs at second precision, a lot of system calls
+                        # have the same timestamp, which causes the EventStore
+                        # to sort them in the wrong order. So, every time we
+                        # have a timestamp identical to the previous one, we
+                        # increase a counter that sorts them. This works under
+                        # the assumption that there are at most 1000 events per
+                        # second.
+                        if timestamp == prevTimestamp:
+                            timeDelta += 1
+                        else:
+                            timeDelta = 0
+                        syscalls.append([timestamp + timeDelta, h[1]])
+                        prevTimestamp = timestamp
 
                     # Check if the timestamps have been set
                     if tend == 0:
