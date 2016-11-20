@@ -372,4 +372,5 @@ class EventStore(object):
                                         keepOld=event.getFileFlags() &
                                         EventFileFlags.copy)
 
-        # TODO: filter out invalid @fdref events
+        # Filter out invalid file descriptor references before computing stats.
+        fileStore.purgeFDReferences()

@@ -1,8 +1,9 @@
 """Service to store File instances."""
 from File import File, EventFileFlags
-from utils import time2Str
+from utils import time2Str, debugEnabled
 import os
 import shutil
+import sys
 
 
 class FileStore(object):
@@ -55,7 +56,6 @@ class FileStore(object):
                         elif not tend or tend >= time:
                             children.append(file)
                             break
-
         return children
 
     def printFiles(self,
@@ -238,3 +238,19 @@ class FileStore(object):
         else:
             raise ArithmeticError("I lost myself on the way...")
             pass
+
+    def purgeFDReferences(self):
+        """Remove FD references that weren't solved yet from the FileStore."""
+        count = 0
+        dels = set()
+        for name in self.nameStore:
+            if name.startswith("@fdref"):
+                dels.add(name)
+
+        for name in dels:
+            count += 1
+            del self.nameStore[name]
+
+        if debugEnabled():
+            print("Info: purged %d unresolved file descriptor references." %
+                  count)
