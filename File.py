@@ -338,7 +338,7 @@ class File(object):
         """Remove any past access costs that were recorded."""
         self.accessCosts.clear()
 
-    def recordAccessCost(self, acc: FileAccess):
+    def recordAccessCost(self, acc: FileAccess, accessType: int):
         """Record that a cost was paid to allow a past illegal access.
 
         This function allows us to remember past accesses to a file which led

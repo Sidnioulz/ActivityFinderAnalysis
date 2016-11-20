@@ -151,7 +151,7 @@ class OneLibraryPolicy(Policy):
         # Designation accesses are considered cost-free.
         if acc.evflags & EventFileFlags.designation:
             self.incrementScore('desigAccess', f, acc.actor)
-            f.recordAccessCost(acc)
+            f.recordAccessCost(acc, DESIGNATION_ACCESS)
             return DESIGNATION_ACCESS
 
         # Some files are allowed because they clearly belong to the app
@@ -159,7 +159,7 @@ class OneLibraryPolicy(Policy):
         for (path, evflags) in ownedPaths:
             if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
                 self.incrementScore('ownedPathAccess', f, acc.actor)
-                f.recordAccessCost(acc)
+                f.recordAccessCost(acc, DESIGNATION_ACCESS)
                 return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
@@ -173,17 +173,19 @@ class OneLibraryPolicy(Policy):
                 for (path, cost) in attr.items():
                     if(f.getName().startswith(path)):
                         self.incrementScore('policyAccess', f, acc.actor)
-                        f.recordAccessCost(acc)
+                        f.recordAccessCost(acc, POLICY_ACCESS)
                         return POLICY_ACCESS
 
         # We could not justify the access, increase the usabiltiy cost.
+        # TODO record type of past similar access, then create cumul*Cost and
+        # increment the corresponding one.
         self.incrementScore('illegalAccess', f, acc.actor)
         self.incrementScore('cumulGrantCost', f, acc.actor)
         # If a prior interruption granted access, don't overcount.
         if not f.hadPastSimilarAccess(acc):
             self.incrementScore('interruptionCost', f, acc.actor)
             self.incrementScore('grantingCost', f, acc.actor)
-        f.recordAccessCost(acc)
+        f.recordAccessCost(acc, ILLEGAL_ACCESS)
         return ILLEGAL_ACCESS
 
 
