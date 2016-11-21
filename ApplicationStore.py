@@ -152,8 +152,8 @@ class ApplicationStore(object):
                                      "\t%s \t %s\n\t%s \t %s\nbut they have"
                                      " different identities. This is a bug in"
                                      " the collected data." % (
-                                       bpp.getDesktopId(),
                                        app.getDesktopId(),
+                                       bpp.getDesktopId(),
                                        app.getPid(),
                                        time2Str(app.getTimeOfStart()),
                                        time2Str(app.getTimeOfEnd()),
