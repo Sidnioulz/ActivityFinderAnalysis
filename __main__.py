@@ -76,7 +76,7 @@ def main(argv):
 
     # Resolve actor ids in all apps' events
     print("\nUsing PreloadLogger Applications to resolve interpreters in "
-          " Zeitgeist Applications...")
+          "Zeitgeist Applications...")
     (interpretersAdded, instancesEliminated) = store.resolveInterpreters()
     print("Resolved interpreter ids in %d Applications, and removed %d "
           "instances by merging them with another as a result." % (
