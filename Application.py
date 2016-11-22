@@ -1,6 +1,7 @@
 """A runtime instance of a Linux Desktop application."""
 from xdg import DesktopEntry
 from constants import DESKTOPPATHS, DESKTOPIDRE
+from blist import sortedlist
 import re
 import os
 
@@ -226,7 +227,7 @@ class Application(object):
                                 self.getTimeOfStart()))
         self.setTimeOfEnd(max(other.getTimeOfEnd(),
                               self.getTimeOfEnd()))
-        self.events += list(set(other.events) - set(self.events))
+        self.events.update(list(set(other.events) - set(self.events)))
 
         return self
 
@@ -240,7 +241,7 @@ class Application(object):
 
     def clearEvents(self):
         """Clear all events to be modelled for this Application."""
-        self.events = []
+        self.events = sortedlist(key=lambda i: i.time)
 
     def openFD(self, fd: int, path: str, time: int):
         """Add a file descriptor opened by this Application."""
@@ -355,7 +356,7 @@ class Application(object):
 
     def addEvent(self, event: 'Event'):
         """Keep an Event temporarily till its final actor is resolved."""
-        self.events.append(event)
+        self.events.add(event)
 
     def sendEventsToStore(self):
         """Send this app's Events to the EventStore, and clear them."""
@@ -369,4 +370,4 @@ class Application(object):
             eventStore.append(event)
 
         # Clear events, to save RAM.
-        self.events = []
+        self.clearEvents()
