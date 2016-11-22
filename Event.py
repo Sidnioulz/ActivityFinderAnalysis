@@ -62,7 +62,7 @@ class Event(object):
     posixDupRe = re.compile(POSIX_DUP_RE)
 
     def __init__(self,
-                 actor: Application,
+                 actor: Application=None,
                  time: int=0,
                  zgEvent: list=None,
                  syscallStr: str=None,
@@ -70,9 +70,6 @@ class Event(object):
         """Construct an Event, using a Zeitgeist or PreloadLogger log entry."""
         super(Event, self).__init__()
         # Initialise actor and time of occurrence
-        if not actor:
-            raise ValueError("Events must be performed by a valid "
-                             "Application.")
         if not time:
             raise ValueError("Events must have a time of occurrence.")
         self.actor = actor  # type: Application; responsible for the event
@@ -85,6 +82,10 @@ class Event(object):
         self.subjects = []    # type: list; entities affected by the Event.
         self.data = []        # binary data specific to each Event.
         self.data_app = []    # binary data specific to each Event's actor.
+
+        # Dummy actors are useful for making dummy events for time comparison.
+        if not actor:
+            return
 
         # Verify there's only one source
         if not zgEvent and not syscallStr and not cmdlineStr:
