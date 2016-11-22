@@ -39,7 +39,7 @@ class ApplicationStore(object):
         self.nameStore = dict()  # type: dict
         self.nameStoreClean = True
 
-    def _mergePidList(self, pid, pids: list):
+    def _mergePidList(self, pids: list):
         """Ensure a time-sorted PID list has its similar neighbours merged."""
         newPids = []
 
@@ -64,7 +64,6 @@ class ApplicationStore(object):
 
     def _mergePidItem(self, pids: list, checkupIndex: int):
         """Merge an app with identical neighbours in a time-sorted PID list."""
-        finalApp = pids[checkupIndex]
 
         # Check if the previous item has the same id and finished late enough.
         prevIndex = checkupIndex - 1
@@ -82,7 +81,6 @@ class ApplicationStore(object):
                 # Eliminate the leftover and point to the newly merged app.
                 del pids[checkupIndex]
                 checkupIndex = prevIndex
-                finalApp = prevApp
 
         # Then check if the next app has the same id and started early enough.
         nextIndex = checkupIndex + 1
@@ -96,13 +94,116 @@ class ApplicationStore(object):
                 currentApp.merge(nextApp)
                 pids[checkupIndex] = currentApp
                 del pids[nextIndex]
-                finalApp = currentApp
 
-        return (pids, finalApp)
+        return pids
+
+    def _largeSmallSplit(self,
+                         pids: list,
+                         index: int,
+                         large: Application,
+                         small: Application,
+                         inserting: Application):
+        """Split overlapping apps where one covers the other's lifecycle."""
+        (left, right) = large.split(beforeEnd=small.getTimeOfStart()-1,
+                                    afterStart=small.getTimeOfEnd()+1)
+
+        if inserting == large:
+            pids.insert(index+1, right)
+            pids.insert(index, left)
+        else:
+            pids[index] = left
+            pids.insert(index+1, right)
+            pids.insert(index+1, small)
+
+        return pids
+
+    def _mixedSplit(self,
+                    pids: list,
+                    index: int,
+                    before: Application,
+                    after: Application,
+                    inserting: Application):
+        """Split overlapping apps where their lifecycles overlap."""
+        raise NotImplementedError("mixed split")
+
+    def dispatchSplit(self,
+                      pids: list,
+                      index: int,
+                      app: Application,
+                      bpp: Application):
+        """Decide how to split two Applications based on how they overlap."""
+        tstart = app.getTimeOfStart()
+        tend = app.getTimeOfEnd()
+        bstart = bpp.getTimeOfStart()
+        bend = bpp.getTimeOfEnd()
+
+        # First overlap condition, with all ramifications.
+        if bend >= tstart:
+            # B ends after A.
+            if bend >= tend:
+                # A is embedded into B, so we split B.
+                if bstart <= tstart:
+                    pids = self._largeSmallSplit(pids,
+                                                 index,
+                                                 large=bpp,
+                                                 small=app,
+                                                 inserting=app)
+                # B starts during A, ends after A. We must split.
+                else:
+                    pids = self._mixedSplit(pids,
+                                            index,
+                                            before=app,
+                                            after=bpp,
+                                            inserting=app)
+            # A ends after B.
+            else:
+                # B is embedded into A, so we split A.
+                if bstart >= tstart:
+                    pids = self._largeSmallSplit(pids,
+                                                 index,
+                                                 large=app,
+                                                 small=bpp,
+                                                 inserting=app)
+                # A starts during B, ends after B. We must split.
+                else:
+                    pids = self._mixedSplit(pids,
+                                            index,
+                                            before=bpp,
+                                            after=app,
+                                            inserting=app)
+        # Second overlap condition, with all ramifications.
+        elif bstart <= tend:
+            if bstart <= tstart:
+                if bend >= tend:
+                    pids = self._largeSmallSplit(pids,
+                                                 index,
+                                                 large=bpp,
+                                                 small=app,
+                                                 inserting=app)
+                else:
+                    pids = self._mixedSplit(pids,
+                                            index,
+                                            before=bpp,
+                                            after=app,
+                                            inserting=app)
+            else:
+                if bend <= tend:
+                    pids = self._largeSmallSplit(pids,
+                                                 index,
+                                                 large=app,
+                                                 small=bpp,
+                                                 inserting=app)
+                else:
+                    pids = self._mixedSplit(pids,
+                                            index,
+                                            before=app,
+                                            after=bpp,
+                                            inserting=app)
+
+        return pids
 
     def insert(self, app: Application):
         """Insert an Application in the store."""
-        finalApp = None
 
         if app.getPid() == 0:
             raise ValueError("Applications must have a valid PID.")
@@ -141,40 +242,51 @@ class ApplicationStore(object):
                     pids[index] = bpp
                     neighbourCheckupIndex = index
                 else:
-                    # TODO: split the larger Application, if there is one, else
-                    # abandon the ship.
-                    print("Error: Applications %s and %s overlap on PID %d" % (
-                         app.getDesktopId(), bpp.getDesktopId(), app.getPid()),
-                         file=sys.stderr)
+                    # Apps A (which we insert) and B (which we compare to) are
+                    # overlapping. We now determine their respective orders to
+                    # dispatch them to the appropriate app splitting algorithm.
+                    print("Warning: Applications %s and %s overlap on PID %d" %
+                          (app.getDesktopId(), bpp.getDesktopId(),
+                           app.getPid()),
+                          file=sys.stderr)
 
-                    raise ValueError("Applications %s and %s have the same PID"
-                                     " (%d) and their runtimes overlap:\n"
-                                     "\t%s \t %s\n\t%s \t %s\nbut they have"
-                                     " different identities. This is a bug in"
-                                     " the collected data." % (
-                                       app.getDesktopId(),
-                                       bpp.getDesktopId(),
-                                       app.getPid(),
-                                       time2Str(app.getTimeOfStart()),
-                                       time2Str(app.getTimeOfEnd()),
-                                       time2Str(bpp.getTimeOfStart()),
-                                       time2Str(bpp.getTimeOfEnd())))
+                    pids = self.dispatchSplit(pids, index, app, bpp)
+
+                    # Now, merge the inserted app with neighbours if applicable
+                    # but note that we don't really know where it is, how many
+                    # times it was split, and how much the list has grown. Even
+                    # if we pulled that info from the split functions, doing
+                    # merges on both edges of the newly inserted sequence would
+                    # be more complicated (thus error-prone) than browsing the
+                    # whole (short) list of pids. So let's keep it fool-proof.
+                    pids = self._mergePidList(pids)
+
+                    # raise ValueError("Applications %s and %s have the same PID"
+                    #                  " (%d) and their runtimes overlap:\n"
+                    #                  "\t%s \t %s\n\t%s \t %s\nbut they have"
+                    #                  " different identities. This is a bug in"
+                    #                  " the collected data." % (
+                    #                    app.getDesktopId(),
+                    #                    bpp.getDesktopId(),
+                    #                    app.getPid(),
+                    #                    time2Str(app.getTimeOfStart()),
+                    #                    time2Str(app.getTimeOfEnd()),
+                    #                    time2Str(bpp.getTimeOfStart()),
+                    #                    time2Str(bpp.getTimeOfEnd())))
                 break
         # app is the last item on the list!
         else:
             pids.append(app)
-            finalApp = app
 
         # Now, we check if the neighbours to the newly inserted Application
         # have the same Desktop ID. If they do, and if they are within a given
         # proximity window, we merge the items. This is needed to help Events
         # from Zeitgeist and PreloadLogger to synchronise.
         if neighbourCheckupIndex >= 0:
-            (pids, finalApp) = self._mergePidItem(pids, neighbourCheckupIndex)
+            pids = self._mergePidItem(pids, neighbourCheckupIndex)
 
         self.pidStore[app.getPid()] = pids
         self.nameStoreClean = False
-        return finalApp
 
     def resolveInterpreters(self):
         """Ensure all interpreted apps have their known interpreter set.
@@ -205,8 +317,7 @@ class ApplicationStore(object):
                     app.interpreterid = interpreters.get(app.desktopid)
                     changed = True
                     interpretersAdded += 1
-            self.pidStore[pid] = self._mergePidList(pid, apps) if changed \
-                else apps
+            self.pidStore[pid] = self._mergePidList(apps) if changed else apps
             instancesEliminated += listLen - len(self.pidStore[pid])
 
         # Ensure the name store is up-to-date again
