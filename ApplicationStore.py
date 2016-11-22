@@ -33,6 +33,11 @@ class ApplicationStore(object):
         super(ApplicationStore, self).__init__()
         self.clear()
 
+    def __iter__(self):
+        for pid in sorted(self.pidStore):
+            for app in self.pidStore[pid]:
+                yield app
+
     def clear(self):
         """Empty the ApplicationStore."""
         self.pidStore = dict()   # type: dict
