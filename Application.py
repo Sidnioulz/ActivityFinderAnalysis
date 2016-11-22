@@ -2,6 +2,7 @@
 from xdg import DesktopEntry
 from constants import DESKTOPPATHS, DESKTOPIDRE
 from blist import sortedlist
+from copy import deepcopy
 import re
 import os
 
@@ -353,6 +354,36 @@ class Application(object):
         if not t:
             raise ValueError("Application %s has no type." % self.uid())
         return t == 'Application'
+
+    def split(self, beforeEnd: int, afterStart: int):
+        """Split this into two Applications, with their distinct Events.
+
+        Split this Application into an Application starting at the same time,
+        and ending at :beforeEnd:, and an Application starting at :afterStart:
+        and ending at this Application's end time. Events are split too. If
+        Events exist in the gap between :beforeEnd: and :afterStart:, this
+        function returns an IndexError.
+        """
+        from Event import Event
+        il = self.events.bisect_left(Event(time=beforeEnd))
+        ir = self.events.bisect_right(Event(time=afterStart))
+        if il != ir:
+            raise IndexError("Cannot split Application '%s' that contains "
+                             "%d events between the runtimes of the two "
+                             "resulting Applications (between %s and %s)." % (
+                              self.uid(), ir - il, beforeEnd, afterStart))
+
+        appLeft = deepcopy(self)
+        appLeft.events = self.events[:il]
+        if len(appLeft.events):
+            appLeft.tend = appLeft.events[-1].time
+
+        appRight = deepcopy(self)
+        appRight.events = self.events[ir:]
+        if len(appRight.events):
+            appRight.tstart = appRight.events[0].time
+
+        return (appLeft, appRight)
 
     def addEvent(self, event: 'Event'):
         """Keep an Event temporarily till its final actor is resolved."""
