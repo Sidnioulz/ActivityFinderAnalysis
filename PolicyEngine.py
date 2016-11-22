@@ -27,10 +27,12 @@ class PolicyScores(object):
         self.anticipationCost = 0
 
         # Interruptions to an interaction (security confirmation dialogs)
-        self.interruptionCost = 0
-        self.grantingCost = 0   # Granting access to a file on the spot
-        self.cumulGrantCost = 0  # Increase even w/ past illegal access counted
-        self.splittingCost = 0  # Running two instances of a process
+        self.grantingCost = 0   # Cost of granting access to a file on the spot
+        self.grantingOwnedCost = 0   # For debug: past owned files now illegal
+        self.grantingDesigCost = 0   # For debug: past desig files now illegal
+        self.grantingPolicyCost = 0   # For debug: past pol files now illegal
+        self.cumulGrantingCost = 0  # Cumulative number of illegal accesses
+        self.splittingCost = 0  # Cost of splitting a process into 2 instances
 
         # Interaction overheads when handling multiple instances of an app
         self.overheadCost = 0
@@ -44,6 +46,7 @@ class PolicyScores(object):
         self.userSecViolations = 0
         self.instanceExposure = 0
         self.appExposure = 0
+        self.overentitlement = 0
 
     def __iadd__(self, other):
         if not isinstance(other, self.__class__):
@@ -56,9 +59,11 @@ class PolicyScores(object):
         self.illegalAccess += other.illegalAccess
         self.configCost += other.configCost
         self.anticipationCost += other.anticipationCost
-        self.interruptionCost += other.interruptionCost
         self.grantingCost += other.grantingCost
-        self.cumulGrantCost += other.cumulGrantCost
+        self.grantingOwnedCost += other.grantingOwnedCost
+        self.grantingDesigCost += other.grantingDesigCost
+        self.grantingPolicyCost += other.grantingPolicyCost
+        self.cumulGrantingCost += other.cumulGrantingCost
         self.splittingCost += other.splittingCost
         self.overheadCost += other.overheadCost
         self.userSecViolations += other.userSecViolations
@@ -82,10 +87,17 @@ class PolicyScores(object):
         msg += ("\nCosts:")
         msg += ("\t* configuration: %d\n" % self.configCost)
         msg += ("\t* anticipation: %d\n" % self.anticipationCost)
-        msg += ("\t* interruption: %d\n" % self.interruptionCost)
-        msg += ("\t\t* granting: %d\n" % self.grantingCost)
-        msg += ("\t\t* cumulative granting: %d\n" % self.cumulGrantCost)
-        msg += ("\t\t* splitting apps: %d\n" % self.splittingCost)
+        msg += ("\t* granting: %d\n" % self.grantingCost)
+        if debugEnabled():
+            msg += ("\t*TEST illegal w/ past owned path: %d\n" %
+                    self.grantingOwnedCost)
+            msg += ("\t*TEST illegal w/ past designation: %d\n" %
+                    self.grantingDesigCost)
+            msg += ("\t*TEST illegal w/ past policy-allowed: %d\n" %
+                    self.grantingPolicyCost)
+        msg += ("\t* granting: %d\n" % self.grantingCost)
+        msg += ("\t* cumulative granting: %d\n" % self.cumulGrantingCost)
+        msg += ("\t* splitting apps: %d\n" % self.splittingCost)
         msg += ("\t* overhead: %d\n" % self.overheadCost)
 
         msg += ("\nSecurity:\n")

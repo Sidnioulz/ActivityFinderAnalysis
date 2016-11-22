@@ -159,7 +159,7 @@ class OneLibraryPolicy(Policy):
         for (path, evflags) in ownedPaths:
             if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
                 self.incrementScore('ownedPathAccess', f, acc.actor)
-                f.recordAccessCost(acc, DESIGNATION_ACCESS)
+                f.recordAccessCost(acc, OWNED_PATH_ACCESS)
                 return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
@@ -177,14 +177,18 @@ class OneLibraryPolicy(Policy):
                         return POLICY_ACCESS
 
         # We could not justify the access, increase the usabiltiy cost.
-        # TODO record type of past similar access, then create cumul*Cost and
-        # increment the corresponding one.
         self.incrementScore('illegalAccess', f, acc.actor)
-        self.incrementScore('cumulGrantCost', f, acc.actor)
+
         # If a prior interruption granted access, don't overcount.
-        if not f.hadPastSimilarAccess(acc):
-            self.incrementScore('interruptionCost', f, acc.actor)
+        self.incrementScore('cumulGrantingCost', f, acc.actor)
+        if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS):
             self.incrementScore('grantingCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
+            self.incrementScore('grantingOwnedCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
+            self.incrementScore('grantingDesigCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
+            self.incrementScore('grantingPolicyCost', f, acc.actor)
         f.recordAccessCost(acc, ILLEGAL_ACCESS)
         return ILLEGAL_ACCESS
 

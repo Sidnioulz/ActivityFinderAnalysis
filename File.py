@@ -338,6 +338,20 @@ class File(object):
         """Remove any past access costs that were recorded."""
         self.accessCosts.clear()
 
+    def _getAccessCost(self, acc: FileAccess, accessType: int):
+        """Get the recorded access cost for a FileAccess and type."""
+        costsForType = self.accessCosts.get(accessType) or dict()
+        return costsForType.get(acc.actor.uid()) or EventFileFlags.no_flags
+
+    def _setAccessCost(self,
+                       acc: FileAccess,
+                       accCost: EventFileFlags,
+                       accessType: int):
+        """Set the record access cost for a FileAccess and type."""
+        costsForType = self.accessCosts.get(accessType) or dict()
+        costsForType[acc.actor.uid()] = accCost
+        self.accessCosts[accessType] = costsForType
+
     def recordAccessCost(self, acc: FileAccess, accessType: int):
         """Record that a cost was paid to allow a past illegal access.
 
@@ -366,15 +380,12 @@ class File(object):
                               EventFileFlags.copy | EventFileFlags.overwrite)
         # TODO: move destionations and copy destionations should be allowed
 
-        appAcc = self.accessCosts.get(acc.actor.uid()) or \
-            EventFileFlags.no_flags
+        accCost = self._getAccessCost(acc, accessType)
+        self._setAccessCost(acc, accCost | recordedFlags, accessType)
 
-        self.accessCosts[acc.actor.uid()] = appAcc | recordedFlags
-
-    def hadPastSimilarAccess(self, acc: FileAccess):
+    def hadPastSimilarAccess(self, acc: FileAccess, accessType: int):
         """Check if a similar access was recorded for the same app."""
-        appAcc = self.accessCosts.get(acc.actor.uid()) or \
-            EventFileFlags.no_flags
+        accCost = self._getAccessCost(acc, accessType)
 
         recordedFlags = acc.evflags & (EventFileFlags.create |
                                        EventFileFlags.overwrite |
@@ -384,10 +395,7 @@ class File(object):
                 acc.evflags & EventFileFlags.read:
             recordedFlags |= EventFileFlags.copy
 
-        # print("Current access:", recordedFlags)
-        # print("Recorded in the past:", appAcc)
-        # print("Returning:", recordedFlags & appAcc == recordedFlags)
-        return (recordedFlags & appAcc == recordedFlags)
+        return (recordedFlags & accCost == recordedFlags)
 
     def writeStatistics(self, out):
         """Write information on creation, deletion and accesses to the File."""
