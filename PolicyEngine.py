@@ -284,6 +284,7 @@ class PolicyEngine(object):
                     t.add(file.getName()+("\tWRITE" if acc.evflags &
                                           EventFileFlags.write else "\tREAD"))
                     self.illegalAppStore[acc.actor.desktopid] = t
+                file.clearAccessCosts()
 
         policy.printScores(outputDir)
 
