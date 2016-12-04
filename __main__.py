@@ -11,11 +11,9 @@ from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 import getopt
 import sys
-from utils import __setCheckMissing, __setDebug, __setOutputFs, \
-                  checkMissingEnabled, debugEnabled, outputFsEnabled
 
-USAGE_STRING = 'Usage: __main__.py [--check-missing --help --debug ' \
-               '--output-fs=<DIR>]'
+USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
+               '--output-fs=<DIR> --score]'
 
 
 # Main function
@@ -23,20 +21,44 @@ USAGE_STRING = 'Usage: __main__.py [--check-missing --help --debug ' \
 def main(argv):
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hcdf:", ["help", "check-missing",
-                                                     "debug", "output-fs="])
+        (opts, args) = getopt.getopt(argv, "hcdf:sr", ["help",
+                                                       "check-missing",
+                                                       "debug",
+                                                       "related-files",
+                                                       "output-fs=",
+                                                       "score"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
     else:
         for opt, arg in opts:
             if opt in ('-h', '--help'):
-                print(USAGE_STRING)
+                print(USAGE_STRING + "\n")
+
+                print("--check-missing:\n\tChecks whether some Desktop IDs "
+                      "for apps in the user's directory are\n\tmissing. If so,"
+                      " aborts execution of the program.\n")
+                print("--help:\n\tPrints this help information and exits.\n")
+                print("--debug:\n\tPrints additional debug information in "
+                      "various code paths to help debug\n\tthe program.\n")
+                print("--output-fs=<DIR>:\n\tSaves a copy of the simulated "
+                      "files, and some information on events\n\trelated to "
+                      "them, in a folder created at the <DIR> path.\n")
+                print("--related-files:\n\tMines for files that are frequently"
+                      " accessed together by apps. WORK IN\n\tPROGRESS!\n")
+                print("--score:\n\tCalculates the usability and security "
+                      "scores of a number of file access\n\tcontrol policies "
+                      ", replayed over the simulated accesses. Prints results"
+                      "\n\tand saves them to the output directory.\n")
                 sys.exit()
             elif opt in ('c', '--check-missing'):
                 __setCheckMissing(True)
             elif opt in ('-d', '--debug'):
                 __setDebug(True)
+            elif opt in ('-r', '--related-files'):
+                __setRelatedFiles(True)
+            elif opt in ('-s', '--score'):
+                __setScore(True)
             elif opt in ('-f', '--output-fs'):
                 if not arg:
                     print(USAGE_STRING)

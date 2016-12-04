@@ -9,6 +9,8 @@ from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
 __opt_check = False
 __opt_debug = False
 __opt_output_fs = None
+__opt_related_files = None
+__opt_score = None
 
 
 def __setCheckMissing(opt):
@@ -29,6 +31,18 @@ def __setOutputFs(opt):
     __opt_output_fs = opt
 
 
+def __setRelatedFiles(opt):
+    """Set the return value of :relatedFilesEnabled():."""
+    global __opt_related_files
+    __opt_related_files = opt
+
+
+def __setScore(opt):
+    """Set the return value of :scoreEnabled():."""
+    global __opt_score
+    __opt_score = opt
+
+
 def checkMissingEnabled():
     """Return True if the --check-missing flag was passed, False otherwise."""
     global __opt_check
@@ -45,6 +59,18 @@ def outputFsEnabled():
     """Return the value passed to the --output-fs flag, if any."""
     global __opt_output_fs
     return __opt_output_fs
+
+
+def relatedFilesEnabled():
+    """Return True if --related-files was passed, False otherwise."""
+    global __opt_related_files
+    return __opt_related_files
+
+
+def scoreEnabled():
+    """Return True if --score was passed, False otherwise."""
+    global __opt_score
+    return __opt_score
 
 
 def time2Str(timestamp):
