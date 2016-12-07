@@ -91,6 +91,10 @@ class FileAccess(object):
         """Return the EventFileFlags that describe this access event."""
         return self.evflags
 
+    def isReadOnly(self):
+        """Return True if the FileAccess did not modify the File."""
+        return self.evflags & EventFileFlags.read
+
     def allowedByFlagFilter(self, filter: EventFileFlags, f: 'File'):
         if filter.containsAllAccessFlags(self.evflags):
             return True
