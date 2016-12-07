@@ -2,3 +2,5 @@ python-xdg
 py-flags
 python-urllib3
 python-blist
+python-orange
+Orange3-Associate

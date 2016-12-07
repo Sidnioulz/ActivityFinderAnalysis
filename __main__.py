@@ -7,8 +7,13 @@ from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import PolicyEngine
+from FrequentFileEngine import FrequentFileEngine
 from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
+from utils import __setCheckMissing, __setDebug, __setOutputFs, \
+                  __setRelatedFiles, __setScore, \
+                  checkMissingEnabled, debugEnabled, outputFsEnabled, \
+                  relatedFilesEnabled, scoreEnabled
 import getopt
 import sys
 
@@ -136,16 +141,26 @@ def main(argv):
                             showDesignatedOnly=False)
 
     # Policy engine. Create a policy and run a simulation to score it.
-    engine = PolicyEngine()
+    if scoreEnabled():
+        engine = PolicyEngine()
 
-    print("\nRunning the One Library policy...")
-    engine.runPolicy(OneLibraryPolicy(userConf=userConf),
-                     outputDir=outputFsEnabled())
+        print("\nRunning the One Library policy...")
+        engine.runPolicy(OneLibraryPolicy(userConf=userConf),
+                         outputDir=outputFsEnabled())
 
-    print("\nRunning the Compound Library policy...")
-    engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
-                     outputDir=outputFsEnabled())
+        print("\nRunning the Compound Library policy...")
+        engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
+                         outputDir=outputFsEnabled())
 
+    # Calculate frequently co-accessed files:
+    if relatedFilesEnabled():
+        engine = FrequentFileEngine(userConf=userConf)
+
+        print("\nMining for frequently co-accessed files...")
+        engine.mineFiles()
+
+        print("\nMining for frequently co-accessed file types...")
+        engine.mineFileTypes()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
