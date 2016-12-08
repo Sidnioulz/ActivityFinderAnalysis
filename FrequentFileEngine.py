@@ -28,7 +28,8 @@ class FrequentFileEngine(object):
         # List the data we'll use in a more useful format. Only user docs.
         for doc in fileStore:
             # Ignore non-documents.
-            if not doc.isUserDocument(self.userConf.getSetting("HomeDir")):
+            if not doc.isUserDocument(self.userConf.getSetting("HomeDir"),
+                                      allowHiddenFiles=True):
                 continue
 
             # Ignore folders, they tend to get open and read and traversed.
@@ -99,7 +100,8 @@ class FrequentFileEngine(object):
         # List the data we'll use in a more useful format. Only user docs.
         for doc in fileStore:
             # Ignore non-documents.
-            if not doc.isUserDocument(self.userConf.getSetting("HomeDir")):
+            if not doc.isUserDocument(self.userConf.getSetting("HomeDir"),
+                                      allowHiddenFiles=True):
                 continue
 
             # Ignore folders, they tend to get open and read and traversed.

@@ -284,9 +284,12 @@ class File(object):
         """Return the MIME type of the file."""
         return self.ftype
 
-    def isUserDocument(self, userHome: str):
+    def isUserDocument(self, userHome: str, allowHiddenFiles: bool=False):
         """Return True if the file is not hidden, and in ~ or /media."""
-        if self.isHidden():
+        if allowHiddenFiles:
+            if self.isInHiddenFolder():
+                return False
+        elif self.isHidden():
             return False
 
         if not self.path.startswith("/media") and \
@@ -294,6 +297,26 @@ class File(object):
             return False
 
         return True
+
+    def isInHiddenFolder(self):
+        """Return True if the file is in a hidden parent folder."""
+        hasParent = True
+        hidden = False
+        path = self.path
+
+        while hasParent and not hidden:
+            path = File.getParentName(path)
+            hasParent = True if path else False
+
+            if hasParent:
+                lastDir = path.rfind('/')
+
+                if lastDir >= 0:
+                    hidden = len(path) > lastDir+1 and path[lastDir+1] == '.'
+                else:
+                    hidden = path[0] == '.'
+
+        return hidden
 
     def isHidden(self):
         """Return True if the file is hidden (name starts with a dot)."""
