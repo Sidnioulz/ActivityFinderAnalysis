@@ -209,22 +209,22 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
         confCost = 0
         for d in userConf.getSetting('ExtraDocumentsDirs',
                                      defaultValue=[],
-                                     type='stringlist'):
+                                     type='string list'):
             self.documentsLibrary[d] = 1
             confCost += 1
         for d in userConf.getSetting('ExtraImageDirs',
                                      defaultValue=[],
-                                     type='stringlist'):
+                                     type='string   list'):
             self.imageLibrary[d] = 1
             confCost += 1
         for d in userConf.getSetting('ExtraMusicDirs',
                                      defaultValue=[],
-                                     type='stringlist'):
+                                     type='string   list'):
             self.musicLibrary[d] = 1
             confCost += 1
         for d in userConf.getSetting('ExtraVideoDirs',
                                      defaultValue=[],
-                                     type='stringlist'):
+                                     type='string   list'):
             self.videoLibrary[d] = 1
             confCost += 1
 
