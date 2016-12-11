@@ -175,6 +175,9 @@ class File(object):
             return self.inode == other.inode
         return False
 
+    def __repr__(self):
+        return self.__str__()
+
     def __str__(self):
         """Human-readable version of the File."""
         ret = "<File %d - '%s' created on '%s'%s" % (
@@ -183,6 +186,10 @@ class File(object):
                time2Str(self.tstart),
                ", deleted on '%s'" % time2Str(self.tend) if self.tend else '')
         return ret
+
+    def __hash__(self):
+        """Return a hash for this File."""
+        return hash(self.inode)
 
     def __init__(self,
                  path: str,
