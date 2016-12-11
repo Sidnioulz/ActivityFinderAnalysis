@@ -95,6 +95,11 @@ class FileAccess(object):
         """Return True if the FileAccess did not modify the File."""
         return self.evflags & EventFileFlags.read
 
+    def isByDesignation(self):
+        """Return True if this FileAccess is performed by designation."""
+        return (self.evflags & EventFileFlags.designation) and \
+            not (self.evflags & EventFileFlags.designationcache)
+
     def allowedByFlagFilter(self, filter: EventFileFlags, f: 'File'):
         if filter.containsAllAccessFlags(self.evflags):
             return True
