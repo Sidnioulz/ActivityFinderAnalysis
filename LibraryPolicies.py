@@ -146,6 +146,21 @@ class OneLibraryPolicy(Policy):
 
         return self.appPathCache[actor]
 
+    def allowedByPolicy(self, file: File, actor: Application):
+        """Tell if a File is allowed to be accessed by a Policy."""
+        policies = self.getAppPolicy(actor)
+        for pol in policies:
+            try:
+                attr = self.__getattribute__(pol+"Library")
+            except (AttributeError):
+                pass
+            else:
+                for (path, cost) in attr.items():
+                    if(file.getName().startswith(path)):
+                        return (True, cost)
+
+        return (False, 0)
+
     def accessFunc(self, engine: PolicyEngine, f: File, acc: FileAccess):
         """Assess the security and usability score of a FileAccess."""
         # Designation accesses are considered cost-free.
@@ -163,18 +178,11 @@ class OneLibraryPolicy(Policy):
                 return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
-        policies = self.getAppPolicy(acc.actor)
-        for pol in policies:
-            try:
-                attr = self.__getattribute__(pol+"Library")
-            except (AttributeError):
-                pass
-            else:
-                for (path, cost) in attr.items():
-                    if(f.getName().startswith(path)):
-                        self.incrementScore('policyAccess', f, acc.actor)
-                        f.recordAccessCost(acc, POLICY_ACCESS)
-                        return POLICY_ACCESS
+        (allowed, __) = self.allowedByPolicy(f, acc.actor)
+        if allowed:
+            self.incrementScore('policyAccess', f, acc.actor)
+            f.recordAccessCost(acc, POLICY_ACCESS)
+            return POLICY_ACCESS
 
         # We could not justify the access, increase the usabiltiy cost.
         self.incrementScore('illegalAccess', f, acc.actor)
