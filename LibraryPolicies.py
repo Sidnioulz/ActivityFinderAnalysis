@@ -162,7 +162,7 @@ class OneLibraryPolicy(Policy):
         return (False, 0)
 
     def accessFunc(self, engine: PolicyEngine, f: File, acc: FileAccess):
-        """Assess the security and usability score of a FileAccess."""
+        """Assess the usability score of a FileAccess."""
         # Designation accesses are considered cost-free.
         if acc.evflags & EventFileFlags.designation:
             self.incrementScore('desigAccess', f, acc.actor)
