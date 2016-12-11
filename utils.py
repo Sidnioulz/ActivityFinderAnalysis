@@ -100,6 +100,16 @@ def int16(i):
         return int(i, 16)
 
 
+def hasIntersection(s1, s2):
+    """Return True if two sets share at least one item, False otherwise."""
+    for i in s1:
+        for j in s2:
+            if i == j:
+                return True
+
+    return False
+
+
 # Regular Expression parsers
 space = re.compile(SPACE_REGEXP)
 pyre = re.compile(PYTHONRE)
