@@ -5,13 +5,15 @@ from Application import Application
 from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
 from constants import ILLEGAL_ACCESS
-from utils import debugEnabled
+from utils import debugEnabled, hasIntersection
 import os
 
 
 class PolicyScores(object):
-    """docstring for PolicyScores."""
+    """Usability scores for Policies."""
+
     def __init__(self):
+        """Construct a PolicyScores."""
         super(PolicyScores, self).__init__()
         # ACCESS SCORES.
         self.desigAccess = 0
@@ -37,18 +39,8 @@ class PolicyScores(object):
         # Interaction overheads when handling multiple instances of an app
         self.overheadCost = 0
 
-        # Scores per Application instance, and per Application
-        self.perAppScores = dict()
-        self.perinstanceScores = dict()
-
-        # SECURITY COSTS.
-        # TODO validate these proposed scores
-        self.userSecViolations = 0
-        self.instanceExposure = 0
-        self.appExposure = 0
-        self.overentitlement = 0
-
     def __iadd__(self, other):
+        """Add the scores from :other: to this PolicyScores."""
         if not isinstance(other, self.__class__):
             raise TypeError("Cannot increment a PolicyScores with something "
                             "other than another PolicyScores.")
@@ -66,9 +58,6 @@ class PolicyScores(object):
         self.cumulGrantingCost += other.cumulGrantingCost
         self.splittingCost += other.splittingCost
         self.overheadCost += other.overheadCost
-        self.userSecViolations += other.userSecViolations
-        self.instanceExposure += other.instanceExposure
-        self.appExposure += other.appExposure
 
         return self
 
@@ -76,7 +65,7 @@ class PolicyScores(object):
                     outputDir: str=None,
                     filename: str=None,
                     quiet: bool=False):
-        """Print the access, cost and security scores of this PolicyScores."""
+        """Print the access and cost scores of this PolicyScores."""
 
         msg = ("Accesses:\n")
         msg += ("\t* by designation: %d\n" % self.desigAccess)
@@ -95,13 +84,70 @@ class PolicyScores(object):
                     self.grantingDesigCost)
             msg += ("\t*TEST illegal w/ past policy-allowed: %d\n" %
                     self.grantingPolicyCost)
-        msg += ("\t* granting: %d\n" % self.grantingCost)
         msg += ("\t* cumulative granting: %d\n" % self.cumulGrantingCost)
         msg += ("\t* splitting apps: %d\n" % self.splittingCost)
         msg += ("\t* overhead: %d\n" % self.overheadCost)
 
-        msg += ("\nSecurity:\n")
-        msg += ("TODO")
+        if not quiet:
+            print(msg)
+
+        if outputDir:
+            os.makedirs(outputDir + '/' +
+                        File.getParentName(filename),
+                        exist_ok=True)
+            with open(outputDir + '/' + filename, "a") as f:
+                print(msg, file=f)
+
+
+class SecurityScores(object):
+    """Security scores for Policies."""
+
+    def __init__(self):
+        """Construct a SecurityScores."""
+        super(SecurityScores, self).__init__()
+        # For each desktopid, maintain a list. This list contains a number per
+        # instance of the Application, which represents the number of logically
+        # separated units that have been accessed by the instance. An average
+        # score of 1 means that there was no instance which accessed two such
+        # isolation units. Scores are only incremented for legal accesses,
+        # which is what differentiates the policies from one another.
+        self.implicitSeparations = []
+
+        # For each app, we keep a record of how many files they have accessed
+        # compared to how many files they are allowed to access. This ratio
+        # allows us to compare the overentitlements between policies. The per-
+        # app ratio is relevant to overentitlement in general, the per-instance
+        # ratio is useful for discussing the potential immediate consequences
+        # of a benign app being exploited (notwithstanding app statefulness).
+        self.appOverEntitlement = [set(), set()]
+        self.instanceOverEntitlement = []  # [[0, 0], [0, 0], ...]
+
+        self.overEntitlements = [set(), set()]
+
+    def printScores(self,
+                    outputDir: str=None,
+                    filename: str=None,
+                    quiet: bool=False):
+        """Print the security scores."""
+
+        msg = ("Security over-entitlements:\n")
+        msg += ("\t* %d files used / %d reachable\n" % (
+                (len(self.overEntitlements[0]), len(self.overEntitlements[1]))))
+
+        sysFiles = [set(), set()]
+        userFiles = [set(), set()]
+        for i in (0,1):
+            for file in self.overEntitlements[i]:
+                if file.isUserDocument():
+                    userFiles[i].add(file)
+                else:
+                    sysFiles[i].add(file)
+
+        msg += ("\t* %d user documents used / %d reachable\n" % (
+                (len(userFiles[0]), len(userFiles[1]))))
+
+        msg += ("\t* %d system files used / %d reachable\n" % (
+                (len(sysFiles[0]), len(sysFiles[1]))))
 
         if not quiet:
             print(msg)
@@ -128,6 +174,7 @@ class Policy(object):
 
     def clearScores(self):
         """Initialise scores to zero before processing FileAccesses."""
+        # Usability general score
         self.s = PolicyScores()
 
         # Scores per Application instance, and per Application
@@ -136,6 +183,15 @@ class Policy(object):
 
         # Scores for each individual File
         self.perFileScores = dict()
+
+        # Security scores per Application instance, and per Application
+        self.perAppSecScores = dict()
+
+        # Security score, and security clusters
+        self.ss = SecurityScores()
+        self.clusters = []
+        self.clustersPerInstance = []
+        # TODO more security scores
 
     def printScores(self, outputDir: str):
         """Print general scores, scores per app, instance and file."""
@@ -156,16 +212,24 @@ class Policy(object):
         systemS = PolicyScores()
         desktopS = PolicyScores()
         userappS = PolicyScores()
+        appStore = ApplicationStore.get()
         for desktopid in sorted(self.perAppScores.keys()):
             score = self.perAppScores[desktopid]
             # print("\n\nApp: %s" % desktopid)
             score.printScores(scoreDir, "App - %s.score" % desktopid,
                               quiet=True)
 
-            appStore = ApplicationStore.get()
+            # Loop through application instances and print their scores.
             apps = appStore.lookupDesktopId(desktopid, limit=1)
+            for app in apps:
+                iScore = self.perInstanceScores.get(app)
+                if iScore:
+                    iScore.printScores(scoreDir, "App - %s - Instance %s.score"
+                                       % (desktopid, app.uid()),
+                                       quiet=True)
+
+            # Identify if the application is of desktop/system/DE type.
             if apps:
-                # TODO loop and append
                 if apps[0].isSystemApp():
                     systemS += score
                 elif apps[0].isDesktopApp():
@@ -215,8 +279,15 @@ class Policy(object):
         print("-------------------")
 
         # General score
-        print("\nGENERAL SCORES:")
+        print("\nGENERAL SCORES")
         self.s.printScores(scoreDir, "general.score")
+        print("-------------------")
+        print("\n\n\n")
+
+        # Security - general score
+        print("-------------------")
+        print("\nSECURITY GENERAL SCORES")
+        self.ss.printScores(scoreDir, "security.score")
         print("-------------------")
         print("\n\n\n")
 
@@ -244,6 +315,7 @@ class Policy(object):
             attr += increment
             self.s.__setattr__(score, attr)
 
+
         # App score
         if actor:
             iScore = self.perInstanceScores.get(actor.uid()) or PolicyScores()
@@ -267,10 +339,121 @@ class Policy(object):
             fScore.__setattr__(score, attr)
             self.perFileScores[file.inode] = fScore
 
+    # TODO incrementSecurityScore
+    def incrementSecurityScore(self,
+                               score: str,
+                               file: File,
+                               actor: Application,
+                               increment: int=1):
+        """Increment a security score for the Policy, File and Application."""
+        pass
+
     def accessFunc(self, engine: 'PolicyEngine', f: File, acc: FileAccess):
-        """Assess the security and usability score of a FileAccess."""
+        """Assess the usability score of a FileAccess."""
         raise NotImplementedError
 
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        raise NotImplementedError
+
+    def buildSecurityClusters(self, engine: 'PolicyEngine'):
+        # TODO? clusters with, and without, user documents only.
+        """Build clusters of files with information flows to one another."""
+        # First, build clusters of files co-accessed by every single app.
+        accessLists = dict()
+        accessListsInstance = dict()
+        for f in engine.fileStore:
+            for acc in f.getAccesses():
+                (policyAllowed, __) = self.allowedByPolicy(f, acc.actor)
+                if policyAllowed or acc.isByDesignation():
+                    # TODO: for policies that have one sandbox per app, use
+                    # desktopID. for other policies, use instance uid()
+                    # For policies with multiple sandboxes, find a good place
+                    # to calculate duplicationCost! e.g. writes to owned path
+                    # files -> duplication. This also means the allowedByPolicy
+                    # function should exclude owned files (as some will be
+                    # legitimately duplicated).
+                    l = accessLists.get(acc.actor.getDesktopId()) or set()
+                    l.add(f)
+                    accessLists[acc.actor.getDesktopId()] = l
+                    l = accessListsInstance.get(acc.actor.uid()) or set()
+                    l.add(f)
+                    accessListsInstance[acc.actor.uid()] = l
+
+        # Then, merge clusters that share an item.
+        clusters = []
+        for (app, l) in accessLists.items():
+            mergeSet = []
+
+            # Single out all the clusters that share an item with l.
+            for (index, cluster) in enumerate(clusters):
+                if hasIntersection(l, cluster):
+                    mergeSet.append(index)
+
+            # Pop them all out (in reverse order to keep indexes consistant),
+            # and feed them to a set's union operator in order to unify all the
+            # list contents into a single set.
+            newCluster = set(list(l)).union(
+                *(clusters.pop(index) for index in reversed(sorted(mergeSet))))
+            clusters.append(newCluster)
+
+        # Then, merge clusters that share an item.
+        clustersInstance = []
+        for (app, l) in accessListsInstance.items():
+            mergeSet = []
+
+            # Single out all the clusters that share an item with l.
+            for (index, cluster) in enumerate(clustersInstance):
+                if hasIntersection(l, cluster):
+                    mergeSet.append(index)
+
+            # Pop them all out (in reverse order to keep indexes consistant),
+            # and feed them to a set's union operator in order to unify all the
+            # list contents into a single set.
+            newCluster = set(list(l)).union(
+                *(clustersInstance.pop(index) for index in
+                  reversed(sorted(mergeSet))))
+            clustersInstance.append(newCluster)
+
+        # Return our final list of clusters.
+        return (clusters, clustersInstance)
+
+    def securityRun(self, engine: 'PolicyEngine'):
+        """Assess the quality of the security provided by a Policy."""
+
+        # Build clusters of files with information flows to one another.
+        (self.clusters, self.clustersPerInstance) = \
+            self.buildSecurityClusters(engine)
+
+        # Calculate over-entitlements for each app.
+        for app in engine.appStore:
+            allowCount = 0
+            accessCount = 0
+            for f in engine.fileStore:
+                (policyAllowed, __) = self.allowedByPolicy(f, app)
+
+                # File allowed by the policy
+                if policyAllowed:
+                    allowCount += 1
+
+                    # File accessed by the app
+                    accesses = f.getAccesses()
+                    for acc in accesses:
+                        if acc.actor == app:
+                            accessCount += 1
+                            self.ss.appOverEntitlement[0].add(f)
+                            break
+
+                    self.ss.appOverEntitlement[1].add(f)
+
+            # Record the overentitlements for this instance specifically
+            self.ss.instanceOverEntitlement.append([accessCount, allowCount])
+
+        # TODO:
+        # Calculate cluster cross-over for each instance!?!??
+        # median cluster size
+        # presence of user Secure Files in clusters, and size thereof
+        # think about the exclusion lists, TODO
 
 class PolicyEngine(object):
     """An engine for running algorithms that implement a file AC policy."""
@@ -281,7 +464,10 @@ class PolicyEngine(object):
         self.appStore = ApplicationStore.get()
         self.fileStore = FileStore.get()
 
-    def runPolicy(self, policy: Policy=None, outputDir: str=None):
+    def runPolicy(self,
+                  policy: Policy=None,
+                  outputDir: str=None,
+                  quiet: bool=False):
         """Run a Policy over all the Files, and print the resulting scores."""
         if not policy:
             return
@@ -296,11 +482,15 @@ class PolicyEngine(object):
                     t.add(file.getName()+("\tWRITE" if acc.evflags &
                                           EventFileFlags.write else "\tREAD"))
                     self.illegalAppStore[acc.actor.desktopid] = t
-                file.clearAccessCosts()
+            file.clearAccessCosts()
 
-        policy.printScores(outputDir)
+        # And security scores of each app
+        policy.securityRun(self)
 
-        if debugEnabled():
+        if not quiet:
+            policy.printScores(outputDir)
+
+        if debugEnabled() and not quiet:
             for key in sorted(self.illegalAppStore):
                 if key == 'catfish':  # too noisy
                     continue

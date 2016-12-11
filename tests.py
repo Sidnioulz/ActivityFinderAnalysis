@@ -9,8 +9,161 @@ from FileStore import FileStore
 from File import File, EventFileFlags
 from FileFactory import FileFactory
 from PreloadLoggerLoader import PreloadLoggerLoader
+from PolicyEngine import PolicyEngine
 from LibraryPolicies import OneLibraryPolicy
 from constants import PYTHONRE, PYTHONNAMER
+
+
+class TestSecurityScores(unittest.TestCase):
+    def setUp(self):
+        self.eventStore = EventStore.get()
+        self.appStore = ApplicationStore.get()
+        self.fileFactory = FileFactory.get()
+        self.userConf = UserConfigLoader("user.ini")
+        self.engine = PolicyEngine()
+
+        self.ar1 = Application("ristretto.desktop", pid=21, tstart=1, tend=2000)
+        self.ar2 = Application("ristretto.desktop", pid=22, tstart=2600, tend=2900)
+        self.ag1 = Application("gimp.desktop", pid=23, tstart=1, tend=4000)
+        self.ag2 = Application("gimp.desktop", pid=24, tstart=4500, tend=4590)
+
+    def test_clusters_illegal(self):
+        self.eventStore.reset()
+
+        # Insert an illegal file, we'll check it's in no clusters.
+        s1 = "open64|/home/user/ForbiddenFile.xml|fd 10: with flag 524288, e0|"
+        e1 = Event(actor=self.ag1, time=10, syscallStr=s1)
+        self.eventStore.append(e1)
+
+        # Simulate.
+        self.eventStore.simulateAllEvents()
+        pol = OneLibraryPolicy(userConf=self.userConf)
+        self.engine.runPolicy(pol, quiet=True)
+
+        # Ensure there is no cluster.
+        self.assertIsNotNone(pol.clusters)
+        self.assertEqual(len(pol.clusters), 0)
+
+    def test_clusters_owned_path(self):
+        self.eventStore.reset()
+
+        # Insert an illegal file, we'll check it's in no clusters.
+        s1 = "open64|/home/user/.config/gimp/config.ini|fd 10: with " \
+             "flag 524288, e0|"
+        e1 = Event(actor=self.ag1, time=10, syscallStr=s1)
+        self.eventStore.append(e1)
+
+        # Simulate.
+        self.eventStore.simulateAllEvents()
+        pol = OneLibraryPolicy(userConf=self.userConf)
+        self.engine.runPolicy(pol, quiet=True)
+
+        # Ensure there is no cluster.
+        self.assertIsNotNone(pol.clusters)
+        self.assertEqual(len(pol.clusters), 0)
+
+    def test_clusters_linked(self):
+        self.eventStore.reset()
+
+        # Insert a file that will bridge r1 and g1.
+        s2 = "open64|/home/user/Images/Picture.jpg|fd 10: with flag 524288, e0|"
+        e2 = Event(actor=self.ag1, time=10, syscallStr=s2)
+        self.eventStore.append(e2)
+        e2b = Event(actor=self.ar1, time=12, syscallStr=s2)
+        self.eventStore.append(e2b)
+
+        # Insert a file that will bridge r1 and r2.
+        s3 = "open64|/home/user/Images/Photo.jpg|fd 10: with flag 524288, e0|"
+        e3 = Event(actor=self.ar1, time=10, syscallStr=s3)
+        self.eventStore.append(e3)
+        e3b = Event(actor=self.ar2, time=2710, syscallStr=s3)
+        self.eventStore.append(e3b)
+
+        # Insert a file that will bridge g1 and g2.
+        s4 = "open64|/home/user/Images/Art.xcf|fd 10: with flag 524288, e0|"
+        e4 = Event(actor=self.ag1, time=10, syscallStr=s4)
+        self.eventStore.append(e4)
+        e4b = Event(actor=self.ag2, time=4540, syscallStr=s4)
+        self.eventStore.append(e4b)
+
+        # Simulate.
+        self.eventStore.simulateAllEvents()
+        pol = OneLibraryPolicy(userConf=self.userConf)
+        self.engine.runPolicy(pol, quiet=True)
+
+        # Ensure there is only one cluster.
+        self.assertIsNotNone(pol.clusters)
+        self.assertEqual(len(pol.clusters), 1)
+
+        # Ensure f2, f3 and f4 are together.
+        f2 = self.fileFactory.getFile("/home/user/Images/Picture.jpg", 20)
+        f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)
+        f4 = self.fileFactory.getFile("/home/user/Images/Art.xcf", 20)
+        self.assertIn(f2, pol.clusters[0])
+        self.assertIn(f3, pol.clusters[0])
+        self.assertIn(f4, pol.clusters[0])
+
+    def test_clusters_disjoint(self):
+        # Insert a file only for g1.
+        s2 = "open64|/home/user/Images/Picture.jpg|fd 10: with flag 524288, e0|"
+        e2 = Event(actor=self.ag1, time=10, syscallStr=s2)
+        self.eventStore.append(e2)
+
+        # Insert a file that will bridge r1 and r2.
+        s3 = "open64|/home/user/Images/Photo.jpg|fd 10: with flag 524288, e0|"
+        e3 = Event(actor=self.ar1, time=10, syscallStr=s3)
+        self.eventStore.append(e3)
+        e3b = Event(actor=self.ar2, time=2710, syscallStr=s3)
+        self.eventStore.append(e3b)
+
+        # Insert a file only for g2.
+        s4 = "open64|/home/user/Images/Art.xcf|fd 10: with flag 524288, e0|"
+        e4b = Event(actor=self.ag2, time=4540, syscallStr=s4)
+        self.eventStore.append(e4b)
+
+        # Simulate.
+        self.eventStore.simulateAllEvents()
+        pol = OneLibraryPolicy(userConf=self.userConf)
+        self.engine.runPolicy(pol, quiet=True)
+
+        # Ensure there are three clusters.
+        self.assertIsNotNone(pol.clusters)
+        self.assertIsNotNone(pol.clustersPerInstance)
+        self.assertEqual(len(pol.clusters), 2)
+        self.assertEqual(len(pol.clustersPerInstance), 3)
+
+        # Ensure f1 is not included, and f2, f3 and f4 are together.
+        f2 = self.fileFactory.getFile("/home/user/Images/Picture.jpg", 20)
+        f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)
+        f4 = self.fileFactory.getFile("/home/user/Images/Art.xcf", 20)
+        for cluster in pol.clustersPerInstance:
+            if f2 in cluster:
+                self.assertNotIn(f3, cluster)
+                self.assertNotIn(f4, cluster)
+            if f3 in cluster:
+                self.assertNotIn(f2, cluster)
+                self.assertNotIn(f4, cluster)
+            if f4 in cluster:
+                self.assertNotIn(f2, cluster)
+                self.assertNotIn(f3, cluster)
+        for cluster in pol.clusters:
+            if f2 in cluster:
+                self.assertNotIn(f3, cluster)
+                self.assertIn(f4, cluster)
+            if f3 in cluster:
+                self.assertNotIn(f2, cluster)
+                self.assertNotIn(f4, cluster)
+            if f4 in cluster:
+                self.assertIn(f2, cluster)
+                self.assertNotIn(f3, cluster)
+
+    def tearDown(self):
+        self.userConf = None
+        self.engine = None
+        EventStore.reset()
+        ApplicationStore.reset()
+        FileFactory.reset()
+        FileStore.reset()
 
 
 class TestEventFlags(unittest.TestCase):
@@ -443,7 +596,6 @@ class TestOneLibraryPolicy(unittest.TestCase):
         self.fileStore = FileStore.get()
         self.fileFactory = FileFactory.get()
         self.userConf = UserConfigLoader("user.ini")
-        self.pol = OneLibraryPolicy(self.userConf)
 
     def test_pol_load_app_conf(self):
         app = Application("ristretto.desktop", pid=21, tstart=0, tend=300)
@@ -451,7 +603,7 @@ class TestOneLibraryPolicy(unittest.TestCase):
         file.addAccess(app, 140, EventFileFlags.create | EventFileFlags.read)
 
         self.appStore.insert(app)
-        res = self.pol.getAppPolicy(app)
+        res = OneLibraryPolicy(userConf=self.userConf).getAppPolicy(app)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], "image")
 
@@ -472,19 +624,17 @@ class TestOneLibraryPolicy(unittest.TestCase):
         accs = file.getAccesses()
         self.assertEqual(len(accs), 2)
 
-        lp = OneLibraryPolicy(self.userConf)
+        lp = OneLibraryPolicy(userConf=self.userConf)
 
         lp.accessFunc(None, file, accs[0])
-        self.assertEqual(lp.illegalAccess, 1)
-        self.assertEqual(lp.interruptionCost, 1)
-        self.assertEqual(lp.grantingCost, 1)
-        self.assertEqual(lp.cumulGrantCost, 1)
+        self.assertEqual(lp.s.illegalAccess, 1)
+        self.assertEqual(lp.s.grantingCost, 1)
+        self.assertEqual(lp.s.cumulGrantingCost, 1)
 
         lp.accessFunc(None, file, accs[1])
-        self.assertEqual(lp.illegalAccess, 2)
-        self.assertEqual(lp.interruptionCost, 1)
-        self.assertEqual(lp.grantingCost, 1)
-        self.assertEqual(lp.cumulGrantCost, 2)
+        self.assertEqual(lp.s.illegalAccess, 2)
+        self.assertEqual(lp.s.grantingCost, 1)
+        self.assertEqual(lp.s.cumulGrantingCost, 2)
         FileFactory.reset()
 
     def test_app_owned_files(self):
@@ -502,14 +652,13 @@ class TestOneLibraryPolicy(unittest.TestCase):
         accs = file.getAccesses()
         self.assertEqual(len(accs), 1)
 
-        lp = OneLibraryPolicy(self.userConf)
+        lp = OneLibraryPolicy(userConf=self.userConf)
 
         lp.accessFunc(None, file, accs[0])
-        self.assertEqual(lp.ownedPathAccess, 1)
+        self.assertEqual(lp.s.ownedPathAccess, 1)
         FileFactory.reset()
 
     def tearDown(self):
-        self.pol = None
         self.userConf = None
         ApplicationStore.reset()
         EventStore.reset()
