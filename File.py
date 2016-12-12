@@ -361,6 +361,10 @@ class File(object):
         acc = FileAccess(actor, time, flags)
         self.accesses.append(acc)
 
+    def hasAccesses(self):
+        """Tell whether a File has had any accesses at all."""
+        return True if len(self.accesses) else False
+
     def getAccesses(self, flags: EventFileFlags=None):
         """Get the acts of access on this File."""
         if not flags:
