@@ -124,7 +124,7 @@ class FileStore(object):
                              "Files.")
         else:
             if os.path.exists(outputDir):
-                backup = outputDir + ".backup"
+                backup = outputDir.rstrip("/") + ".backup"
                 if os.path.exists(backup):
                     shutil.rmtree(backup)
                 os.replace(outputDir, backup)
