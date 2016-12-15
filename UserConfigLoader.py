@@ -38,3 +38,23 @@ class UserConfigLoader(object):
                             group='User Config',
                             type=type,
                             list=isList) or defaultValue
+
+    def getSecurityExclusionLists(self):
+        """Get the security exclusion lists setting."""
+        if not self.ini:
+            return []
+
+        vals = self.ini.get('SecurityExclusionLists',
+                            group='User Config',
+                            type='string', list=True) or []
+
+        result = []
+        for value in vals:
+            excls = value.strip('|').split('||')
+            if not excls:
+                raise ValueError("Syntax error in user configuration's "
+                                 "SecurityExclusionLists on bit '%s'" % value)
+            else:
+                result.append(excls)
+
+        return result
