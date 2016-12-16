@@ -352,7 +352,7 @@ class TestEventFlags(unittest.TestCase):
         FileStore.reset()
 
 
-class TestApplicationStoreInsertion(unittest.TestCase):
+class TestApplicationStore(unittest.TestCase):
     def setUp(self):
         self.store = ApplicationStore.get()
 
@@ -367,6 +367,17 @@ class TestApplicationStoreInsertion(unittest.TestCase):
         self.store.insert(d)
         self.store.insert(f)
         self.assertEqual(len(self.store.lookupPid(21)), 3)
+
+    def test_merge_equal(self):
+        self.store.clear()
+        a = Application("firefox.desktop", pid=18495, tstart=0, tend=2)
+        b = Application("firefox.desktop", pid=245, tstart=21, tend=32)
+        f = Application("firefox.desktop", pid=6023, tstart=2, tend=4)
+        self.store.insert(a)
+        self.store.insert(b)
+        self.store.insert(f)
+        self.assertEqual(len(self.store.lookupDesktopId(a.desktopid)), 3)
+        self.assertEqual(len(self.store.lookupDesktopId(a.getDesktopId())), 3)
 
     def tearDown(self):
         EventStore.reset()
