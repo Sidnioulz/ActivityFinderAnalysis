@@ -105,19 +105,6 @@ class Application(object):
             self.entry = entry
             self.init = True
 
-    def __initFromPath(self):
-        """Initialise an Application based on the path of its executable.
-
-        Scans the XDG desktop entries' Exec and TryExec paths to find an
-        appropriate Desktop id.
-        """
-        # TODO __initFromPath
-        # first, literal pass through Exec
-        # second, resolve PATH to only get the executable name
-        # third, TryExec, literal
-        # forth, TryExec, name
-        raise NotImplementedError
-
     def isInitialised(self):
         """Check if an Application is initialised."""
         return self.init
