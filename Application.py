@@ -16,6 +16,7 @@ class Application(object):
     to their executable.
     """
 
+    """
     init = False              # type: bool
     entry = None              # type: DesktopEntry
     desktopid = None          # type: str; final id of the app after init
@@ -34,7 +35,10 @@ class Application(object):
     # ipc = []                  # type: list
     # parent = None             # type: Application
     # children = []             # type: list
+    """
+
     desktopre = re.compile(DESKTOPIDRE)
+    desktopCache = dict()
 
     def __init__(self,
                  desktopid: str=None,
@@ -47,7 +51,10 @@ class Application(object):
         super(Application, self).__init__()
         self.clearEvents()
         self.clearFDs()
-        self.entry = None
+
+        self.desktopid = None
+        self.cmdline = None
+        self.path = None
 
         if desktopid:
             self.desktopid = desktopid.lower()
@@ -65,44 +72,52 @@ class Application(object):
         self.interpreterid = interpreterid.lower() if interpreterid else None
 
     @staticmethod
-    def getDesktopIdFromDesktopUri(uri: str):
+    def __getDesktopFile(desktopid: str):
+        """Get a .desktop file from the desktop cache for a given desktopid."""
+        if not Application.desktopCache.get(desktopid):
+            de = DesktopEntry.DesktopEntry()
+            for path in DESKTOPPATHS:
+                depath = os.path.realpath(path + desktopid)
+                try:
+                    de.parse(depath)
+                except(DesktopEntry.ParsingError) as e:
+                    pass
+                else:
+                    res = Application.desktopre.match(depath)
+                    try:
+                        finalid = res.groups()[0].lower()
+                    except(ValueError, KeyError) as e:
+                        finalid = depath.lower()
+                    break
+
+            Application.desktopCache[finalid] = (finalid, de)
+            return (finalid, de)
+
+        return Application.desktopCache.get(desktopid)
+
+    @staticmethod
+    def __getDesktopIdFromDesktopUri(uri: str):
         """Calculate the Application Desktop Id for a given URI."""
         if not uri:
             return (None, None)
-
-        desktopid = None
 
         defile = uri[14:] if uri.startswith("application://") else uri
         if not uri.endswith(".desktop"):
             defile += ".desktop"
 
-        de = DesktopEntry.DesktopEntry()
-        for path in DESKTOPPATHS:
-            depath = os.path.realpath(path + defile)
-            try:
-                de.parse(depath)
-            except(DesktopEntry.ParsingError) as e:
-                pass
-            else:
-                res = Application.desktopre.match(depath)
-                try:
-                    desktopid = res.groups()[0].lower()
-                except(ValueError, KeyError) as e:
-                    desktopid = depath.lower()
-                break
 
-        return (desktopid, de)
+        return Application.__getDesktopFile(defile)
 
     def __initFromDesktopID(self):
         """Initialise an application using an XDG desktop identifier."""
-        (did, entry) = Application.getDesktopIdFromDesktopUri(self.desktopid)
+        (did, entry) = Application.__getDesktopIdFromDesktopUri(self.desktopid)
 
         if not did:
             # TODO get path from Exec/TryExec for de entry
-            return
+            raise ValueError("Could not initialise desktopid '%s'" %
+                             self.desktopid)
         else:
             self.desktopid = did
-            self.entry = entry
             self.init = True
 
     def isInitialised(self):
@@ -301,7 +316,9 @@ class Application(object):
                    defaultValue=None,
                    type: str="string"):
         """Get a stored setting relative to this app."""
-        if not self.entry:
+        (__, entry) = Application.desktopCache.get(self.desktopid)
+
+        if not entry:
             return None
 
         isList = False
@@ -309,10 +326,10 @@ class Application(object):
             isList = True
             type = type[:-5]
 
-        return self.entry.get(key,
-                              group=group,
-                              type=type,
-                              list=isList) or None
+        return entry.get(key,
+                         group=group,
+                         type=type,
+                         list=isList) or None
 
     def isSystemApp(self):
         """Tell if the Application is a system daemon or service."""
