@@ -5,6 +5,6 @@ Comment=Debug D-Bus applications
 Exec=qdbusviewer-qt4
 Icon=qdbusviewer-qt4
 Terminal=false
-Type=Application
+Type=System
 Categories=Qt;Development;Debugger;
 

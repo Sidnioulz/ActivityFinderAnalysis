@@ -5,6 +5,6 @@ Comment=OpenJDK Java 7 Policy Tool
 Comment[fi]=OpenJDK Java 7 - käytäntötyökalu
 Exec=/usr/bin/policytool
 Terminal=false
-Type=Application
+Type=System
 Icon=openjdk-7
 Categories=Settings;

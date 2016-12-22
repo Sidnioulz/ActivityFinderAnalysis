@@ -89,5 +89,5 @@ Categories=GNOME;Utility;
 Exec=/usr/bin/catfish
 Icon=catfish
 Terminal=false
-Type=Application
+Type=Desktop
 LibraryCaps=music;image;video;documents;

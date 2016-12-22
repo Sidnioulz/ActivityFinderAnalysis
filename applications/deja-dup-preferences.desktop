@@ -11,7 +11,7 @@ Exec=deja-dup-preferences
 
 StartupNotify=true
 
-Type=Application
+Type=Desktop
 Categories=Settings;Utility;Archiving;GNOME;GTK;X-GNOME-SystemSettings;
 
 NotShowIn=Unity;

@@ -2,6 +2,6 @@
 Name=Akonadi
 GenericName=KDE Personal Information Management Framework
 Categories=KDE;Utility;
-Type=Application
+Type=Desktop
 ROPaths=^~/\.config/Trolltech.conf;^~/\.local/share/local\-mail;^/tmp/kde\-@USER@/xauth\-.*;
 RWPaths=^~/\.kde/(share|lib)/;^~/\.config/akonadi;^~/\.local/share/(akonadi|notes|contacts);^/var/tmp/kdecache\-@USER@/icon\-cache\.kcache$;

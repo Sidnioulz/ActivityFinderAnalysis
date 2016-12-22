@@ -5,5 +5,5 @@ Comment=Debug D-Bus applications
 Exec=/usr/lib/qt/bin/qdbusviewer
 Icon=qdbusviewer
 Terminal=false
-Type=Application
+Type=System
 Categories=Qt;Development;Debugger;

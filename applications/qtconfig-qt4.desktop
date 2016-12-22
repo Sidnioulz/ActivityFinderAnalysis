@@ -4,6 +4,6 @@ Comment=Configure Qt4 behavior, styles, fonts
 Exec=qtconfig-qt4
 Icon=qt4logo
 Terminal=false
-Type=Application
+Type=Desktop
 Categories=Qt;Settings;
 NoDisplay=true

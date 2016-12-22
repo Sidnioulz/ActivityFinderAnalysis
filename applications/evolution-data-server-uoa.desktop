@@ -2,7 +2,7 @@
 Version=1.0
 Name=Evolution Data Server
 Comment=Required to have EDS appear in UOA
-Type=Application
+Type=Desktop
 NoDisplay=true
 X-GNOME-Bugzilla-Bugzilla=GNOME
 X-GNOME-Bugzilla-Product=evolution-data-server

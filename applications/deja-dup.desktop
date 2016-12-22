@@ -77,7 +77,7 @@ Exec=deja-dup --backup
 StartupNotify=true
 NoDisplay=true
 
-Type=Application
+Type=Desktop
 Categories=Utility;Archiving;GNOME;GTK;
 
 X-GNOME-UsesNotifications=true
