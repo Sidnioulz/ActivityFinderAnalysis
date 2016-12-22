@@ -96,7 +96,7 @@ class Application(object):
         return Application.desktopCache.get(desktopid)
 
     @staticmethod
-    def __getDesktopIdFromDesktopUri(uri: str):
+    def getDesktopIdFromDesktopUri(uri: str):
         """Calculate the Application Desktop Id for a given URI."""
         if not uri:
             return (None, None)
@@ -110,7 +110,7 @@ class Application(object):
 
     def __initFromDesktopID(self):
         """Initialise an application using an XDG desktop identifier."""
-        (did, entry) = Application.__getDesktopIdFromDesktopUri(self.desktopid)
+        (did, entry) = Application.getDesktopIdFromDesktopUri(self.desktopid)
 
         if not did:
             # TODO get path from Exec/TryExec for de entry
