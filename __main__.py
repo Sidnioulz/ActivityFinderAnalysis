@@ -156,6 +156,27 @@ def main(argv):
                             userHome=userConf.getSetting("HomeDir"),
                             showDesignatedOnly=False)
 
+    if graphEnabled():
+        # TODO do a version with files of an instance all connected, to focus
+        # on separating app instances instead of denying accesses.
+        print("\nCompiling the general Access Graph...")
+        g = AccessGraph()
+        g.populate(userConf=userConf, policy=None)
+        g.plot(output="graph-accesses")
+        print("Done.")
+
+        print("\nCompiling the general Activity Graph...")
+        g = ActivityGraph()
+        g.populate(userConf=userConf, policy=None)
+        g.plot(output="graph-activities")
+        print("Done.")
+
+        print("\nCompiling the general Instance Graph...")
+        g = InstanceGraph()
+        g.populate(userConf=userConf, policy=None)
+        g.plot(output="graph-instances")
+        print("Done.")
+
     # Policy engine. Create a policy and run a simulation to score it.
     if scoreEnabled():
         engine = PolicyEngine()
