@@ -34,6 +34,7 @@ class FileStore(object):
     def clear(self):
         """Empty the FileStore."""
         self.nameStore = dict()   # type: dict
+        self.inodeStore = dict()  # type: dict
 
     def guessFileTypes(self):
         """Guess file types for files without a type, using their extension."""
@@ -168,12 +169,21 @@ class FileStore(object):
                             os.utime(outpath, None)
                             last.writeStatistics(f)
 
-    def getFilesForName(self, name):
+    def getFilesForName(self, name: str):
         """Return all Files that have the given name as a path."""
         try:
             return self.nameStore[name]
         except(KeyError) as e:
             return []
+
+    def getFile(self, inode: int):
+        """Return the File identified by an inode."""
+        print(inode)
+        print("|\n\n\n")
+        try:
+            return self.inodeStore[inode]
+        except(KeyError) as e:
+            return None
 
     def updateFile(self, file: File, oldName: str=None):
         """Add a File to the FileStore."""
@@ -203,6 +213,7 @@ class FileStore(object):
         # Empty case
         if len(filesWithName) == 0:
             self.nameStore[name] = [file]
+            self.inodeStore[file.inode] = file
             return
 
         # We must be the last for this name as the data must be sorted
@@ -215,6 +226,7 @@ class FileStore(object):
         else:
             filesWithName.append(file)
             self.nameStore[name] = filesWithName
+            self.inodeStore[file.inode] = file
             return
 
         assert False, "FileStore.addFile(): temporal inconsistency on '%s' " \
@@ -243,13 +255,19 @@ class FileStore(object):
         """Remove FD references that weren't solved yet from the FileStore."""
         count = 0
         dels = set()
+        delInodes = set()
         for name in self.nameStore:
             if name.startswith("@fdref"):
                 dels.add(name)
+                for f in self.nameStore.get(name):
+                    delInodes.add(f.inode)
 
         for name in dels:
-            count += 1
             del self.nameStore[name]
+
+        for inode in delInodes:
+            count += 1
+            del self.inodeStore[inode]
 
         if debugEnabled():
             print("Info: purged %d unresolved file descriptor references." %
