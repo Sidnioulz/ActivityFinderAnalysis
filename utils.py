@@ -9,8 +9,10 @@ from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
 __opt_check = False
 __opt_debug = False
 __opt_output_fs = None
-__opt_related_files = None
-__opt_score = None
+__opt_related_files = False
+__opt_score = False
+__opt_graph = False
+__opt_clusters = False
 
 
 def __setCheckMissing(opt):
@@ -43,6 +45,18 @@ def __setScore(opt):
     __opt_score = opt
 
 
+def __setGraph(opt):
+    """Set the return value of :graphEnabled():."""
+    global __opt_graph
+    __opt_graph = opt
+
+
+def __setPrintClusters(opt):
+    """Set the return value of :printClustersEnabled():."""
+    global __opt_clusters
+    __opt_clusters = opt
+
+
 def checkMissingEnabled():
     """Return True if the --check-missing flag was passed, False otherwise."""
     global __opt_check
@@ -71,6 +85,18 @@ def scoreEnabled():
     """Return True if --score was passed, False otherwise."""
     global __opt_score
     return __opt_score
+
+
+def graphEnabled():
+    """Return True if --graph was passed, False otherwise."""
+    global __opt_graph
+    return __opt_graph
+
+
+def printClustersEnabled():
+    """Return True if --print-clusters was passed, False otherwise."""
+    global __opt_clusters
+    return __opt_clusters
 
 
 def time2Str(timestamp):

@@ -6,19 +6,23 @@ from FileStore import FileStore
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
+from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph
 from PolicyEngine import PolicyEngine
 from FrequentFileEngine import FrequentFileEngine
 from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
-                  __setRelatedFiles, __setScore, \
+                  __setRelatedFiles, __setScore, __setGraph, \
+                  __setPrintClusters, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
-                  relatedFilesEnabled, scoreEnabled
+                  relatedFilesEnabled, scoreEnabled, graphEnabled, \
+                  printClustersEnabled
 import getopt
 import sys
 
 USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
-               '--output-fs=<DIR> --score]'
+               '--output-fs=<DIR> --score\n --print-clusters ' \
+               '--graph-clusters]'
 
 
 # Main function
@@ -26,12 +30,14 @@ USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
 def main(argv):
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hcdf:sr", ["help",
-                                                       "check-missing",
-                                                       "debug",
-                                                       "related-files",
-                                                       "output-fs=",
-                                                       "score"])
+        (opts, args) = getopt.getopt(argv, "hcdf:srpg", ["help",
+                                                        "check-missing",
+                                                        "debug",
+                                                        "related-files",
+                                                        "output-fs=",
+                                                        "score",
+                                                        "print-clusters",
+                                                        "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -52,9 +58,15 @@ def main(argv):
                 print("--related-files:\n\tMines for files that are frequently"
                       " accessed together by apps. WORK IN\n\tPROGRESS!\n")
                 print("--score:\n\tCalculates the usability and security "
-                      "scores of a number of file access\n\tcontrol policies "
+                      "scores of a number of file access\n\tcontrol policies"
                       ", replayed over the simulated accesses. Prints results"
                       "\n\tand saves them to the output directory.\n")
+                print("--print-clusters:\n\tPrints clusters of files with "
+                      "information flows to one another.\n\tRequires the "
+                      "--score option.\n")
+                print("--graph-clusters:\n\tFind communities in file/app "
+                      "accesses using graph theory methods.\n\tRequires the "
+                      "--score option for per-policy graphs.\n")
                 sys.exit()
             elif opt in ('c', '--check-missing'):
                 __setCheckMissing(True)
@@ -64,6 +76,10 @@ def main(argv):
                 __setRelatedFiles(True)
             elif opt in ('-s', '--score'):
                 __setScore(True)
+            elif opt in ('-p', '--print-clusters'):
+                __setPrintClusters(True)
+            elif opt in ('-p', '--graph-clusters'):
+                __setGraph(True)
             elif opt in ('-f', '--output-fs'):
                 if not arg:
                     print(USAGE_STRING)
@@ -146,11 +162,13 @@ def main(argv):
 
         print("\nRunning the One Library policy...")
         engine.runPolicy(OneLibraryPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled())
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
 
         print("\nRunning the Compound Library policy...")
         engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled())
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
 
     # Calculate frequently co-accessed files:
     if relatedFilesEnabled():
