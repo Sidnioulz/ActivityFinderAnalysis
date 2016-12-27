@@ -234,6 +234,19 @@ class File(object):
         """Return the path of the file."""
         return self.path
 
+    def getFileName(self, folderEnd: bool=False):
+        """Return the file name (last end of the path) of the file."""
+        lastDir = self.path.rfind('/')
+
+        if lastDir == 0 and not folderEnd:
+            name = self.path
+        elif lastDir >= 0:
+            name = self.path[lastDir+1:]
+        else:
+            name = self.path
+
+        return name + ('/' if folderEnd and self.isFolder() else '')
+
     def getTimeOfStart(self):
         """Return the time at which the file was known to start existing."""
         return self.tstart
