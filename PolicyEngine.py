@@ -337,11 +337,11 @@ class Policy(object):
             # Loop through application instances and print their scores.
             apps = appStore.lookupDesktopId(desktopid, limit=1)
             for app in apps:
-                iScore = self.perInstanceSecurityScores.get(app)
+                iScore = self.perInstanceSecurityScores.get(app.uid())
                 if iScore:
                     iScore.printScores(outputDir=scoreDir,
                                        filename="App - %s - Instance %s.securi"
-                                        "tyscore" % (desktopid, app.uid()),
+                                       "tyscore" % (desktopid, app.uid()),
                                        userHome=userHome,
                                        quiet=True)
 
