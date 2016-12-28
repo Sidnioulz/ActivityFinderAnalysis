@@ -424,11 +424,6 @@ class Policy(object):
         # Global score
         self.ss.overEntitlements[0 if accessed else 1].add(file)
 
-        if actor.getDesktopId().endswith("desktop"):
-            raise ValueError("Policy engine detected an application with an "
-                             "inconsistent desktop id (ends with .desktop): "
-                             "%s" % actor.uid())
-
         # Per instance score
         iScore = self.perInstanceSecurityScores.get(actor.uid()) or \
             SecurityScores()
