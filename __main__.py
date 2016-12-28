@@ -10,6 +10,7 @@ from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph
 from PolicyEngine import PolicyEngine
 from FrequentFileEngine import FrequentFileEngine
 from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
+from Policies import UnsecurePolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -180,6 +181,11 @@ def main(argv):
     # Policy engine. Create a policy and run a simulation to score it.
     if scoreEnabled():
         engine = PolicyEngine()
+
+        print("\nRunning the Unsecure policy...")
+        engine.runPolicy(UnsecurePolicy(userConf=userConf),
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
 
         print("\nRunning the One Library policy...")
         engine.runPolicy(OneLibraryPolicy(userConf=userConf),
