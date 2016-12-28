@@ -473,7 +473,7 @@ class Policy(object):
 
             for (cIndex, cluster) in enumerate(clusters):
                 # Each list of mutually exclusive patterns has its scores.
-                scores = [dict() for _ in range(len(self.exclList))]
+                clusterScores = [dict() for _ in range(len(self.exclList))]
 
                 # We check for each file and list which patterns files match.
                 for file in cluster:
@@ -489,12 +489,12 @@ class Policy(object):
                             # print("path: %s\tmatch: %s\tfile: %s" % (
                             #     pattern, matched, file.getName()
                             # ))
-                            exclFiles = scores[eIndex].get(matched) \
-                                or []
+                            exclFiles = clusterScores[eIndex].get(matched) \
+                                or [pattern]
                             exclFiles.append(file)
-                            scores[eIndex][matched] = exclFiles
+                            clusterScores[eIndex][matched] = exclFiles
 
-                exclScores[cIndex] = scores
+                exclScores[cIndex] = clusterScores
 
             return exclScores
 
@@ -547,27 +547,30 @@ class Policy(object):
 
             msg = ""
 
-            for (index, cluster) in enumerate(clusters):
-                msg += ("Cluster #%d (%d files):\n" % (index+1, len(cluster)))
+            for (cIndex, cluster) in enumerate(clusters):
+                msg += ("Cluster #%d (%d files):\n" % (cIndex+1, len(cluster)))
                 if printClusters:
                     for f in sorted(cluster, key=lambda key: key.getName()):
                         msg += ("  %s\n" % f.getName())
                     msg += ("\n")
 
-                for (scIndex, excl) in enumerate(exclScores[index]):
+                for (eIndex, listScores) in enumerate(exclScores[cIndex]):
                     msg += ("Exclusion list #%d: %s\n" % (
-                            scIndex+1,
-                            self.exclList[scIndex].__str__()))
+                            eIndex+1,
+                            self.exclList[eIndex].__str__()))
 
-                    matchSum = 0
-                    for (path, match) in excl.items():
-                        msg += ("  %s: %d files matching\n" % (path, len(match)))
-                        matchSum += 1
+                    matchSum = set()
+                    for (path, match) in listScores.items():
+                        msg += ("  %s (pattern %s): %d files matched\n" % (
+                                 path,
+                                 match[0],
+                                 len(match)-1))
+                        matchSum.add(match[0])
 
-                    if matchSum > 1:
+                    if len(matchSum) > 1:
                         msg += (" %d exclusive paths matched. Security "
-                                "violation!\n" % matchSum)
-                    elif matchSum:
+                                "violation!\n" % len(matchSum))
+                    elif len(matchSum) == 1:
                         msg += (" 1 exclusive path matched.\n")
                     else:
                         msg += (" No exclusive paths matched.\n")

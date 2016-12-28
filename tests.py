@@ -296,6 +296,49 @@ class TestSecurityScores(unittest.TestCase):
               pol.exclScoresPerInstance,
               _assertPerInstance)
 
+    def test_exclusion_list_aorb(self):
+        self.eventStore.reset()
+        self.fileFactory.reset()
+
+        sa = "open64|/home/user/Images/A/foo.jpg|fd 2: with flag 524288, e0|"
+        ea = Event(actor=self.ag1, time=110, syscallStr=sa)
+        self.eventStore.append(ea)
+        sb = "open64|/home/user/Images/B/foo.jpg|fd 2: with flag 524288, e0|"
+        eb = Event(actor=self.ag1, time=120, syscallStr=sb)
+        self.eventStore.append(eb)
+        sc = "open64|/home/user/Images/C/foo.jpg|fd 2: with flag 524288, e0|"
+        ec = Event(actor=self.ag1, time=122, syscallStr=sc)
+        self.eventStore.append(ec)
+
+        # Simulate.
+        self.eventStore.simulateAllEvents()
+        pol = OneLibraryPolicy(userConf=self.userConf)
+        self.engine.runPolicy(pol, quiet=True)
+
+        def _ctfn(clusters, scores):
+            for (index, cluster) in enumerate(clusters):
+                for (scIndex, excl) in enumerate(scores[index]):
+                    matchSum = set()
+                    seenA = None
+                    seenB = None
+                    seenC = None
+                    for (path, match) in excl.items():
+                        if path == "/home/user/Images/A/":
+                            seenA = match[0]
+                        elif path == "/home/user/Images/B/":
+                            seenB = match[0]
+                        elif path == "/home/user/Images/C/":
+                            seenC = match[0]
+                        matchSum.add(match[0])
+
+                    self.assertEqual(seenA, seenB)
+                    if seenA or seenC:
+                        self.assertNotEqual(seenA, seenC)
+                    self.assertIn(len(matchSum), (0, 2))
+
+        _ctfn(pol.clusters, pol.exclScores)
+        _ctfn(pol.clustersPerInstance, pol.exclScoresPerInstance)
+
     def test_overentitlement(self):
         self.eventStore.reset()
         self.fileFactory.reset()
@@ -831,7 +874,8 @@ class TestOneLibraryPolicy(unittest.TestCase):
     def test_load_exclusion_list(self):
         expectedList = [
             ['/home/user/Images/Foo/', '/home/user/Images/Bar/'],
-            ['/home/user/Images/Clients/.*?/']]
+            ['/home/user/Images/Clients/.*?/'],
+            ['/home/user/Images/(A|B)', '/home/user/Images/C']]
         lists = self.userConf.getSecurityExclusionLists()
         self.assertEqual(lists, expectedList)
 
