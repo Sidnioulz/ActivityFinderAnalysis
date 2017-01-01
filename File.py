@@ -3,6 +3,7 @@ from os.path import dirname
 from Application import Application
 from flags import Flags
 from utils import time2Str
+import mimetypes
 
 
 class EventFileFlags(Flags):
@@ -213,9 +214,18 @@ class File(object):
         self.tend = tend
         self.tsg = False
         self.teg = False
-        self.ftype = ftype
+        if ftype:
+            self.ftype = ftype
+        else:
+            self.guessType()
         self.accesses = []
         self.accessCosts = dict()
+
+    def guessType(self):
+        """Guess the type of the File, and set it automatically."""
+        fileType = mimetypes.guess_type(self.getName())
+        if fileType and fileType[0]:
+            self.ftype = fileType
 
     def setGuessFlags(self, sf: bool, ef: bool):
         """Set whether the start and end times are guessed instead of known."""
