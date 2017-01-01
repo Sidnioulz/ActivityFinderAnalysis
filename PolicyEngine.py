@@ -4,7 +4,8 @@ from FileStore import FileStore
 from Application import Application
 from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
-from constants import ILLEGAL_ACCESS
+from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
+                      ILLEGAL_ACCESS
 from utils import debugEnabled, hasIntersection
 import os
 import statistics
@@ -438,7 +439,42 @@ class Policy(object):
 
     def accessFunc(self, engine: 'PolicyEngine', f: File, acc: FileAccess):
         """Assess the usability score of a FileAccess."""
-        raise NotImplementedError
+        # Designation accesses are considered cost-free.
+        if acc.evflags & EventFileFlags.designation:
+            self.incrementScore('desigAccess', f, acc.actor)
+            f.recordAccessCost(acc, DESIGNATION_ACCESS)
+            return DESIGNATION_ACCESS
+
+        # Some files are allowed because they clearly belong to the app
+        ownedPaths = self.generateOwnedPaths(acc.actor)
+        for (path, evflags) in ownedPaths:
+            if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
+                self.incrementScore('ownedPathAccess', f, acc.actor)
+                f.recordAccessCost(acc, OWNED_PATH_ACCESS)
+                return OWNED_PATH_ACCESS
+
+        # Check for legality coming from the acting app's policy.
+        (allowed, __) = self.allowedByPolicy(f, acc.actor)
+        if allowed:
+            self.incrementScore('policyAccess', f, acc.actor)
+            f.recordAccessCost(acc, POLICY_ACCESS)
+            return POLICY_ACCESS
+
+        # We could not justify the access, increase the usabiltiy cost.
+        self.incrementScore('illegalAccess', f, acc.actor)
+
+        # If a prior interruption granted access, don't overcount.
+        self.incrementScore('cumulGrantingCost', f, acc.actor)
+        if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS):
+            self.incrementScore('grantingCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
+            self.incrementScore('grantingOwnedCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
+            self.incrementScore('grantingDesigCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
+            self.incrementScore('grantingPolicyCost', f, acc.actor)
+        f.recordAccessCost(acc, ILLEGAL_ACCESS)
+        return ILLEGAL_ACCESS
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
