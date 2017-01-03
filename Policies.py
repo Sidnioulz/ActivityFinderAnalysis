@@ -161,7 +161,7 @@ class FileTypePolicy(Policy):
 
 
 class UnsecurePolicy(Policy):
-    """Policy where every access is allowed."""
+    """Policy where every access is allowed, apps are basically unsandboxed."""
 
     def __init__(self,
                  userConf: UserConfigLoader,
