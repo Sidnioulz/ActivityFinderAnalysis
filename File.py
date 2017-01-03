@@ -223,9 +223,9 @@ class File(object):
 
     def guessType(self):
         """Guess the type of the File, and set it automatically."""
-        fileType = mimetypes.guess_type(self.getName())
+        fileType = mimetypes.guess_type(self.path, strict=False)
         if fileType and fileType[0]:
-            self.ftype = fileType
+            self.ftype = fileType[0]
 
     def setGuessFlags(self, sf: bool, ef: bool):
         """Set whether the start and end times are guessed instead of known."""
