@@ -9,7 +9,7 @@ from FileStore import FileStore
 from File import File, EventFileFlags
 from FileFactory import FileFactory
 from GraphEngine import AccessGraph
-from LibraryPolicies import OneLibraryPolicy
+from Policies import OneLibraryPolicy
 from PreloadLoggerLoader import PreloadLoggerLoader
 from PolicyEngine import PolicyEngine, SecurityScores
 from constants import PYTHONRE, PYTHONNAMER

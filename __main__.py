@@ -9,8 +9,8 @@ from UserConfigLoader import UserConfigLoader
 from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph
 from PolicyEngine import PolicyEngine
 from FrequentFileEngine import FrequentFileEngine
-from LibraryPolicies import OneLibraryPolicy, CompoundLibraryPolicy
-from Policies import UnsecurePolicy
+from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
+                     FileTypePolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -183,20 +183,28 @@ def main(argv):
     if scoreEnabled():
         engine = PolicyEngine()
 
-        print("\nRunning the Unsecure policy...")
-        engine.runPolicy(UnsecurePolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
+        # print("\nRunning the Unsecure policy...")
+        # engine.runPolicy(UnsecurePolicy(userConf=userConf),
+        #                  outputDir=outputFsEnabled(),
+        #                  printClusters=printClustersEnabled())
+        #
+        # print("\nRunning the One Library policy...")
+        # engine.runPolicy(OneLibraryPolicy(userConf=userConf),
+        #                  outputDir=outputFsEnabled(),
+        #                  printClusters=printClustersEnabled())
+        #
+        # print("\nRunning the Compound Library policy...")
+        # engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
+        #                  outputDir=outputFsEnabled(),
+        #                  printClusters=printClustersEnabled())
 
-        print("\nRunning the One Library policy...")
-        engine.runPolicy(OneLibraryPolicy(userConf=userConf),
+        print("\nRunning the File Type policy...")
+        pol = FileTypePolicy(userConf=userConf)
+        engine.runPolicy(pol,
                          outputDir=outputFsEnabled(),
                          printClusters=printClustersEnabled())
-
-        print("\nRunning the Compound Library policy...")
-        engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
+        if checkMissingEnabled:
+            pol.abortIfUnsupportedExtensions()
 
     # Calculate frequently co-accessed files:
     if relatedFilesEnabled():

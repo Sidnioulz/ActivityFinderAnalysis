@@ -6,7 +6,7 @@ from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
                       ILLEGAL_ACCESS
-from utils import debugEnabled, hasIntersection
+from utils import debugEnabled, hasIntersection, pyre
 import os
 import statistics
 import re
@@ -195,6 +195,7 @@ class Policy(object):
         super(Policy, self).__init__()
         self.name = name
         self.userConf = userConf
+        self.appPathCache = dict()
         self.clearScores()
 
     def clearScores(self):
@@ -436,6 +437,107 @@ class Policy(object):
             SecurityScores()
         aScore.overEntitlements[0 if accessed else 1].add(file)
         self.perAppSecurityScores[actor.getDesktopId()] = aScore
+
+    def generateOwnedPaths(self, actor: Application):
+        """Return the paths where an Application can fully write Files."""
+        if actor not in self.appPathCache:
+            paths = []
+            home = self.userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
+            desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+            user = self.userConf.getSetting("Username") or "user"
+            host = self.userConf.getSetting("Hostname") or "localhost"
+            did = re.escape(actor.desktopid)
+
+            # Full privileges in one's home!
+            rwf = (EventFileFlags.read | EventFileFlags.write |
+                   EventFileFlags.overwrite | EventFileFlags.destroy |
+                   EventFileFlags.create | EventFileFlags.move |
+                   EventFileFlags.copy)
+            paths.append((re.compile('^%s/\.%s' % (home, did)), rwf))
+            paths.append((re.compile('^%s/\.cache/%s' % (home, did)), rwf))
+            paths.append((re.compile('^%s/\.config/%s' % (home, did)), rwf))
+            paths.append((re.compile('^%s/\.local/share/%s' % (home, did)),
+                         rwf))
+            paths.append((re.compile('^%s/\.local/share/+(mime/|recently\-'
+                         'used\.xbel)' % (home)), rwf))
+            paths.append((re.compile('^/run/user/[0-9]+/dconf/user$'), rwf))
+            paths.append((re.compile('^/dev/null$'), rwf))
+
+            # Append the app-specific home paths
+            appSpecificRWPaths = actor.getSetting('RWPaths',
+                                                  type='string list') or []
+            for path in appSpecificRWPaths:
+                path = path.replace('@XDG_DESKTOP_DIR@', desk)
+                path = path.replace('@USER@', user)
+                path = path.replace('@HOSTNAME@', host)
+                path = path.replace('~', home)
+                paths.append((re.compile(path), rwf))
+
+            # Sticky bit in /tmp: one can touch what they created
+            paths.append((re.compile('^/tmp/'), EventFileFlags.create))
+            paths.append((re.compile('^/var/tmp/'), EventFileFlags.create))
+
+            # Read-only / copy-only installed files
+            rof = (EventFileFlags.read | EventFileFlags.copy)
+            paths.append((re.compile('^/etc/%s' % did), rof))
+            paths.append((re.compile('^/usr/include/%s' % did), rof))
+            paths.append((re.compile('^/usr/lib/%s' % did), rof))
+            paths.append((re.compile('^/usr/share/%s' % did), rof))
+            paths.append((re.compile('^/usr/lib/pkgconfig/%s\.pc' % did), rof))
+            paths.append((re.compile('^/usr/share/GConf/gsettings/%s\..*' %
+                          did), rof))
+            paths.append((re.compile('^/usr/share/appdata/%s\.appdata\.xml' %
+                          did), rof))
+            paths.append((re.compile('^/usr/share/appdata/%s(\-.*)?\.'
+                          'metainfo\.xml' % did), rof))
+            paths.append((re.compile('^/usr/share/applications/(.*\.)?%s\.'
+                          'desktop' % did), rof))
+            paths.append((re.compile('^/usr/share/icons/.*%s\.(png|svg)' %
+                          did), rof))
+            paths.append((re.compile('^/usr/share/dbus-1/services/.*\.%s\.'
+                          'service' % did), rof))
+            paths.append((re.compile('^/usr/share/gtk-doc/html/%s' % did),
+                          rof))
+            paths.append((re.compile('^/usr/share/help/.*/%s' % did), rof))
+            paths.append((re.compile('^/usr/share/locale/.*/LC_MESSAGES/%s\.mo'
+                          % did), rof))
+            paths.append((re.compile('^/usr/share/man/man1/%s\.1\.gz' % did),
+                         rof))
+            paths.append((re.compile('^/usr/local/%s' % did), rof))
+            paths.append((re.compile('^/opt/%s' % did), rof))
+            paths.append((re.compile('^%s/\.X(defaults|authority)' % (home)),
+                         rof))
+            paths.append((re.compile('^%s/\.ICEauthority' % (home)), rof))
+            paths.append((re.compile('^%s/\.config/(pango/pangorc|dconf/user|'
+                                     'user-dirs.dirs)' % (home)), rof))
+            paths.append((re.compile('^%s/\.local/share/applications(/|/mime'
+                                     'info\.cache|/mimeapps\.list)?$' %
+                                     (home)), rof))
+            paths.append((re.compile('%s/\.icons/.*?/(index\.theme|cursors/)' %
+                         (home)), rof))
+            paths.append((re.compile('%s/\.(config/)?enchant/' % (home)), rof))
+            paths.append((re.compile('^/usr/share/myspell'), rof))
+
+            # Interpretor-specific files
+            if ((actor.getInterpreterId() and
+                 pyre.match(actor.getInterpreterId())) or
+                    pyre.match(actor.getDesktopId())):
+                paths.append((re.compile('^/usr/lib/python2\.7/.*\.pyc'), rwf))
+            # If I ever support Vala: /usr/share/(vala|vala-0.32)/vapi/%s*
+
+            # Append the app-specific system paths
+            appSpecificROPaths = actor.getSetting('ROPaths',
+                                                  type='string list') or []
+            for path in appSpecificROPaths:
+                path = path.replace('@XDG_DESKTOP_DIR@', desk)
+                path = path.replace('@USER@', user)
+                path = path.replace('@HOSTNAME@', host)
+                path = path.replace('~', home)
+                paths.append((re.compile(path), rof))
+
+            self.appPathCache[actor] = paths
+
+        return self.appPathCache[actor]
 
     def accessFunc(self, engine: 'PolicyEngine', f: File, acc: FileAccess):
         """Assess the usability score of a FileAccess."""
