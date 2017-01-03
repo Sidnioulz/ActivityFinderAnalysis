@@ -17,7 +17,7 @@ from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setPrintClusters, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
-                  printClustersEnabled
+                  printClustersEnabled, initMimeTypes
 import getopt
 import sys
 
@@ -91,6 +91,7 @@ def main(argv):
     store = ApplicationStore.get()
     evStore = EventStore.get()
     fileStore = FileStore.get()
+    initMimeTypes()
 
     # Load up user-related variables
     userConf = UserConfigLoader(USERCONFIGPATH)

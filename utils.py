@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 from urllib.parse import urlparse, unquote
 import re
+import mimetypes
 from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, PERLRE, PERLNAMER, \
                       MONORE, MONONAMER, MONOPROCNAME
@@ -136,7 +137,117 @@ def hasIntersection(s1, s2):
     return False
 
 
-# Regular Expression parsers
+def initMimeTypes():
+    "Initialise the MIME type library and add Linux specific types."
+    mimetypes.init()
+
+    # We would use mimetypes.add_type but there's something rotten in the
+    # mimetypes API and it ignores our added types...
+    # TODO
+
+    mimetypes.add_type("application/octet-stream", ".rdb", strict=False)
+    mimetypes.add_type("application/octet-stream", ".session", strict=False)
+    mimetypes.add_type("application/octet-stream", ".idx", strict=False)
+    mimetypes.add_type("application/octet-stream", ".dirs", strict=False)
+    mimetypes.add_type("application/octet-stream", ".err", strict=False)
+    mimetypes.add_type("application/octet-stream", ".error", strict=False)
+    mimetypes.add_type("application/octet-stream", ".ICE-authority",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".ICE-authority-c",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".ICE-authority-n",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".ICE-authority-l",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".Xauthority", strict=False)
+    mimetypes.add_type("application/octet-stream", ".Xdefaults", strict=False)
+    mimetypes.add_type("application/octet-stream", ".u1conflict", strict=False)
+    mimetypes.add_type("application/octet-stream", ".dropbox", strict=False)
+    mimetypes.add_type("application/octet-stream", ".data", strict=False)
+    mimetypes.add_type("application/octet-stream", ".xpt", strict=False)
+    mimetypes.add_type("application/octet-stream", ".upload", strict=False)
+    mimetypes.add_type("application/octet-stream", ".writeability",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".tdb", strict=False)
+    mimetypes.add_type("application/octet-stream", ".sys", strict=False)
+    mimetypes.add_type("application/octet-stream", ".lock", strict=False)
+    mimetypes.add_type("application/octet-stream", ".pid", strict=False)
+    mimetypes.add_type("application/octet-stream", ".addins", strict=False)
+    mimetypes.add_type("application/octet-stream", ".maddin", strict=False)
+    mimetypes.add_type("application/octet-stream", ".parentlock", strict=False)
+    mimetypes.add_type("application/octet-stream", ".sqlite-journal",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".db-journal",
+                       strict=False)
+    mimetypes.add_type("application/octet-stream", ".pa", strict=False)
+    mimetypes.add_type("application/octet-stream", ".crash", strict=False)
+    mimetypes.add_type("application/octet-stream", ".tmp", strict=False)
+
+    mimetypes.add_type("application/x-dosexec", ".sys", strict=False)
+
+    mimetypes.add_type("application/vnd.oasis.opendocument.text", ".odt_0odt",
+                       strict=False)
+    mimetypes.add_type("application/vnd.oasis.opendocument.text", ".odt_1odt",
+                       strict=False)
+    mimetypes.add_type("application/vnd.oasis.opendocument.text",
+                       ".untitled_0odt",
+                       strict=False)
+    mimetypes.add_type("application/vnd.oasis.opendocument.text",
+                       ".untitled_1odt#",
+                       strict=False)
+    mimetypes.add_type("application/vnd.oasis.opendocument.text", ".odt_0odt",
+                       strict=False)
+    mimetypes.add_type("application/vnd.oasis.opendocument.text", ".odt_1odt#",
+                       strict=False)
+
+    mimetypes.add_type("inode/x-empty", ".new", strict=False)
+    mimetypes.add_type("inode/x-empty", ".tbcache", strict=False)
+    mimetypes.add_type("inode/x-empty", ".socket", strict=False)
+    mimetypes.add_type("inode/x-empty", ".slave-socket", strict=False)
+    mimetypes.add_type("inode/x-empty", ".shm", strict=False)
+    mimetypes.add_type("inode/x-empty", ".sqlite-journal", strict=False)
+    mimetypes.add_type("inode/x-empty", ".db-journal", strict=False)
+
+    mimetypes.add_type("text/x-apport", ".crash", strict=False)
+
+    mimetypes.add_type("text/cache-manifest", ".manifest", strict=False)
+
+    mimetypes.add_type("application/graphml+xml", ".graphml", strict=False)
+
+    mimetypes.add_type("text/plain", ".ini", strict=False)
+    mimetypes.add_type("text/plain", ".cfg", strict=False)
+    mimetypes.add_type("text/plain", ".desktop", strict=False)
+    mimetypes.add_type("text/plain", ".manifest", strict=False)
+    mimetypes.add_type("text/plain", ".mab", strict=False)
+    mimetypes.add_type("text/plain", ".pmap", strict=False)
+    mimetypes.add_type("text/plain", ".rc", strict=False)
+    mimetypes.add_type("text/plain", ".kcache", strict=False)
+    mimetypes.add_type("text/plain", ".access", strict=False)
+    mimetypes.add_type("text/plain", ".session", strict=False)
+    mimetypes.add_type("text/plain", ".aff", strict=False)
+    mimetypes.add_type("text/plain", ".ovpn", strict=False)
+
+    # mimetypes.add_type("text/x-c", ".rc", strict=False)
+    # mimetypes.add_type("text/x-shellscript", ".rc", strict=False)
+
+    mimetypes.add_type("text/markdown", ".md", strict=False)
+
+    mimetypes.add_type("text/xml", ".xba", strict=False)
+    mimetypes.add_type("text/xml", ".xbel", strict=False)
+    mimetypes.add_type("text/xml", ".xcu", strict=False)
+    # mimetypes.add_type("text/xml", ".session", strict=False)
+
+    mimetypes.add_type("application/x-sqlite3", ".sqlite-shm", strict=False)
+    mimetypes.add_type("application/x-sqlite3", ".sqlite-wal", strict=False)
+    mimetypes.add_type("application/x-sqlite3", ".sqlite", strict=False)
+    mimetypes.add_type("application/x-sqlite3", ".db", strict=False)
+
+    # for (key, ext) in sorted(mimetypes.types_map.items()):
+    #     print("%s\t->\t%s" % (key, ext))
+    # print("Done initialising MIME types.")
+
+
+# Regular Expression parsers.
 space = re.compile(SPACE_REGEXP)
 pyre = re.compile(PYTHONRE)
 pynamer = re.compile(PYTHONNAMER)

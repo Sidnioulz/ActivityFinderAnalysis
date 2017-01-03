@@ -13,7 +13,6 @@ class FrequentFileEngine(object):
                  userConf: UserConfigLoader):
         """Construct a FrequentFileEngine."""
         super(FrequentFileEngine, self).__init__()
-        mimetypes.init()
         self.outputDir = outputFsEnabled() or '/tmp/'
         self.userConf = userConf
 
