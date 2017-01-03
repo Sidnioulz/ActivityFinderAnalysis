@@ -325,11 +325,12 @@ class Application(object):
         if type.endswith(" list"):
             isList = True
             type = type[:-5]
+            defaultValue = [] if defaultValue is None else defaultValue
 
         return entry.get(key,
                          group=group,
                          type=type,
-                         list=isList) or None
+                         list=isList) or defaultValue
 
     def isSystemApp(self):
         """Tell if the Application is a system daemon or service."""
