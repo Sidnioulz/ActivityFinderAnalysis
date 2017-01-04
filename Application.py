@@ -74,6 +74,7 @@ class Application(object):
     @staticmethod
     def __getDesktopFile(desktopid: str):
         """Get a .desktop file from the desktop cache for a given desktopid."""
+        finalid = None
         if not Application.desktopCache.get(desktopid):
             de = DesktopEntry.DesktopEntry()
             for path in DESKTOPPATHS:
