@@ -4,7 +4,8 @@ from File import File, FileAccess, EventFileFlags
 from Application import Application
 from PolicyEngine import Policy, PolicyEngine
 from UserConfigLoader import UserConfigLoader
-from constants import DESIGNATION_ACCESS, POLICY_ACCESS
+from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
+                      OWNED_PATH_ACCESS
 import sys
 
 
@@ -160,6 +161,98 @@ class FileTypePolicy(Policy):
             sys.exit(0)
 
 
+class DesignationPolicy(Policy):
+    """Policy where only accesses by designation are allowed."""
+
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 name: str='DesignationPolicy'):
+        """Construct a UnsecurePolicy."""
+        super(DesignationPolicy, self).__init__(userConf, name)
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        return (False, 0)
+
+
+class FolderPolicy(DesignationPolicy):
+    """Policy where whole folders can be accessed after a designation event."""
+
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 name: str='FolderPolicy'):
+        """Construct a UnsecurePolicy."""
+        super(FolderPolicy, self).__init__(userConf, name)
+        self.designatedFoldersCache = set()
+        self.illegalFoldersCache = set()
+
+    def accessFunc(self, engine: PolicyEngine, f: File, acc: FileAccess):
+        """Assess the usability score of a FileAccess."""
+        folder = File.getParentName(f.getName())
+
+        # Designation accesses are considered cost-free.
+        if acc.evflags & EventFileFlags.designation:
+            self.incrementScore('desigAccess', f, acc.actor)
+            f.recordAccessCost(acc, DESIGNATION_ACCESS)
+            self.addToCache(self.designatedFoldersCache, folder, acc.actor)
+            return DESIGNATION_ACCESS
+
+        # Some files are allowed because they clearly belong to the app
+        ownedPaths = self.generateOwnedPaths(acc.actor)
+        for (path, evflags) in ownedPaths:
+            if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
+                self.incrementScore('ownedPathAccess', f, acc.actor)
+                f.recordAccessCost(acc, OWNED_PATH_ACCESS)
+                return OWNED_PATH_ACCESS
+
+        # Files in the same folder as a designated file are allowed.
+        if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
+            self.incrementScore('policyAccess', f, acc.actor)
+            f.recordAccessCost(acc, POLICY_ACCESS)
+            return POLICY_ACCESS
+
+        # We could not justify the access, increase the usabiltiy cost.
+        self.incrementScore('illegalAccess', f, acc.actor)
+
+        # If a prior interruption granted access, don't overcount.
+        self.incrementScore('cumulGrantingCost', f, acc.actor)
+        if (not self.folderInCache(self.illegalFoldersCache, folder, acc.actor)
+                and not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS)):
+            self.incrementScore('grantingCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
+            self.incrementScore('grantingOwnedCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
+            self.incrementScore('grantingDesigCost', f, acc.actor)
+        if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
+            self.incrementScore('grantingPolicyCost', f, acc.actor)
+        f.recordAccessCost(acc, ILLEGAL_ACCESS)
+        self.addToCache(self.illegalFoldersCache, folder, acc.actor)
+        return ILLEGAL_ACCESS
+
+    def addToCache(self, cache: dict, folder: str, app: Application):
+        """Record that a folder has been previously accessed by an app."""
+        if not folder:
+            return
+        s = cache.get(app.uid()) or set()
+        s.add(folder)
+        cache[app.uid()] = s
+
+    def folderInCache(self, cache: dict, folder: str, app: Application):
+        """Tell if a folder has been previously accessed by an app."""
+        if not folder:
+            return False
+        s = cache.get(app.uid()) or set()
+        return folder in s
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        folder = File.getParentName(f.getName())
+        if folder and folder in self.designatedFoldersCache:
+            return (True, 0)
+        else:
+            return (False, 0)
+
+
 class UnsecurePolicy(Policy):
     """Policy where every access is allowed, apps are basically unsandboxed."""
 
@@ -168,19 +261,6 @@ class UnsecurePolicy(Policy):
                  name: str='UnsecurePolicy'):
         """Construct a UnsecurePolicy."""
         super(UnsecurePolicy, self).__init__(userConf, name)
-
-    def accessFunc(self, engine: PolicyEngine, f: File, acc: FileAccess):
-        """Assess the usability score of a FileAccess."""
-        # Designation accesses are considered cost-free.
-        if acc.evflags & EventFileFlags.designation:
-            self.incrementScore('desigAccess', f, acc.actor)
-            f.recordAccessCost(acc, DESIGNATION_ACCESS)
-            return DESIGNATION_ACCESS
-
-        # Check for legality coming from the acting app's policy.
-        self.incrementScore('policyAccess', f, acc.actor)
-        f.recordAccessCost(acc, POLICY_ACCESS)
-        return POLICY_ACCESS
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
