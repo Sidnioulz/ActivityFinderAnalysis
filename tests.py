@@ -393,7 +393,7 @@ class TestSecurityScores(unittest.TestCase):
                 self.assertEqual(1, len(oes[0]))
                 self.assertEqual(2, len(oes[1]))
 
-        calcGimp =  pol.perAppSecurityScores.get("gimp") or \
+        calcGimp = pol.perAppSecurityScores.get("gimp") or \
             SecurityScores()
         self.assertEqual(gimp, calcGimp)
 

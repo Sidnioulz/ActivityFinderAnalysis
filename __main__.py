@@ -32,13 +32,13 @@ def main(argv):
     # Parse command-line parameters
     try:
         (opts, args) = getopt.getopt(argv, "hcdf:srpg", ["help",
-                                                        "check-missing",
-                                                        "debug",
-                                                        "related-files",
-                                                        "output-fs=",
-                                                        "score",
-                                                        "print-clusters",
-                                                        "graph-clusters"])
+                                                         "check-missing",
+                                                         "debug",
+                                                         "related-files",
+                                                         "output-fs=",
+                                                         "score",
+                                                         "print-clusters",
+                                                         "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -225,6 +225,7 @@ def main(argv):
 
         print("\nMining for frequently co-accessed file types...")
         engine.mineFileTypes()
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

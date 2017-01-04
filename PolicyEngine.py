@@ -157,11 +157,12 @@ class SecurityScores(object):
 
         msg = ("Security over-entitlements:\n")
         msg += ("\t* %d files used / %d reachable\n" % (
-                (len(self.overEntitlements[0]), len(self.overEntitlements[1]))))
+                (len(self.overEntitlements[0]),
+                 len(self.overEntitlements[1]))))
 
         sysFiles = [set(), set()]
         userFiles = [set(), set()]
-        for i in (0,1):
+        for i in (0, 1):
             for file in self.overEntitlements[i]:
                 if file.isUserDocument(userHome):
                     userFiles[i].add(file)
@@ -256,7 +257,7 @@ class Policy(object):
                 if iScore:
                     iScore.printScores(outputDir=scoreDir,
                                        filename="App - %s - Instance %s.score"
-                                        % (desktopid, app.uid()),
+                                       % (desktopid, app.uid()),
                                        quiet=True)
 
             # Identify if the application is of desktop/system/DE type.

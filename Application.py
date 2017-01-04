@@ -105,7 +105,6 @@ class Application(object):
         if not uri.endswith(".desktop"):
             defile += ".desktop"
 
-
         return Application.__getDesktopFile(defile)
 
     def __initFromDesktopID(self):

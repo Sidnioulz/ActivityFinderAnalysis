@@ -123,7 +123,7 @@ class FileTypePolicy(Policy):
         """Return the handled MIME types for one Application."""
         if actor not in self.appMimeTypesCache:
             allowedTypes = actor.getSetting('MimeType',
-                                        type='string list')
+                                            type='string list')
             self.appMimeTypesCache[actor] = allowedTypes
 
         return self.appMimeTypesCache[actor]
