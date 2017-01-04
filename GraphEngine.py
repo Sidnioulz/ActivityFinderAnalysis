@@ -140,7 +140,7 @@ class CommonGraph(object):
         minimal_labels = list(self.g.vs["name"])
         for (idx, label) in enumerate(minimal_labels):
             if self.vertices[label] not in ("file", "appstate") and not \
-                self.printClusterInstances:
+                    self.printClusterInstances:
                 minimal_labels[idx] = None
                 continue
 
