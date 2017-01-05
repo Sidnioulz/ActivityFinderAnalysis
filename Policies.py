@@ -235,8 +235,18 @@ class FolderPolicy(Policy):
             if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
                 self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS)
-        self.addToCache(self.illegalFoldersCache, folder, acc.actor)
+            self.addToCache(self.illegalFoldersCache, folder, acc.actor)
         return ILLEGAL_ACCESS
+
+    def updateDesignationState(self, f: File, acc: FileAccess):
+        """Add the file's folder to the correct folder cache."""
+        folder = File.getParentName(f.getName())
+        self.addToCache(self.designatedFoldersCache, folder, acc.actor)
+
+    def updateIllegalState(self, f: File, acc: FileAccess):
+        """Add the file's folder to the correct folder cache."""
+        folder = File.getParentName(f.getName())
+        self.addToCache(self.illegalFoldersCache, folder, acc.actor)
 
     def addToCache(self, cache: dict, folder: str, app: Application):
         """Record that a folder has been previously accessed by an app."""
@@ -329,8 +339,14 @@ class OneFolderPolicy(FolderPolicy):
             if f.hadPastSimilarAccess(acc, POLICY_ACCESS, appWide=True):
                 self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS, appWide=True)
-        self.addToCache(self.illegalFoldersCache, folder, acc.actor)
+            self.addToCache(self.illegalFoldersCache, folder, acc.actor)
         return ILLEGAL_ACCESS
+
+    def updateDesignationState(self, f: File, acc: FileAccess):
+        """Add the file's folder to the correct folder cache."""
+        if not self.appHasFolderCached(acc.actor):
+            folder = File.getParentName(f.getName())
+            self.addToCache(self.designatedFoldersCache, folder, acc.actor)
 
     def appsHaveMemory(self):
         """Return True if Application have a memory across instances."""
@@ -379,7 +395,6 @@ class FutureAccessListPolicy(Policy):
                 self.incrementScore('policyAccess', f, acc.actor)
                 f.recordAccessCost(acc, POLICY_ACCESS,
                                    appWide=self.appWideRecords())
-            self.addToList(f, acc.actor)
             return POLICY_ACCESS
 
         if not composed:
@@ -403,6 +418,14 @@ class FutureAccessListPolicy(Policy):
             f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                appWide=self.appWideRecords())
         return ILLEGAL_ACCESS
+
+    def updateDesignationState(self, f: File, acc: FileAccess):
+        """Add the file to the list of seen files."""
+        self.addToList(f, acc.actor)
+
+    def updateAllowedState(self, f: File, acc: FileAccess):
+        """Add the file to the list of seen files."""
+        self.addToList(f, acc.actor)
 
     def addToList(self, f: File, app: Application):
         """Add a File to this policy's future access list."""
@@ -480,6 +503,8 @@ class CompositionalPolicy(Policy):
             self.incrementScore('desigAccess', f, acc.actor)
             f.recordAccessCost(acc, DESIGNATION_ACCESS,
                                appWide=self.appWideRecords())
+            for pol in self.policies:
+                pol.updateDesignationState(f, acc)
             return DESIGNATION_ACCESS
 
         # Some files are allowed because they clearly belong to the app
@@ -523,11 +548,20 @@ class CompositionalPolicy(Policy):
                 self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                appWide=self.appWideRecords())
+
+            for pol in self.policies:
+                pol.updateIllegalState(f, acc)
+
             return ILLEGAL_ACCESS
-        else:  # decision == POLICY_ACCESS
+        # decision == POLICY_ACCESS
+        else:
             self.incrementScore('policyAccess', f, acc.actor)
             f.recordAccessCost(acc, POLICY_ACCESS,
                                appWide=self.appWideRecords())
+
+            for pol in self.policies:
+                pol.updateAllowedState(f, acc)
+
             return POLICY_ACCESS
 
     def _returnWeakAccessFuncDecision(self, f: File, acc: FileAccess):

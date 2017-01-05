@@ -600,6 +600,18 @@ class Policy(object):
         """Tell if a File can be accessed by an Application."""
         raise NotImplementedError
 
+    def updateDesignationState(self, f: File, acc: FileAccess):
+        """Blob for policies to update their state on DESIGNATION_ACCESS."""
+        pass
+
+    def updateAllowedState(self, f: File, acc: FileAccess):
+        """Blob for policies to update their state on POLICY_ACCESS."""
+        pass
+
+    def updateIllegalState(self, f: File, acc: FileAccess):
+        """Blob for policies to update their state on ILLEGAL_ACCESS."""
+        pass
+
     def matchExclusionPattern(self, pattern: str, file: File):
         """Check if a File's path matches an exclusion pattern.
 
