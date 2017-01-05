@@ -184,10 +184,10 @@ def main(argv):
     if scoreEnabled():
         engine = PolicyEngine()
 
-        # print("\nRunning the Unsecure policy...")
-        # engine.runPolicy(UnsecurePolicy(userConf=userConf),
-        #                  outputDir=outputFsEnabled(),
-        #                  printClusters=printClustersEnabled())
+        print("\nRunning the Unsecure policy...")
+        engine.runPolicy(UnsecurePolicy(userConf=userConf),
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
 
         print("\nRunning the Designation policy...")
         engine.runPolicy(DesignationPolicy(userConf=userConf),
@@ -204,23 +204,23 @@ def main(argv):
                          outputDir=outputFsEnabled(),
                          printClusters=printClustersEnabled())
 
-        # print("\nRunning the One Library policy...")
-        # engine.runPolicy(OneLibraryPolicy(userConf=userConf),
-        #                  outputDir=outputFsEnabled(),
-        #                  printClusters=printClustersEnabled())
+        print("\nRunning the One Library policy...")
+        engine.runPolicy(OneLibraryPolicy(userConf=userConf),
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
 
-        # print("\nRunning the Compound Library policy...")
-        # engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
-        #                  outputDir=outputFsEnabled(),
-        #                  printClusters=printClustersEnabled())
+        print("\nRunning the Compound Library policy...")
+        engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
 
-        # print("\nRunning the File Type policy...")
-        # pol = FileTypePolicy(userConf=userConf)
-        # engine.runPolicy(pol,
-        #                  outputDir=outputFsEnabled(),
-        #                  printClusters=printClustersEnabled())
-        # if checkMissingEnabled:
-        #     pol.abortIfUnsupportedExtensions()
+        print("\nRunning the File Type policy...")
+        pol = FileTypePolicy(userConf=userConf)
+        engine.runPolicy(pol,
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
+        if checkMissingEnabled():
+            pol.abortIfUnsupportedExtensions()
 
     # Calculate frequently co-accessed files:
     if relatedFilesEnabled():
