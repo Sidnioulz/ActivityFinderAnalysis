@@ -328,7 +328,7 @@ class FutureAccessListPolicy(Policy):
                  name: str='FutureAccessListPolicy'):
         """Construct a FutureAccessListPolicy."""
         super(FutureAccessListPolicy, self).__init__(userConf, name)
-        self.list = set()
+        self.list = dict()
 
     def accessFunc(self, engine: 'PolicyEngine', f: File, acc: FileAccess):
         """Assess the usability score of a FileAccess."""
@@ -337,7 +337,7 @@ class FutureAccessListPolicy(Policy):
             self.incrementScore('desigAccess', f, acc.actor)
             f.recordAccessCost(acc, DESIGNATION_ACCESS,
                                appWide=self.appWideRecords())
-            self.addToList(f)
+            self.addToList(f, acc.actor)
             return DESIGNATION_ACCESS
 
         # Some files are allowed because they clearly belong to the app
@@ -355,7 +355,7 @@ class FutureAccessListPolicy(Policy):
             self.incrementScore('policyAccess', f, acc.actor)
             f.recordAccessCost(acc, POLICY_ACCESS,
                                appWide=self.appWideRecords())
-            self.addToList(f)
+            self.addToList(f, acc.actor)
             return POLICY_ACCESS
 
         # We could not justify the access, increase the usabiltiy cost.
@@ -378,13 +378,15 @@ class FutureAccessListPolicy(Policy):
         f.recordAccessCost(acc, ILLEGAL_ACCESS, appWide=self.appWideRecords())
         return ILLEGAL_ACCESS
 
-    def addToList(self, f: File):
+    def addToList(self, f: File, app: Application):
         """Add a File to this policy's future access list."""
-        self.list.add(f)
+        l = self.list.get(app.desktopid) or list()
+        l.append(f)
+        self.list[app.desktopid] = l
 
-    def fileInlist(self, f: File):
+    def fileInlist(self, f: File, app: Application):
         """Tell if a File is in this policy's future access list."""
-        return f in self.list
+        return f in (self.list.get(app.desktopid) or list())
 
     def appWideRecords(self):
         """Return True if access records are across instances, False else."""
@@ -392,7 +394,7 @@ class FutureAccessListPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        if self.fileInList(f, app):
+        if self.fileInlist(f, app):
             return (True, 0)
         else:
             return (False, 0)
