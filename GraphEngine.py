@@ -11,6 +11,7 @@ from utils import outputFsEnabled
 import itertools
 
 # TODO policy allowed filter
+# TODO use appsHaveMemory for instance links
 
 
 class CommonGraph(object):
@@ -56,27 +57,30 @@ class CommonGraph(object):
             if app.isUserlandApp():
                 self._addAppNode(app)
 
+        def _allowed(policy, f, acc):
+            return acc.actor.isUserlandApp() and \
+                (acc.isByDesignation() or not policy or
+                 policy.allowedByPolicy(f, acc.actor))
+
         # Add all user documents.
         for f in fileStore:
             if not f.isUserDocument(userHome=userConf.getSetting("HomeDir"),
                                     allowHiddenFiles=True):
                 continue
 
-            # Provided they have userland accesses.
+            # Provided they have userland apps accessing them.
             hasUserlandAccesses = False
             for acc in f.getAccesses():
-                if acc.actor.isUserlandApp():
-                    if not policy or policy.allowedByPolicy(f, acc.actor):
-                        hasUserlandAccesses = True
-                        break
+                if _allowed(policy, f, acc):
+                    hasUserlandAccesses = True
+                    break
 
-            # And then add such userland app to user document accesses.
+            # And then add such userland apps to user document accesses.
             if hasUserlandAccesses:
                 self._addFileNode(f)
                 for acc in f.getAccesses():
-                    if acc.actor.isUserlandApp():
-                        if not policy or policy.allowedByPolicy(f, acc.actor):
-                            self._addAccess(f, acc)
+                    if _allowed(policy, f, acc):
+                        self._addAccess(f, acc)
 
         self._construct()
 
