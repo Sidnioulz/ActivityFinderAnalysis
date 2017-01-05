@@ -8,7 +8,7 @@ from FileStore import FileStore
 from File import File, EventFileFlags
 from FileFactory import FileFactory
 from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
-                     FileTypePolicy
+                     FileTypePolicy, FolderPolicy, OneFolderPolicy
 
 
 class TestOneLibraryPolicy(unittest.TestCase):
@@ -105,86 +105,106 @@ class TestPolicies(unittest.TestCase):
         e001 = Event(actor=self.a1, time=10, syscallStr=s001)
         e001.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e001)
-        e001b = Event(actor=self.a2, time=10, syscallStr=s001)
+        e001b = Event(actor=self.a2, time=11, syscallStr=s001)
         e001b.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e001b)
 
         self.p002 = "/home/user/Images/picture.jpg"
         s002 = "open64|%s|fd 10: with flag 524288, e0|" % self.p002
-        e002 = Event(actor=self.a1, time=10, syscallStr=s002)
+        e002 = Event(actor=self.a1, time=12, syscallStr=s002)
         e002.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e002)
 
         self.p003 = "/home/user/Downloads/logo.jpg"
         s003 = "open64|%s|fd 10: with flag 524288, e0|" % self.p003
-        e003 = Event(actor=self.a1, time=10, syscallStr=s003)
+        e003 = Event(actor=self.a1, time=13, syscallStr=s003)
         e003.evflags |= EventFileFlags.designation  # this event by designation
         self.eventStore.append(e003)
 
         self.p004 = "/home/user/Downloads/logo2.png"
         s004 = "open64|%s|fd 10: with flag 524288, e0|" % self.p004
-        e004 = Event(actor=self.a1, time=10, syscallStr=s004)
+        e004 = Event(actor=self.a1, time=14, syscallStr=s004)
         e004.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e004)
 
         self.p005 = "/home/user/Dropbox/Photos/holidays.jpg"
         s005 = "open64|%s|fd 10: with flag 524288, e0|" % self.p005
-        e005 = Event(actor=self.a1, time=10, syscallStr=s005)
+        e005 = Event(actor=self.a1, time=15, syscallStr=s005)
         e005.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e005)
 
         self.p006 = "/home/user/Images/random.txt"
         s006 = "open64|%s|fd 10: with flag 524288, e0|" % self.p006
-        e006 = Event(actor=self.a1, time=10, syscallStr=s006)
+        e006 = Event(actor=self.a1, time=16, syscallStr=s006)
         e006.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e006)
 
+        self.p007 = "/home/user/Images/file.jpg"
+        s007 = "open64|%s|fd 10: with flag 524288, e0|" % self.p007
+        e007 = Event(actor=self.a1, time=17, syscallStr=s007)
+        e007.evflags |= EventFileFlags.designation  # this event by designation
+        self.eventStore.append(e007)
+
+        self.p008 = "/home/user/Images/other.foo"
+        s008 = "open64|%s|fd 10: with flag 524288, e0|" % self.p008
+        e008 = Event(actor=self.a1, time=18, syscallStr=s008)
+        e008.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e008)
+
         self.eventStore.simulateAllEvents()
+        self._reset()
+
+    def _reset(self):
+        self.owned = 0
+        self.desig = 0
+        self.policy = 0
+        self.illegal = 0
+
+    def _assert(self, pol):
+        self.assertEqual(pol.s.ownedPathAccess, self.owned)
+        self.assertEqual(pol.s.desigAccess, self.desig)
+        self.assertEqual(pol.s.policyAccess, self.policy)
+        self.assertEqual(pol.s.illegalAccess, self.illegal)
 
     def test_unsecure(self):
         pol = UnsecurePolicy(userConf=self.userConf)
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
         pol.accessFunc(None, f001, accs[0])
-        self.assertEqual(pol.s.desigAccess, 0)
-        self.assertEqual(pol.s.policyAccess, 1)
-        self.assertEqual(pol.s.illegalAccess, 0)
+        self.policy += 1
+        self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=21)
         accs = f002.getAccesses()
         pol.accessFunc(None, f002, accs[0])
-        self.assertEqual(pol.s.desigAccess, 0)
-        self.assertEqual(pol.s.policyAccess, 2)
-        self.assertEqual(pol.s.illegalAccess, 0)
+        self.policy += 1
+        self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
         pol.accessFunc(None, f003, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 2)
-        self.assertEqual(pol.s.illegalAccess, 0)
+        self.desig += 1
+        self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
         pol.accessFunc(None, f004, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 3)
-        self.assertEqual(pol.s.illegalAccess, 0)
+        self.policy += 1
+        self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
         pol.accessFunc(None, f005, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 4)
-        self.assertEqual(pol.s.illegalAccess, 0)
+        self.policy += 1
+        self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
         pol.accessFunc(None, f006, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 5)
-        self.assertEqual(pol.s.illegalAccess, 0)
+        self.policy += 1
+        self._assert(pol)
 
     def test_designation(self):
         pol = DesignationPolicy(userConf=self.userConf)
@@ -192,52 +212,44 @@ class TestPolicies(unittest.TestCase):
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
         pol.accessFunc(None, f001, accs[0])
-        self.assertEqual(pol.s.desigAccess, 0)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 1)
+        self.illegal += 1
+        self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
         pol.accessFunc(None, f002, accs[0])
-        self.assertEqual(pol.s.desigAccess, 0)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 2)
+        self.illegal += 1
+        self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
         pol.accessFunc(None, f003, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 2)
+        self.desig += 1
+        self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
         pol.accessFunc(None, f004, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 3)
+        self.illegal += 1
+        self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
         pol.accessFunc(None, f005, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 4)
+        self.illegal += 1
+        self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
         pol.accessFunc(None, f006, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 5)
+        self.illegal += 1
+        self._assert(pol)
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
         pol.accessFunc(None, f001, accs[1])
-        self.assertEqual(pol.s.ownedPathAccess, 1)
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 5)
+        self.owned += 1
+        self._assert(pol)
 
     def test_filetype(self):
         pol = FileTypePolicy(userConf=self.userConf)
@@ -245,53 +257,152 @@ class TestPolicies(unittest.TestCase):
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
         pol.accessFunc(None, f001, accs[0])
-        self.assertEqual(pol.s.desigAccess, 0)
-        self.assertEqual(pol.s.policyAccess, 0)
-        self.assertEqual(pol.s.illegalAccess, 1)
+        self.illegal += 1
+        self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
         pol.accessFunc(None, f002, accs[0])
-        self.assertEqual(pol.s.desigAccess, 0)
-        self.assertEqual(pol.s.policyAccess, 1)
-        self.assertEqual(pol.s.illegalAccess, 1)
+        self.policy += 1
+        self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
         pol.accessFunc(None, f003, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 1)
-        self.assertEqual(pol.s.illegalAccess, 1)
+        self.desig += 1
+        self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
         pol.accessFunc(None, f004, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 2)
-        self.assertEqual(pol.s.illegalAccess, 1)
+        self.policy += 1
+        self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
         pol.accessFunc(None, f005, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 3)
-        self.assertEqual(pol.s.illegalAccess, 1)
+        self.policy += 1
+        self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
         pol.accessFunc(None, f006, accs[0])
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 3)
-        self.assertEqual(pol.s.illegalAccess, 2)
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+    def test_folder(self):
+        pol = FolderPolicy(userConf=self.userConf)
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[1])
-        self.assertEqual(pol.s.ownedPathAccess, 1)
-        self.assertEqual(pol.s.desigAccess, 1)
-        self.assertEqual(pol.s.policyAccess, 3)
-        self.assertEqual(pol.s.illegalAccess, 2)
+        pol.accessFunc(None, f001, accs[0])
+        self.illegal += 1
+        self._assert(pol)
 
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, accs[0])
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self.policy += 1
+        self._assert(pol)
+
+    def test_one_folder(self):
+        pol = OneFolderPolicy(userConf=self.userConf)
+
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, accs[0])
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self.illegal += 1
+        self._assert(pol)
 
     def tearDown(self):
         self.userConf = None

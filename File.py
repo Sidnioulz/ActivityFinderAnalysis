@@ -404,21 +404,30 @@ class File(object):
         """Remove any past access costs that were recorded."""
         self.accessCosts.clear()
 
-    def _getAccessCost(self, acc: FileAccess, accessType: int):
+    def _getAccessCost(self,
+                       acc: FileAccess,
+                       accessType: int,
+                       appWide: bool=False):
         """Get the recorded access cost for a FileAccess and type."""
         costsForType = self.accessCosts.get(accessType) or dict()
-        return costsForType.get(acc.actor.uid()) or EventFileFlags.no_flags
+        key = acc.actor.uid() if not appWide else acc.actor.desktopid
+        return costsForType.get(key) or EventFileFlags.no_flags
 
     def _setAccessCost(self,
                        acc: FileAccess,
                        accCost: EventFileFlags,
-                       accessType: int):
+                       accessType: int,
+                       appWide: bool=False):
         """Set the record access cost for a FileAccess and type."""
         costsForType = self.accessCosts.get(accessType) or dict()
-        costsForType[acc.actor.uid()] = accCost
+        key = acc.actor.uid() if not appWide else acc.actor.desktopid
+        costsForType[key] = accCost
         self.accessCosts[accessType] = costsForType
 
-    def recordAccessCost(self, acc: FileAccess, accessType: int):
+    def recordAccessCost(self,
+                         acc: FileAccess,
+                         accessType: int,
+                         appWide: bool=False):
         """Record that a cost was paid to allow a past illegal access.
 
         This function allows us to remember past accesses to a file which led
@@ -446,12 +455,15 @@ class File(object):
                               EventFileFlags.copy | EventFileFlags.overwrite)
         # TODO: move destionations and copy destionations should be allowed
 
-        accCost = self._getAccessCost(acc, accessType)
-        self._setAccessCost(acc, accCost | recordedFlags, accessType)
+        accCost = self._getAccessCost(acc, accessType, appWide)
+        self._setAccessCost(acc, accCost | recordedFlags, accessType, appWide)
 
-    def hadPastSimilarAccess(self, acc: FileAccess, accessType: int):
+    def hadPastSimilarAccess(self,
+                             acc: FileAccess,
+                             accessType: int,
+                             appWide: bool=False):
         """Check if a similar access was recorded for the same app."""
-        accCost = self._getAccessCost(acc, accessType)
+        accCost = self._getAccessCost(acc, accessType, appWide)
 
         recordedFlags = acc.evflags & (EventFileFlags.create |
                                        EventFileFlags.overwrite |

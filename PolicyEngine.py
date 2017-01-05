@@ -7,6 +7,7 @@ from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
                       ILLEGAL_ACCESS
 from utils import debugEnabled, hasIntersection, pyre
+from blist import sortedlist
 import os
 import statistics
 import re
@@ -545,7 +546,8 @@ class Policy(object):
         # Designation accesses are considered cost-free.
         if acc.evflags & EventFileFlags.designation:
             self.incrementScore('desigAccess', f, acc.actor)
-            f.recordAccessCost(acc, DESIGNATION_ACCESS)
+            f.recordAccessCost(acc, DESIGNATION_ACCESS,
+                               appWide=self.appWideRecords())
             return DESIGNATION_ACCESS
 
         # Some files are allowed because they clearly belong to the app
@@ -553,14 +555,16 @@ class Policy(object):
         for (path, evflags) in ownedPaths:
             if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
                 self.incrementScore('ownedPathAccess', f, acc.actor)
-                f.recordAccessCost(acc, OWNED_PATH_ACCESS)
+                f.recordAccessCost(acc, OWNED_PATH_ACCESS,
+                                   appWide=self.appWideRecords())
                 return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
         (allowed, __) = self.allowedByPolicy(f, acc.actor)
         if allowed:
             self.incrementScore('policyAccess', f, acc.actor)
-            f.recordAccessCost(acc, POLICY_ACCESS)
+            f.recordAccessCost(acc, POLICY_ACCESS,
+                               appWide=self.appWideRecords())
             return POLICY_ACCESS
 
         # We could not justify the access, increase the usabiltiy cost.
@@ -568,15 +572,19 @@ class Policy(object):
 
         # If a prior interruption granted access, don't overcount.
         self.incrementScore('cumulGrantingCost', f, acc.actor)
-        if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS):
+        if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
+                                      appWide=self.appWideRecords()):
             self.incrementScore('grantingCost', f, acc.actor)
-        if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
+        if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
+                                  appWide=self.appWideRecords()):
             self.incrementScore('grantingOwnedCost', f, acc.actor)
-        if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
+        if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
+                                  appWide=self.appWideRecords()):
             self.incrementScore('grantingDesigCost', f, acc.actor)
-        if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
+        if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
+                                  appWide=self.appWideRecords()):
             self.incrementScore('grantingPolicyCost', f, acc.actor)
-        f.recordAccessCost(acc, ILLEGAL_ACCESS)
+        f.recordAccessCost(acc, ILLEGAL_ACCESS, appWide=self.appWideRecords())
         return ILLEGAL_ACCESS
 
     def allowedByPolicy(self, f: File, app: Application):
@@ -597,6 +605,8 @@ class Policy(object):
 
     def calculateClusterCrossovers(self):
         """Calculate cross-overs between exclusion lists for each cluster."""
+
+        # TODO use appsHaveMemory for instance links
 
         # Get, and compile, the exclusion lists from the user.
         self.exclList = self.userConf.getSecurityExclusionLists()
@@ -853,6 +863,14 @@ class Policy(object):
                             self.incrementOverEntitlement(f, app, True)
                             break
 
+    def appWideRecords(self):
+        """Return True if access records are across instances, False else."""
+        return False
+
+    def appsHaveMemory(self):
+        """Return True if Applications have a memory across instances."""
+        return True
+
 
 class PolicyEngine(object):
     """An engine for running algorithms that implement a file AC policy."""
@@ -872,17 +890,26 @@ class PolicyEngine(object):
         if not policy:
             return
 
-        # Calculate usability scores of each file access
+        # Sort all accesses by time before we can simulate usability scores.
         self.illegalAppStore = dict()
+        accesses = sortedlist(key=lambda i: i[0].time)
         for file in self.fileStore:
             for acc in file.getAccesses():
-                ret = policy.accessFunc(self, file, acc)
-                if ret == ILLEGAL_ACCESS and debugEnabled():
-                    t = self.illegalAppStore.get(acc.actor.desktopid) or set()
-                    t.add(file.getName()+("\tWRITE" if acc.evflags &
-                                          EventFileFlags.write else "\tREAD"))
-                    self.illegalAppStore[acc.actor.desktopid] = t
+                accesses.add((acc, file))
+
+        # Then, calculate usability scores of each file access.
+        for (acc, file) in accesses:
+            ret = policy.accessFunc(self, file, acc)
+            if ret == ILLEGAL_ACCESS and debugEnabled():
+                t = self.illegalAppStore.get(acc.actor.desktopid) or set()
+                t.add(file.getName()+("\tWRITE" if acc.evflags &
+                                      EventFileFlags.write else "\tREAD"))
+                self.illegalAppStore[acc.actor.desktopid] = t
+
+        # Clean up files for the next policy run, and clear up some RAM.
+        for file in self.fileStore:
             file.clearAccessCosts()
+        del accesses
 
         # And security scores of each app
         policy.securityRun(self)

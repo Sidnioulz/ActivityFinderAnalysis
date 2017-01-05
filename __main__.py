@@ -10,7 +10,8 @@ from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph
 from PolicyEngine import PolicyEngine
 from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
-                     FileTypePolicy, DesignationPolicy, FolderPolicy
+                     FileTypePolicy, DesignationPolicy, FolderPolicy, \
+                     OneFolderPolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -195,6 +196,11 @@ def main(argv):
 
         print("\nRunning the Folder policy...")
         engine.runPolicy(FolderPolicy(userConf=userConf),
+                         outputDir=outputFsEnabled(),
+                         printClusters=printClustersEnabled())
+
+        print("\nRunning the One Folder policy...")
+        engine.runPolicy(OneFolderPolicy(userConf=userConf),
                          outputDir=outputFsEnabled(),
                          printClusters=printClustersEnabled())
 
