@@ -695,37 +695,49 @@ class Policy(object):
                 return ""
 
             msg = ""
+            violationCount = 0
 
             for (cIndex, cluster) in enumerate(clusters):
-                msg += ("Cluster #%d (%d files):\n" % (cIndex+1, len(cluster)))
                 if printClusters:
+                    msg += ("Cluster #%d (%d files):\n" % (cIndex+1, len(cluster)))
                     for f in sorted(cluster, key=lambda key: key.getName()):
                         msg += ("  %s\n" % f.getName())
                     msg += ("\n")
 
                 for (eIndex, listScores) in enumerate(exclScores[cIndex]):
-                    msg += ("Exclusion list #%d: %s\n" % (
-                            eIndex+1,
-                            self.exclList[eIndex].__str__()))
+                    if printClusters:
+                        msg += ("Exclusion list #%d: %s\n" % (
+                                eIndex+1,
+                                self.exclList[eIndex].__str__()))
 
                     matchSum = set()
                     for (path, match) in listScores.items():
-                        msg += ("  %s (pattern %s): %d files matched\n" % (
-                                 path,
-                                 match[0],
-                                 len(match)-1))
                         matchSum.add(match[0])
+                        if printClusters:
+                            msg += ("  %s (pattern %s): %d files matched\n" % (
+                                     path,
+                                     match[0],
+                                     len(match)-1))
 
                     if len(matchSum) > 1:
-                        msg += (" %d exclusive paths matched. Security "
-                                "violation!\n" % len(matchSum))
-                    elif len(matchSum) == 1:
-                        msg += (" 1 exclusive path matched.\n")
-                    else:
-                        msg += (" No exclusive paths matched.\n")
+                        violationCount += 1
+                        if printClusters:
+                            msg += (" %d exclusive paths matched. Security "
+                                    "violation!\n" % len(matchSum))
+                    elif printClusters:
+                        if len(matchSum) == 1:
+                            msg += (" 1 exclusive path matched.\n")
+                        else:
+                            msg += (" No exclusive paths matched.\n")
+                    if printClusters:
+                        msg += "\n"
+                if printClusters:
                     msg += "\n"
+            if printClusters:
                 msg += "\n"
-            msg += "\n"
+
+            msg += ("# of clusters violating exclusion lists: %d" %
+                    violationCount)
 
             return msg
 
