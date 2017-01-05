@@ -109,14 +109,6 @@ class SecurityScores(object):
     def __init__(self):
         """Construct a SecurityScores."""
         super(SecurityScores, self).__init__()
-        # For each desktopid, maintain a list. This list contains a number per
-        # instance of the Application, which represents the number of logically
-        # separated units that have been accessed by the instance. An average
-        # score of 1 means that there was no instance which accessed two such
-        # isolation units. Scores are only incremented for legal accesses,
-        # which is what differentiates the policies from one another.
-        self.implicitSeparations = []  # TODO
-
         # For each app, we keep a record of how many files they have accessed
         # compared to how many files they are allowed to access. This ratio
         # allows us to compare the overentitlements between policies. The per-
@@ -131,8 +123,7 @@ class SecurityScores(object):
             raise TypeError("Cannot increment a SecurityScores with something "
                             "other than another SecurityScores.")
 
-        return self.implicitSeparations == other.implicitSeparations and \
-            self.overEntitlements[0] == other.overEntitlements[0] and \
+        return self.overEntitlements[0] == other.overEntitlements[0] and \
             self.overEntitlements[1] == other.overEntitlements[1]
 
     def __iadd__(self, other):
@@ -141,7 +132,6 @@ class SecurityScores(object):
             raise TypeError("Cannot increment a SecurityScores with something "
                             "other than another SecurityScores.")
 
-        self.implicitSeparations += other.implicitSeparations
         self.overEntitlements[0] = \
             self.overEntitlements[0].union(list(other.overEntitlements[0]))
         self.overEntitlements[1] = \
@@ -673,10 +663,6 @@ class Policy(object):
         self.exclScoreDocs = _calculate(self.clusterDocs)
         self.exclScoreDocsPerInstance = _calculate(self.clusterDocsPerInstance)
         # TODO: presence of user Secure Files in clusters, and size thereof
-
-    def makeSecurityClusterIndexes(self, outputDir: str):
-        """TODO"""
-        pass  # TODO
 
     def printSecurityClusters(self,
                               outputDir: str=None,
