@@ -70,6 +70,8 @@ class Application(object):
         self.tstart = tstart
         self.tend = tend
         self.interpreterid = interpreterid.lower() if interpreterid else None
+        self._uid = None
+        self._regenUid()
 
     @staticmethod
     def __getDesktopFile(desktopid: str):
@@ -78,7 +80,10 @@ class Application(object):
         if not Application.desktopCache.get(desktopid):
             de = DesktopEntry.DesktopEntry()
             for path in DESKTOPPATHS:
-                depath = os.path.realpath(path + desktopid)
+                if not desktopid.endswith(".desktop"):
+                    depath = os.path.realpath(path + desktopid + ".desktop")
+                else:
+                    depath = os.path.realpath(path + desktopid)
                 try:
                     de.parse(depath)
                 except(DesktopEntry.ParsingError) as e:
@@ -103,9 +108,6 @@ class Application(object):
             return (None, None)
 
         defile = uri[14:] if uri.startswith("application://") else uri
-        if not uri.endswith(".desktop"):
-            defile += ".desktop"
-
         return Application.__getDesktopFile(defile)
 
     def __initFromDesktopID(self):
@@ -132,9 +134,13 @@ class Application(object):
         """Return the Application's interpreter .desktop id if it exists."""
         return self.interpreterid
 
+    def _regenUid(self):
+        """Regenerate the UID for this application."""
+        self._uid = "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
+
     def uid(self):
         """Generate a unique string identifier for this Application."""
-        return "%s:%d:%d" % (self.desktopid, self.pid, self.tstart)
+        return self._uid
 
     def hasSameDesktopId(self, other, resolveInterpreter: bool=False):
         """Check whether a desktop id is equivalent to the current object's.
@@ -215,6 +221,7 @@ class Application(object):
                 pass
             elif self.desktopid == other.interpreterid:
                 self.desktopid = other.desktopid
+                self._regenUid()
                 self.interpreterid = other.interpreterid
                 pass
             else:
@@ -232,6 +239,7 @@ class Application(object):
                               self.getTimeOfEnd()))
         self.events.update(list(set(other.events) - set(self.events)))
 
+        self._regenUid()
         return self
 
     def setCommandLine(self, cmd):
