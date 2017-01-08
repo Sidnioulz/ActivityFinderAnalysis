@@ -114,7 +114,7 @@ class FileAccess(object):
             else:
                 from FileFactory import FileFactory
                 fileFactory = FileFactory.get()
-                parentPath = File.getParentName(f.path)
+                parentPath = f.getParentName()
                 if parentPath:
                     parent = fileFactory.getFileIfExists(parentPath, self.time)
                     if parent:
@@ -150,19 +150,8 @@ class File(object):
     their name + tstart + tend. When a file is renamed, a new File is created.
     """
 
-    inode = 0      # type: int; a unique identifier to deal with renames
-    path = ''      # type: str; the name of this file
-    pred = None    # type: FileCopy; previous name of this file before renaming
-    follow = None  # type: list; next name of this file after renaming
-    links = None   # type: list list of hard links to this File
-    symlinksrc = None  # type: FileCopy; target of this file if it is a symlink
-    symlinks = None    # type: list list of symbolic links to this File
-    tstart = 0     # type: int; when the file was created
-    tend = 0       # type: int; when the file was deleted
-    tsg = False    # type: bool; whether the file creation date is guessed
-    teg = False    # type: bool; whether the file deletion date is guessed
-    ftype = ''     # type: str; the MIME type of the file
-    accesses = []  # type: list; access events to this File
+    inode = 0  # type: int; global inode counter used for inode allocation.
+    _namecache = dict()
 
     @staticmethod
     def __allocInode(file):
@@ -204,6 +193,7 @@ class File(object):
             raise ValueError("Files must have a valid path.")
 
         File.__allocInode(self)
+
         self.path = path
         self.pred = None
         self.follow = []
@@ -217,9 +207,11 @@ class File(object):
         if ftype:
             self.ftype = ftype
         else:
+            self.ftype = None
             self.guessType()
         self.accesses = []
         self.accessCosts = dict()
+        self._isFolder = None
 
     def guessType(self):
         """Guess the type of the File, and set it automatically."""
@@ -233,12 +225,20 @@ class File(object):
         self.teg = ef
 
     @staticmethod
-    def getParentName(path: str):
+    def getParentNameFromName(path: str):
+        """Return the path of an arbitrary path string's parent folder."""
         if not path:
             return None
 
-        parentPath = dirname(path)
-        return parentPath if path != parentPath else None
+        if path not in File._namecache:
+            parentPath = dirname(path)
+            File._namecache[path] = parentPath if path != parentPath else None
+
+        return File._namecache[path]
+
+    def getParentName(self):
+        """Return the path of the file's parent folder."""
+        return File.getParentNameFromName(self.path)
 
     def getName(self):
         """Return the path of the file."""
@@ -340,7 +340,7 @@ class File(object):
         path = self.path
 
         while hasParent and not hidden:
-            path = File.getParentName(path)
+            path = File.getParentNameFromName(path)
             hasParent = True if path else False
 
             if hasParent:
@@ -367,13 +367,16 @@ class File(object):
             else:
                 hidden = path[0] == '.'
 
-            path = File.getParentName(path)
+            path = File.getParentNameFromName(path)
             hasParent = True if path else False
         return hidden
 
     def isFolder(self):
         """Return True if the file is a folder."""
-        return self.ftype in ("inode/directory",)
+        if self._isFolder is None:
+            self._isFolder = self.ftype in ("inode/directory",)
+
+        return self._isFolder
 
     def isBinary(self):
         """Return true if the file is binary, or not a known format."""
@@ -386,7 +389,7 @@ class File(object):
 
     def hasAccesses(self):
         """Tell whether a File has had any accesses at all."""
-        return True if len(self.accesses) else False
+        return False if not self.accesses else True
 
     def getAccesses(self, flags: EventFileFlags=None):
         """Get the acts of access on this File."""
