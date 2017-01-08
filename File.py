@@ -322,7 +322,9 @@ class File(object):
     def isUserDocument(self, userHome: str, allowHiddenFiles: bool=False):
         """Return True if the file is not hidden, and in ~ or /media."""
         if allowHiddenFiles:
-            if self.isInHiddenFolder():
+            # We also don't allow hidden files at the Home root as they are
+            # usually configuration files or X11 data.
+            if self.isInHiddenFolder() or self.path.startswith(userHome+"/."):
                 return False
         elif self.isHidden():
             return False
