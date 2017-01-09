@@ -7,11 +7,11 @@ from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
 from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph
-from PolicyEngine import PolicyEngine
+from PolicyEngine import PolicyEngine, Policy
 from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
-                     OneFolderPolicy
+                     OneFolderPolicy, FutureAccessListPolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -23,23 +23,26 @@ import getopt
 import sys
 
 USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
-               '--output-fs=<DIR> --score\n --print-clusters ' \
-               '--graph-clusters]'
+               '--output-fs=<DIR> --inode=<INODE> --score\n --print-clusters' \
+               ' --graph-clusters]'
 
 
 # Main function
 # @profile
 def main(argv):
+    __opt_inode_query = -1
+
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hcdf:srpg", ["help",
-                                                         "check-missing",
-                                                         "debug",
-                                                         "related-files",
-                                                         "output-fs=",
-                                                         "score",
-                                                         "print-clusters",
-                                                         "graph-clusters"])
+        (opts, args) = getopt.getopt(argv, "hcdf:srpgi:", ["help",
+                                                          "check-missing",
+                                                          "debug",
+                                                          "inode",
+                                                          "related-files",
+                                                          "output-fs=",
+                                                          "score",
+                                                          "print-clusters",
+                                                          "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -87,6 +90,15 @@ def main(argv):
                     print(USAGE_STRING)
                     sys.exit(2)
                 __setOutputFs(arg[1:] if arg[0] == '=' else arg)
+            elif opt in ('-i', '--inode'):
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                try:
+                    __opt_inode_query = int(arg[1:] if arg[0] == '=' else arg)
+                except(ValueError) as e:
+                    print(USAGE_STRING)
+                    sys.exit(2)
 
     # Make the application, event and file stores
     store = ApplicationStore.get()
@@ -140,6 +152,13 @@ def main(argv):
     evStore.simulateAllEvents()
     print("Simulated all events.")
 
+    # Manage --inode queries
+    if __opt_inode_query >= 0:
+        f = fileStore.getFile(__opt_inode_query)
+        print("\nInode queried: %d" % __opt_inode_query)
+        print("Corresponding file: %s\n\t(%s)" % (f.getName(), f))
+        sys.exit(0)
+
     # Print the model as proof of concept
     if debugEnabled():
         print("\nPrinting the file model...\n")
@@ -159,68 +178,58 @@ def main(argv):
                             userHome=userConf.getSetting("HomeDir"),
                             showDesignatedOnly=False)
 
-    if graphEnabled():
-        # TODO do a version with files of an instance all connected, to focus
-        # on separating app instances instead of denying accesses.
-        print("\nCompiling the general Access Graph...")
-        g = AccessGraph()
-        g.populate(userConf=userConf, policy=None)
+    def _runGraph(pol: Policy=None, quiet: bool=False):
+        if not quiet:
+            print("\nCompiling the general Access Graph...")
+        outputDir = pol.getOutputDir(parent=outputFsEnabled()) if pol else None
+
+        g = AccessGraph(outputDir=outputDir)
+        g.populate(userConf=userConf, policy=pol)
         g.plot(output="graph-accesses")
-        print("Done.")
+        if not quiet:
+            print("Done.")
 
-        print("\nCompiling the general Activity Graph...")
-        g = ActivityGraph()
-        g.populate(userConf=userConf, policy=None)
+        if not quiet:
+            print("\nCompiling the general Activity Graph...")
+        g = ActivityGraph(outputDir=outputDir)
+        g.populate(userConf=userConf, policy=pol)
         g.plot(output="graph-activities")
-        print("Done.")
+        if not quiet:
+            print("Done.")
 
-        print("\nCompiling the general Instance Graph...")
-        g = InstanceGraph()
-        g.populate(userConf=userConf, policy=None)
+        if not quiet:
+            print("\nCompiling the general Instance Graph...")
+        g = InstanceGraph(outputDir=outputDir)
+        g.populate(userConf=userConf, policy=pol)
         g.plot(output="graph-instances")
-        print("Done.")
+        if not quiet:
+            print("Done.")
+
+    if graphEnabled():
+        _runGraph(None)
 
     # Policy engine. Create a policy and run a simulation to score it.
     if scoreEnabled():
         engine = PolicyEngine()
 
-        print("\nRunning the Unsecure policy...")
-        engine.runPolicy(UnsecurePolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
+        policies = [UnsecurePolicy, DesignationPolicy, FolderPolicy,
+                    OneFolderPolicy, OneLibraryPolicy, CompoundLibraryPolicy,
+                    FutureAccessListPolicy, FileTypePolicy]
+        # policies = [FutureAccessListPolicy, FolderPolicy]  # FIXME debug
 
-        print("\nRunning the Designation policy...")
-        engine.runPolicy(DesignationPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
+        for polName in policies:
+            pol = polName(userConf=userConf)
 
-        print("\nRunning the Folder policy...")
-        engine.runPolicy(FolderPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
+            print("\nRunning %s..." % pol.name)
+            engine.runPolicy(pol,
+                             outputDir=outputFsEnabled(),
+                             printClusters=printClustersEnabled())
 
-        print("\nRunning the One Folder policy...")
-        engine.runPolicy(OneFolderPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
+            if graphEnabled():
+                _runGraph(pol)
 
-        print("\nRunning the One Library policy...")
-        engine.runPolicy(OneLibraryPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
-
-        print("\nRunning the Compound Library policy...")
-        engine.runPolicy(CompoundLibraryPolicy(userConf=userConf),
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
-
-        print("\nRunning the File Type policy...")
-        pol = FileTypePolicy(userConf=userConf)
-        engine.runPolicy(pol,
-                         outputDir=outputFsEnabled(),
-                         printClusters=printClustersEnabled())
-        if checkMissingEnabled():
-            pol.abortIfUnsupportedExtensions()
+            if pol.name == "FileTypePolicy" and checkMissingEnabled():
+                pol.abortIfUnsupportedExtensions()
 
     # Calculate frequently co-accessed files:
     if relatedFilesEnabled():
