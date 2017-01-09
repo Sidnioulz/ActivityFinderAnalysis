@@ -101,9 +101,11 @@ class TestPolicies(unittest.TestCase):
         self.a2 = Application("firefox.desktop", pid=2, tstart=1, tend=2000)
         self.a3 = Application("ristretto.desktop", pid=3, tstart=3000,
                               tend=6000)
+        self.ac = Application("catfish.desktop", pid=100, tstart=1, tend=2900)
         self.appStore.insert(self.a1)
         self.appStore.insert(self.a2)
         self.appStore.insert(self.a3)
+        self.appStore.insert(self.ac)
 
         self.p001 = "/home/user/.cache/firefox/file"
         s001 = "open64|%s|fd 10: with flag 524288, e0|" % self.p001
@@ -119,6 +121,9 @@ class TestPolicies(unittest.TestCase):
         e002 = Event(actor=self.a1, time=12, syscallStr=s002)
         e002.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e002)
+        e002b = Event(actor=self.ac, time=30, syscallStr=s002)
+        e002b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e002b)
 
         self.p003 = "/home/user/Downloads/logo.jpg"
         s003 = "open64|%s|fd 10: with flag 524288, e0|" % self.p003
@@ -244,6 +249,9 @@ class TestPolicies(unittest.TestCase):
         f002 = self.fileFactory.getFile(name=self.p002, time=21)
         accs = f002.getAccesses()
         pol.accessFunc(None, f002, accs[0])
+        self.policy += 1
+        self._assert(pol)
+        pol.accessFunc(None, f002, accs[1])
         self.policy += 1
         self._assert(pol)
 

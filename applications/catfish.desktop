@@ -90,4 +90,5 @@ Exec=/usr/bin/catfish
 Icon=catfish
 Terminal=false
 Type=Desktop
+MimeType=*;
 LibraryCaps=music;image;video;documents;
