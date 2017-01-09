@@ -155,7 +155,7 @@ class FileStore(object):
 
                 # Ensure all parent folders exist
                 os.makedirs(outputDir + '/' +
-                            File.getParentName(last.getName()),
+                            last.getParentName(),
                             exist_ok=True)
 
                 if not last.getTimeOfEnd() or showDeleted:

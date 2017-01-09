@@ -34,7 +34,7 @@ class FileFactory(object):
     def __getFile(self, name: str, time: int, ftype: str=''):
         """Internal implementation of getFile()."""
         # Ensure the parent folder is initialised
-        parentPath = File.getParentName(name)
+        parentPath = File.getParentNameFromName(name)
         if parentPath:
             self.getFile(parentPath, time, ftype='inode/directory')
 
