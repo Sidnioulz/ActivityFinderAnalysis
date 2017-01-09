@@ -21,11 +21,11 @@ class CommonGraph(object):
     cd = {"file": "blue", "app": "pink", "appstate": "red"}
     sd = {"file": "circle", "app": "triangle-up", "appstate": "diamond"}
 
-    def __init__(self):
+    def __init__(self, outputDir: str=None):
         """Construct a CommonGraph."""
         super(CommonGraph, self).__init__()
         self.g = None
-        self.outputDir = outputFsEnabled() or '/tmp/'
+        self.outputDir = outputDir or '/tmp/'
         self.printClusterInstances = False
 
         self.vertices = dict()
@@ -120,11 +120,15 @@ class CommonGraph(object):
         vs["margin"] = 20
 
         # Plot the base graph.
-        if output:
-            path = self.outputDir + "/" + output + ".graph.svg"
-            plot(self.g, path, **vs)
-        else:
-            plot(self.g, **vs)
+        try:
+
+            if output:
+                path = self.outputDir + "/" + output + ".graph.svg"
+                plot(self.g, path, **vs)
+            else:
+                plot(self.g, **vs)
+        except(OSError) as e:
+            print(self.outputDir + "/" + output + ".graph.svg")
 
         # Detect communities in the graph.
         comm = self.g.community_fastgreedy(weights=self.g.es["weight"])
@@ -166,9 +170,9 @@ class CommonGraph(object):
 class AccessGraph(CommonGraph):
     """A graph modelling accesses for individual Applications."""
 
-    def __init__(self):
+    def __init__(self, outputDir: str=None):
         """Construct an AccessGraph."""
-        super(AccessGraph, self).__init__()
+        super(AccessGraph, self).__init__(outputDir)
 
     def _addAppNode(self, app: Application):
         """Add an Application vertex to the graph."""
@@ -215,9 +219,9 @@ class ActivityGraph(CommonGraph):
     # if diff instances access diff files. also show number of instances who
     # accessed using edge thickness / weight
 
-    def __init__(self):
+    def __init__(self, outputDir: str=None):
         """Construct an ActivityGraph."""
-        super(ActivityGraph, self).__init__()
+        super(ActivityGraph, self).__init__(outputDir)
         self.instancesPerFile = dict()
 
     def _addAppNode(self, app: Application):
@@ -247,9 +251,9 @@ class ActivityGraph(CommonGraph):
 class InstanceGraph(CommonGraph):
     """A graph modelling communities where instances are disjoint."""
 
-    def __init__(self):
+    def __init__(self, outputDir: str=None):
         """Construct an ActivityGraph."""
-        super(InstanceGraph, self).__init__()
+        super(InstanceGraph, self).__init__(outputDir)
         self.filesPerInstance = dict()
         self.printClusterInstances = True
 
