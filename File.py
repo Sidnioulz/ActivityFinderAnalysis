@@ -101,6 +101,11 @@ class FileAccess(object):
         return (self.evflags & EventFileFlags.designation) and \
             not (self.evflags & EventFileFlags.designationcache)
 
+    def isFileCreation(self):
+        """Return True if this FileAccess created a File."""
+        return (self.evflags & EventFileFlags.create) or \
+            (self.evflags & EventFileFlags.overwrite)
+
     def allowedByFlagFilter(self, filter: EventFileFlags, f: 'File'):
         if filter.containsAllAccessFlags(self.evflags):
             return True
