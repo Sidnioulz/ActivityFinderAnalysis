@@ -620,3 +620,80 @@ class StrictCompositionalPolicy(CompositionalPolicy):
                 return (False, 0)
 
         return (True, 0)
+
+
+class StickyBitPolicy(Policy):
+    """Policy where only accesses to files that one created are allowed."""
+
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 folders: list=["/tmp"],
+                 name: str='StickyBitPolicy'):
+        """Construct a StickyBitPolicy."""
+        super(StickyBitPolicy, self).__init__(userConf, name)
+        self.created = set()
+        self.folders = folders
+
+    def accessFunc(self,
+                   engine: PolicyEngine,
+                   f: File,
+                   acc: FileAccess,
+                   composed: bool=False):
+        """Assess the usability score of a FileAccess."""
+        folder = f.getParentName()
+        # TODO check if file creation
+        # TODO check if folder in self.folders
+
+        if not composed:
+            # TODO if so, add to self.created
+
+        # if so, return POLICY_ACCESS
+        super(StickyBitPolicy, self).accessFunc(engine, f, acc, composed)
+
+        if not composed:
+            # Designation accesses are considered cost-free.
+            if acc.evflags & EventFileFlags.designation:
+                self.incrementScore('desigAccess', f, acc.actor)
+                # f.recordAccessCost(acc, DESIGNATION_ACCESS)
+                self.addToCache(self.designatedFoldersCache, folder, acc.actor)
+                return DESIGNATION_ACCESS
+
+            # Some files are allowed because they clearly belong to the app
+            ownedPaths = self.generateOwnedPaths(acc.actor)
+            for (path, evflags) in ownedPaths:
+                if path.match(f.getName()) and \
+                        acc.allowedByFlagFilter(evflags, f):
+                    self.incrementScore('ownedPathAccess', f, acc.actor)
+                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS)
+                    return OWNED_PATH_ACCESS
+
+        # Files in the same folder as a designated file are allowed.
+        if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
+            if not composed:
+                self.incrementScore('policyAccess', f, acc.actor)
+                # f.recordAccessCost(acc, POLICY_ACCESS)
+            return POLICY_ACCESS
+
+        if not composed:
+            # We could not justify the access, increase the usabiltiy cost.
+            self.incrementScore('illegalAccess', f, acc.actor)
+
+            # If a prior interruption granted access, don't overcount.
+            self.incrementScore('cumulGrantingCost', f, acc.actor)
+            if (not self.folderInCache(self.illegalFoldersCache, folder,
+                    acc.actor)
+                    and not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS)):
+                self.incrementScore('grantingCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
+            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
+            #     self.incrementScore('grantingDesigCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
+            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
+            f.recordAccessCost(acc, ILLEGAL_ACCESS)
+            self.addToCache(self.illegalFoldersCache, folder, acc.actor)
+        return ILLEGAL_ACCESS
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        return (f in self.created, 0)

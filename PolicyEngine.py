@@ -29,19 +29,13 @@ class PolicyScores(object):
         # Cost of configuring access control policies prior to any usage
         self.configCost = 0
 
-        # Cost of launching an app/file in a special way
-        self.anticipationCost = 0
-
         # Interruptions to an interaction (security confirmation dialogs)
         self.grantingCost = 0   # Cost of granting access to a file on the spot
-        self.grantingOwnedCost = 0   # For debug: past owned files now illegal
-        self.grantingDesigCost = 0   # For debug: past desig files now illegal
-        self.grantingPolicyCost = 0   # For debug: past pol files now illegal
+        # self.grantingOwnedCost = 0   # For debug: past owned files now illegal
+        # self.grantingDesigCost = 0   # For debug: past desig files now illegal
+        # self.grantingPolicyCost = 0   # For debug: past pol files now illegal
         self.cumulGrantingCost = 0  # Cumulative number of illegal accesses
         self.splittingCost = 0  # Cost of splitting a process into 2 instances
-
-        # Interaction overheads when handling multiple instances of an app
-        self.overheadCost = 0
 
     def __iadd__(self, other):
         """Add the scores from :other: to this PolicyScores."""
@@ -54,14 +48,12 @@ class PolicyScores(object):
         self.policyAccess += other.policyAccess
         self.illegalAccess += other.illegalAccess
         self.configCost += other.configCost
-        self.anticipationCost += other.anticipationCost
         self.grantingCost += other.grantingCost
-        self.grantingOwnedCost += other.grantingOwnedCost
-        self.grantingDesigCost += other.grantingDesigCost
-        self.grantingPolicyCost += other.grantingPolicyCost
+        # self.grantingOwnedCost += other.grantingOwnedCost
+        # self.grantingDesigCost += other.grantingDesigCost
+        # self.grantingPolicyCost += other.grantingPolicyCost
         self.cumulGrantingCost += other.cumulGrantingCost
         self.splittingCost += other.splittingCost
-        self.overheadCost += other.overheadCost
 
         return self
 
@@ -79,27 +71,25 @@ class PolicyScores(object):
 
         msg += ("\nCosts:")
         msg += ("\t* configuration: %d\n" % self.configCost)
-        msg += ("\t* anticipation: %d\n" % self.anticipationCost)
         msg += ("\t* granting: %d\n" % self.grantingCost)
-        if debugEnabled():
-            msg += ("\t*TEST illegal w/ past owned path: %d\n" %
-                    self.grantingOwnedCost)
-            msg += ("\t*TEST illegal w/ past designation: %d\n" %
-                    self.grantingDesigCost)
-            msg += ("\t*TEST illegal w/ past policy-allowed: %d\n" %
-                    self.grantingPolicyCost)
+        # if debugEnabled():
+        #     msg += ("\t*TEST illegal w/ past owned path: %d\n" %
+        #             self.grantingOwnedCost)
+        #     msg += ("\t*TEST illegal w/ past designation: %d\n" %
+        #             self.grantingDesigCost)
+        #     msg += ("\t*TEST illegal w/ past policy-allowed: %d\n" %
+        #             self.grantingPolicyCost)
         msg += ("\t* cumulative granting: %d\n" % self.cumulGrantingCost)
         msg += ("\t* splitting apps: %d\n" % self.splittingCost)
-        msg += ("\t* overhead: %d\n" % self.overheadCost)
 
         if not quiet:
             print(msg)
 
         if outputDir:
-            os.makedirs(outputDir + '/' +
-                        File.getParentName(filename),
+            filename = outputDir + '/' + filename
+            os.makedirs(File.getParentNameFromName(filename),
                         exist_ok=True)
-            with open(outputDir + '/' + filename, "a") as f:
+            with open(filename, "a") as f:
                 print(msg, file=f)
 
 
@@ -143,6 +133,7 @@ class SecurityScores(object):
                     outputDir: str=None,
                     filename: str=None,
                     userHome: str=None,
+                    extraText: str=None,
                     quiet: bool=False):
         """Print the security scores."""
 
@@ -155,7 +146,7 @@ class SecurityScores(object):
         userFiles = [set(), set()]
         for i in (0, 1):
             for file in self.overEntitlements[i]:
-                if file.isUserDocument(userHome):
+                if file.isUserDocument(userHome, allowHiddenFiles=True):
                     userFiles[i].add(file)
                 else:
                     sysFiles[i].add(file)
@@ -166,15 +157,20 @@ class SecurityScores(object):
         msg += ("\t* %d system files used / %d reachable\n" % (
                 (len(sysFiles[0]), len(sysFiles[1]))))
 
+        if extraText:
+            msg += extraText
+
         if not quiet:
             print(msg)
 
         if outputDir:
-            os.makedirs(outputDir + '/' +
-                        File.getParentName(filename),
+            filename = outputDir + '/' + filename
+            os.makedirs(File.getParentNameFromName(filename),
                         exist_ok=True)
-            with open(outputDir + '/' + filename, "a") as f:
+            with open(filename, "a") as f:
                 print(msg, file=f)
+
+        return [len(userFiles[0]), len(userFiles[1])]
 
 
 class Policy(object):
@@ -206,9 +202,18 @@ class Policy(object):
         self.ss = SecurityScores()
         self.perAppSecurityScores = dict()
         self.perInstanceSecurityScores = dict()
-        self.clusters = []
-        self.clustersPerInstance = []
-        # TODO more security scores
+        self.clusters = None
+        self.clustersInst = None
+        self.accessLists = None
+        self.exclScores = None
+        self.exclScoresInst = None
+        self.exclScoresPerApp = None
+
+    def getOutputDir(self, parent: str=None):
+        if parent:
+            return parent + "/Policy - %s" % self.name
+        else:
+            return "/tmp/Policy - %s" % self.name
 
     def printScores(self,
                     outputDir: str,
@@ -217,7 +222,7 @@ class Policy(object):
 
         # Make sure the score directory is built
         if outputDir:
-            scoreDir = outputDir + "/Policy - %s" % self.name
+            scoreDir = self.getOutputDir(parent=outputDir)
 
             if not os.path.exists(outputDir):
                 raise FileNotFoundError("Output directory given to the "
@@ -242,7 +247,7 @@ class Policy(object):
                               quiet=True)
 
             # Loop through application instances and print their scores.
-            apps = appStore.lookupDesktopId(desktopid, limit=1)
+            apps = appStore.lookupDesktopId(desktopid)
             for app in apps:
                 iScore = self.perInstanceScores.get(app)
                 if iScore:
@@ -296,7 +301,7 @@ class Policy(object):
                                   filename=outfilename,
                                   quiet=True)
 
-                if last.isUserDocument(userHome):
+                if last.isUserDocument(userHome, allowHiddenFiles=True):
                     userDocF += score
                 else:
                     systemF += score
@@ -317,30 +322,72 @@ class Policy(object):
 
         print("\n#####################~  SECURITY  ~#####################")
         # Security score for each application individually
+        print("Calculating security over-entitlements for all apps...")
+
+        totalDists = list()
+        totalCount = 0
+
         appStore = ApplicationStore.get()
         for desktopid in sorted(self.perAppSecurityScores.keys()):
+            dists = []
+            count = 0
+
+            # Loop through application instances and print their scores.
+            apps = appStore.lookupDesktopId(desktopid)
+            for app in sorted(apps, key=lambda a: a.uid()):
+                iScore = self.perInstanceSecurityScores.get(app.uid())
+                if iScore:
+                    r = iScore.printScores(outputDir=scoreDir,
+                                           filename="App - %s - Instance %s.s"
+                                           "ecurityscore" % (desktopid,
+                                                             app.uid()),
+                                           userHome=userHome,
+                                           quiet=True)
+
+                    count += 1
+                    dists += [r]
+
+            props = list(d[0] / d[1] for d in dists)
+            minOE = min(props)
+            maxOE = max(props)
+            avgOE = sum(props) / count
+            medOE = statistics.median(props)
+            totalDists += dists
+            totalCount += count
+
+            extraText = "\nAPP INSTANCE STATS SORTED BY UID\n" \
+                        "Distribution of over-entitlements: %s\n" \
+                        "Over-entitlement proportions: %s\n" \
+                        "Min: %f\n" \
+                        "Max: %f\n" \
+                        "Average: %f\n" \
+                        "Median: %f\n" % (
+                         str(dists), str(props), minOE, maxOE, avgOE, medOE)
+
+            # And then save the app's score file with the extra statistics.
             score = self.perAppSecurityScores[desktopid]
             score.printScores(outputDir=scoreDir,
                               filename="App - %s.securityscore" % desktopid,
                               userHome=userHome,
+                              extraText=extraText,
                               quiet=True)
 
-            # Loop through application instances and print their scores.
-            apps = appStore.lookupDesktopId(desktopid, limit=1)
-            for app in apps:
-                iScore = self.perInstanceSecurityScores.get(app.uid())
-                if iScore:
-                    iScore.printScores(outputDir=scoreDir,
-                                       filename="App - %s - Instance %s.securi"
-                                       "tyscore" % (desktopid, app.uid()),
-                                       userHome=userHome,
-                                       quiet=True)
-
         # Security - general score
-        print("\nSECURITY OVERENTITLEMENT SCORES")
+        print("\nSECURITY OVERENTITLEMENT OVERALL SCORE")
+        props = list(d[0] / d[1] for d in totalDists)
+        minOE = min(props)
+        maxOE = max(props)
+        avgOE = sum(totalDists) / totalCount
+        medOE = statistics.median(props)
+        extraText = "Min: %f\n" \
+                    "Max: %f\n" \
+                    "Average: %f\n" \
+                    "Median: %f\n" % (minOE, maxOE, avgOE, medOE)
+
         self.ss.printScores(outputDir=scoreDir,
                             filename="general.securityscore",
-                            userHome=userHome)
+                            userHome=userHome,
+                            extraText=extraText)
         print("-------------------")
 
         print("\nINFORMATION FLOW CLUSTERS")
@@ -541,8 +588,8 @@ class Policy(object):
             # Designation accesses are considered cost-free.
             if acc.evflags & EventFileFlags.designation:
                 self.incrementScore('desigAccess', f, acc.actor)
-                f.recordAccessCost(acc, DESIGNATION_ACCESS,
-                                   appWide=self.appWideRecords())
+                # f.recordAccessCost(acc, DESIGNATION_ACCESS,
+                #                    appWide=self.appWideRecords())
                 return DESIGNATION_ACCESS
 
             # Some files are allowed because they clearly belong to the app
@@ -551,8 +598,8 @@ class Policy(object):
                 if path.match(f.getName()) and \
                         acc.allowedByFlagFilter(evflags, f):
                     self.incrementScore('ownedPathAccess', f, acc.actor)
-                    f.recordAccessCost(acc, OWNED_PATH_ACCESS,
-                                       appWide=self.appWideRecords())
+                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS,
+                    #                    appWide=self.appWideRecords())
                     return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
@@ -560,8 +607,8 @@ class Policy(object):
         if allowed:
             if not composed:
                 self.incrementScore('policyAccess', f, acc.actor)
-                f.recordAccessCost(acc, POLICY_ACCESS,
-                                   appWide=self.appWideRecords())
+                # f.recordAccessCost(acc, POLICY_ACCESS,
+                #                    appWide=self.appWideRecords())
             return POLICY_ACCESS
 
         if not composed:
@@ -573,15 +620,15 @@ class Policy(object):
             if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
                                           appWide=self.appWideRecords()):
                 self.incrementScore('grantingCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingOwnedCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingDesigCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingPolicyCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingDesigCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                appWide=self.appWideRecords())
         return ILLEGAL_ACCESS
@@ -614,10 +661,8 @@ class Policy(object):
             return res.group(0)
         return None
 
-    def calculateClusterCrossovers(self):
+    def calculateExclViolations(self):
         """Calculate cross-overs between exclusion lists for each cluster."""
-
-        # TODO use appsHaveMemory for instance links
 
         # Get, and compile, the exclusion lists from the user.
         self.exclList = self.userConf.getSecurityExclusionLists()
@@ -658,10 +703,37 @@ class Policy(object):
 
             return exclScores
 
+        def _calculateApps(lists):
+            appExclScores = dict()
+            for (app, files) in lists.items():
+                # Each list of mutually exclusive patterns has its scores.
+                clusterScores = [dict() for _ in range(len(self.exclList))]
+
+                for file in files:
+                    # Go through each list of patterns.
+                    for (eIndex, excl) in enumerate(self.exclList):
+
+                        # Go through each pattern and look for a match.
+                        for (pIndex, pattern) in enumerate(excl):
+                            matched = self.matchExclusionPattern(pattern, file)
+                            if not matched:
+                                continue
+
+                            # print("path: %s\tmatch: %s\tfile: %s" % (
+                            #     pattern, matched, file.getName()
+                            # ))
+                            exclFiles = clusterScores[eIndex].get(matched) \
+                                or [pattern]
+                            exclFiles.append(file)
+                            clusterScores[eIndex][matched] = exclFiles
+
+                appExclScores[app] = clusterScores
+
+            return appExclScores
+
         self.exclScores = _calculate(self.clusters)
-        self.exclScoresPerInstance = _calculate(self.clustersPerInstance)
-        self.exclScoreDocs = _calculate(self.clusterDocs)
-        self.exclScoreDocsPerInstance = _calculate(self.clusterDocsPerInstance)
+        self.exclScoresInst = _calculate(self.clustersInst)
+        self.exclScoresPerApp = _calculateApps(self.accessLists)
         # TODO: presence of user Secure Files in clusters, and size thereof
 
     def printSecurityClusters(self,
@@ -669,12 +741,13 @@ class Policy(object):
                               quiet: bool=False,
                               printClusters: bool=False):
         """Print information about information flow clusters."""
-        if not self.clusters or not self.clustersPerInstance:
+        # if not self.clusters or not self.clusters:
+        if not self.clusters:
             raise ValueError("Clusters must be built with "
                              ":buildSecurityClusters: before they can be "
                              "printed for Policy '%s'." % self.name)
 
-        def _print(clusters):
+        def _printClusters(clusters):
             """Print cluster basic statistics."""
             clusterCount = len(clusters)
             lenDist = list(len(c) for c in clusters)
@@ -696,7 +769,40 @@ class Policy(object):
 
             return msg
 
-        def _printCrossovers(clusters, exclScores):
+        def _printExclViolations(exclScores, violationCount):
+            """Print cross-overs of exclusion lists in each cluster."""
+            if not self.exclList:
+                return ""
+
+            msg = ""
+
+            for (eIndex, listScores) in enumerate(exclScores):
+                msg += ("Exclusion list #%d: %s\n" % (
+                        eIndex+1,
+                        self.exclList[eIndex].__str__()))
+
+                matchSum = set()
+                for (path, match) in listScores.items():
+                    matchSum.add(match[0])
+                    msg += ("  %s (pattern %s): %d files matched\n" % (
+                             path,
+                             match[0],
+                             len(match)-1))
+
+                if len(matchSum) > 1:
+                    violationCount += 1
+                    msg += (" %d exclusive paths matched. Security "
+                            "violation!\n" % len(matchSum))
+                elif len(matchSum) == 1:
+                    msg += (" 1 exclusive path matched.\n")
+                else:
+                    msg += (" No exclusive paths matched.\n")
+                msg += "\n"
+            msg += "\n"
+
+            return (msg, violationCount)
+
+        def _printClusterExclViolations(clusters, exclScores):
             """Print cross-overs of exclusion lists in each cluster."""
             if not self.exclList:
                 return ""
@@ -705,83 +811,72 @@ class Policy(object):
             violationCount = 0
 
             for (cIndex, cluster) in enumerate(clusters):
-                if printClusters:
-                    msg += ("Cluster #%d (%d files):\n" % (cIndex+1, len(cluster)))
-                    for f in sorted(cluster, key=lambda key: key.getName()):
-                        msg += ("  %s\n" % f.getName())
-                    msg += ("\n")
-
-                for (eIndex, listScores) in enumerate(exclScores[cIndex]):
-                    if printClusters:
-                        msg += ("Exclusion list #%d: %s\n" % (
-                                eIndex+1,
-                                self.exclList[eIndex].__str__()))
-
-                    matchSum = set()
-                    for (path, match) in listScores.items():
-                        matchSum.add(match[0])
-                        if printClusters:
-                            msg += ("  %s (pattern %s): %d files matched\n" % (
-                                     path,
-                                     match[0],
-                                     len(match)-1))
-
-                    if len(matchSum) > 1:
-                        violationCount += 1
-                        if printClusters:
-                            msg += (" %d exclusive paths matched. Security "
-                                    "violation!\n" % len(matchSum))
-                    elif printClusters:
-                        if len(matchSum) == 1:
-                            msg += (" 1 exclusive path matched.\n")
-                        else:
-                            msg += (" No exclusive paths matched.\n")
-                    if printClusters:
-                        msg += "\n"
-                if printClusters:
-                    msg += "\n"
-            if printClusters:
+                msg += ("Cluster #%d (%d files):\n" % (cIndex+1,
+                                                       len(cluster)))
+                for f in sorted(cluster, key=lambda key: key.getName()):
+                    msg += ("  %s\n" % f.getName())
                 msg += "\n"
+
+                (ret, cnt) = _printExclViolations(exclScores[cIndex],
+                                                  violationCount)
+                msg += ret
+                violationCount += cnt
+            msg += "\n"
 
             msg += ("# of clusters violating exclusion lists: %d" %
                     violationCount)
 
             return msg
 
-        def _write(clusters, scores, forMsg, filename):
+        def _writeClusters(clusters, scores, forMsg, filename):
             """Write the output of the print function to a file and stdout."""
             msg = ("\nCONNECTED FILE CLUSTERS FOR %s\n" % forMsg)
-            msg += _print(clusters)
-            msg += _printCrossovers(clusters, scores)
+            msg += _printClusters(clusters)
+            msg += _printClusterExclViolations(clusters, scores)
 
-            if not quiet:
+            if not quiet and printClusters:
                 print(msg)
 
             if outputDir:
-                os.makedirs(outputDir + '/' +
-                            File.getParentName(filename),
+                filename = outputDir + '/' + filename
+                os.makedirs(File.getParentNameFromName(filename),
                             exist_ok=True)
-                with open(outputDir + '/' + filename, "a") as f:
+                with open(filename, "a") as f:
                     print(msg, file=f)
 
-        _write(self.clusters, self.exclScores,
-               "APPLICATIONS", "clustersPerApp.securityscore")
-        _write(self.clustersPerInstance, self.exclScoresPerInstance,
-               "APP INSTANCES", "clustersPerInstance.securityscore")
-        _write(self.clusterDocs, self.exclScoreDocs,
-               "APPLICATIONS AND USER DOCUMENTS",
-               "clustersPerAppAndUserDocs.securityscore")
-        _write(self.clusterDocsPerInstance, self.exclScoreDocsPerInstance,
-               "APP INSTANCES AND USER DOCUMENTS",
-               "clustersPerInstanceAndUserDocs.securityscore")
+        def _writeApps(appExclScores):
+            """Write the output of the print function to a file and stdout."""
+            if not quiet:
+                print("\nEXCLUSION LIST SCORES FOR USER APP INSTANCES\n")
+            for (app, exclScores) in sorted(appExclScores.items()):
+                (msg, __) = _printExclViolations(exclScores, 0)
+
+                if not quiet:
+                    print("\n%s:" % app)
+                    print(msg)
+
+                if outputDir:
+                    filename = outputDir + '/' + app + ".exclscore"
+                    os.makedirs(File.getParentNameFromName(filename),
+                                exist_ok=True)
+                    with open(filename, "a") as f:
+                        print(msg, file=f)
+
+        _writeClusters(self.clusters, self.exclScores,
+                       "APPLICATIONS AND USER DOCUMENTS",
+                       "clustersPerApp.securityscore")
+        _writeClusters(self.clustersInst, self.exclScoresInst,
+                       "APPLICATION INSTANCES AND USER DOCUMENTS",
+                       "clustersPerAppInstance.securityscore")
+        _writeApps(self.exclScoresPerApp)
 
     def buildSecurityClusters(self,
                               engine: 'PolicyEngine',
                               userDocumentsOnly: bool=False):
         """Build clusters of files with information flows to one another."""
         # First, build clusters of files co-accessed by every single app.
-        accessLists = dict()
-        accessListsInstance = dict()
+        accessListsApp = dict()
+        accessListsInst = dict()
         userHome = self.userConf.getSetting("HomeDir")
         for f in engine.fileStore:
             # Ignore folders without accesses (auto-created by factory).
@@ -799,70 +894,46 @@ class Policy(object):
 
                 (policyAllowed, __) = self.allowedByPolicy(f, acc.actor)
                 if policyAllowed or acc.isByDesignation():
-                    # TODO: for policies that have one sandbox per app, use
-                    # desktopID. for other policies, use instance uid()
-                    # For policies with multiple sandboxes, find a good place
-                    # to calculate duplicationCost! e.g. writes to owned path
-                    # files -> duplication. This also means the allowedByPolicy
-                    # function should exclude owned files (as some will be
-                    # legitimately duplicated).
-                    l = accessLists.get(acc.actor.getDesktopId()) or set()
+                    instanceLabel = "App - %s - Instance %s.score" % (
+                                     acc.actor.getDesktopId(),
+                                     acc.actor.uid())
+                    l = accessListsApp.get(acc.actor.desktopid) or set()
                     l.add(f)
-                    accessLists[acc.actor.getDesktopId()] = l
-                    l = accessListsInstance.get(acc.actor.uid()) or set()
+                    accessListsApp[acc.actor.desktopid] = l
+                    l = accessListsInst.get(instanceLabel) or set()
                     l.add(f)
-                    accessListsInstance[acc.actor.uid()] = l
+                    accessListsInst[instanceLabel] = l
 
         # Then, merge clusters that share an item.
-        clusters = []
-        for (app, l) in accessLists.items():
-            mergeSet = []
+        def _clusters(accessLists):
+            clusters = []
 
-            # Single out all the clusters that share an item with l.
-            for (index, cluster) in enumerate(clusters):
-                if hasIntersection(l, cluster):
-                    mergeSet.append(index)
+            for (app, l) in accessLists.items():
+                mergeSet = []
 
-            # Pop them all out (in reverse order to keep indexes consistant),
-            # and feed them to a set's union operator in order to unify all the
-            # list contents into a single set.
-            newCluster = set(list(l)).union(
-                *(clusters.pop(index) for index in reversed(sorted(mergeSet))))
-            clusters.append(newCluster)
+                # Single out all the clusters that share an item with l.
+                for (index, cluster) in enumerate(clusters):
+                    if hasIntersection(l, cluster):
+                        mergeSet.append(index)
 
-        # Then, merge clusters that share an item.
-        clustersInstance = []
-        for (app, l) in accessListsInstance.items():
-            mergeSet = []
+                # Pop them all out (in reverse order to keep indexes
+                # consistant), and feed them to a set's union operator in
+                # order to unify all the list contents into a single set.
+                newCluster = set(list(l)).union(
+                    *(clusters.pop(index) for index in
+                        reversed(sorted(mergeSet))))
+                clusters.append(newCluster)
 
-            # Single out all the clusters that share an item with l.
-            for (index, cluster) in enumerate(clustersInstance):
-                if hasIntersection(l, cluster):
-                    mergeSet.append(index)
-
-            # Pop them all out (in reverse order to keep indexes consistant),
-            # and feed them to a set's union operator in order to unify all the
-            # list contents into a single set.
-            newCluster = set(list(l)).union(
-                *(clustersInstance.pop(index) for index in
-                  reversed(sorted(mergeSet))))
-            clustersInstance.append(newCluster)
+            return clusters
 
         # Return our final list of clusters.
-        return (clusters, clustersInstance)
+        return (_clusters(accessListsApp),
+                _clusters(accessListsInst),
+                accessListsInst)
 
-    def securityRun(self, engine: 'PolicyEngine'):
-        """Assess the quality of the security provided by a Policy."""
+    def calculateOverentitlements(self, engine: 'PolicyEngine'):
+        """Calculate over-entitlements for each app."""
 
-        # Build clusters of files with information flows to one another.
-        (self.clusters, self.clustersPerInstance) = \
-            self.buildSecurityClusters(engine)
-        (self.clusterDocs, self.clusterDocsPerInstance) = \
-            self.buildSecurityClusters(engine, userDocumentsOnly=True)
-
-        self.calculateClusterCrossovers()
-
-        # Calculate over-entitlements for each app.
         for app in engine.appStore:
             for f in engine.fileStore:
                 # Ignore folders without accesses (auto-created by factory).
@@ -881,6 +952,21 @@ class Policy(object):
                         if acc.actor == app:
                             self.incrementOverEntitlement(f, app, True)
                             break
+
+    def securityRun(self, engine: 'PolicyEngine'):
+        """Assess the quality of the security provided by a Policy."""
+
+        # Build clusters of files with information flows to one another.
+        # (self.clusters, self.accessLists) = \
+        #     self.buildSecurityClusters(engine)
+        (self.clusters, self.clustersInst, self.accessLists) = \
+            self.buildSecurityClusters(engine, userDocumentsOnly=True)
+
+        # Calculate exclusion list violations in clusters and apps.
+        self.calculateExclViolations()
+
+        # Calculate over-entitlements for each app.
+        self.calculateOverentitlements(engine)
 
     def appWideRecords(self):
         """Return True if access records are across instances, False else."""

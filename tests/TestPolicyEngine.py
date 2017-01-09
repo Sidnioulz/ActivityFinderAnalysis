@@ -4,9 +4,10 @@ from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
 from Event import Event
 from EventStore import EventStore
+from File import EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
-from Policies import OneLibraryPolicy
+from Policies import OneLibraryPolicy, FolderPolicy
 from PolicyEngine import PolicyEngine, SecurityScores
 
 
@@ -136,15 +137,15 @@ class TestSecurityScores(unittest.TestCase):
 
         # Ensure there are three clusters.
         self.assertIsNotNone(pol.clusters)
-        self.assertIsNotNone(pol.clustersPerInstance)
+        self.assertIsNotNone(pol.clustersInst)
         self.assertEqual(len(pol.clusters), 2)
-        self.assertEqual(len(pol.clustersPerInstance), 3)
+        self.assertEqual(len(pol.clustersInst), 3)
 
         # Ensure f1 is not included, and f2, f3 and f4 are together.
         f2 = self.fileFactory.getFile("/home/user/Images/Picture.jpg", 20)
         f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)
         f4 = self.fileFactory.getFile("/home/user/Images/Art.xcf", 20)
-        for cluster in pol.clustersPerInstance:
+        for cluster in pol.clustersInst:
             if f2 in cluster:
                 self.assertNotIn(f3, cluster)
                 self.assertNotIn(f4, cluster)
@@ -230,9 +231,7 @@ class TestSecurityScores(unittest.TestCase):
             pass
 
         _ctfn(pol.clusters, pol.exclScores, _assertPerApp)
-        _ctfn(pol.clustersPerInstance,
-              pol.exclScoresPerInstance,
-              _assertPerInstance)
+        _ctfn(pol.clustersInst, pol.exclScoresInst, _assertPerInstance)
 
     def test_exclusion_list_aorb(self):
         self.eventStore.reset()
@@ -275,7 +274,7 @@ class TestSecurityScores(unittest.TestCase):
                     self.assertIn(len(matchSum), (0, 2))
 
         _ctfn(pol.clusters, pol.exclScores)
-        _ctfn(pol.clustersPerInstance, pol.exclScoresPerInstance)
+        _ctfn(pol.clustersInst, pol.exclScoresInst)
 
     def test_overentitlement(self):
         self.eventStore.reset()
@@ -334,6 +333,32 @@ class TestSecurityScores(unittest.TestCase):
         calcGimp = pol.perAppSecurityScores.get("gimp") or \
             SecurityScores()
         self.assertEqual(gimp, calcGimp)
+
+    def test_stateful_policy(self):
+        self.eventStore.reset()
+        self.fileFactory.reset()
+
+        # Insert a file accessed by designation.
+        s3 = "open64|/home/user/Images/Photo.jpg|fd 10: with flag 524288, e0|"
+        e3 = Event(actor=self.ar1, time=10, syscallStr=s3)
+        e3.evflags |= EventFileFlags.designation  # this event by designation
+        self.eventStore.append(e3)
+
+        # Insert a file opened after in the same folder.
+        s4 = "open64|/home/user/Images/Art.xcf|fd 10: with flag 524288, e0|"
+        e4 = Event(actor=self.ar1, time=11, syscallStr=s4)
+        self.eventStore.append(e4)
+
+        # Simulate.
+        self.eventStore.simulateAllEvents()
+        pol = FolderPolicy(userConf=self.userConf)
+        self.engine.runPolicy(pol, quiet=True)
+
+        f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)
+        f4 = self.fileFactory.getFile("/home/user/Images/Art.xcf", 20)
+
+        self.assertTrue(pol.allowedByPolicy(f4, self.ar1))
+        self.assertTrue(pol.allowedByPolicy(f3, self.ar1))
 
     def tearDown(self):
         self.userConf = None
