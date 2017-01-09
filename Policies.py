@@ -36,12 +36,12 @@ class OneLibraryPolicy(Policy):
 
     def getAppPolicy(self, actor: Application):
         """Return the library capabilities policy for one Application."""
-        if actor not in self.appPolicyCache:
+        if actor.desktopid not in self.appPolicyCache:
             policies = actor.getSetting('LibraryCaps',
                                         type='string list') or []
-            self.appPolicyCache[actor] = policies
+            self.appPolicyCache[actor.desktopid] = policies
 
-        return self.appPolicyCache[actor]
+        return self.appPolicyCache[actor.desktopid]
 
     def allowedByPolicy(self, file: File, actor: Application):
         """Tell if a File is allowed to be accessed by a Policy."""
@@ -121,12 +121,12 @@ class FileTypePolicy(Policy):
 
     def getAppAllowedTypes(self, actor: Application):
         """Return the handled MIME types for one Application."""
-        if actor not in self.appMimeTypesCache:
+        if actor.desktopid not in self.appMimeTypesCache:
             allowedTypes = actor.getSetting('MimeType',
                                             type='string list')
-            self.appMimeTypesCache[actor] = allowedTypes
+            self.appMimeTypesCache[actor.desktopid] = allowedTypes
 
-        return self.appMimeTypesCache[actor]
+        return self.appMimeTypesCache[actor.desktopid]
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
@@ -192,13 +192,13 @@ class FolderPolicy(Policy):
                    acc: FileAccess,
                    composed: bool=False):
         """Assess the usability score of a FileAccess."""
-        folder = File.getParentName(f.getName())
+        folder = f.getParentName()
 
         if not composed:
             # Designation accesses are considered cost-free.
             if acc.evflags & EventFileFlags.designation:
                 self.incrementScore('desigAccess', f, acc.actor)
-                f.recordAccessCost(acc, DESIGNATION_ACCESS)
+                # f.recordAccessCost(acc, DESIGNATION_ACCESS)
                 self.addToCache(self.designatedFoldersCache, folder, acc.actor)
                 return DESIGNATION_ACCESS
 
@@ -208,14 +208,14 @@ class FolderPolicy(Policy):
                 if path.match(f.getName()) and \
                         acc.allowedByFlagFilter(evflags, f):
                     self.incrementScore('ownedPathAccess', f, acc.actor)
-                    f.recordAccessCost(acc, OWNED_PATH_ACCESS)
+                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS)
                     return OWNED_PATH_ACCESS
 
         # Files in the same folder as a designated file are allowed.
         if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
             if not composed:
                 self.incrementScore('policyAccess', f, acc.actor)
-                f.recordAccessCost(acc, POLICY_ACCESS)
+                # f.recordAccessCost(acc, POLICY_ACCESS)
             return POLICY_ACCESS
 
         if not composed:
@@ -228,24 +228,24 @@ class FolderPolicy(Policy):
                     acc.actor)
                     and not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS)):
                 self.incrementScore('grantingCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
-                self.incrementScore('grantingOwnedCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
-                self.incrementScore('grantingDesigCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
-                self.incrementScore('grantingPolicyCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
+            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
+            #     self.incrementScore('grantingDesigCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
+            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS)
             self.addToCache(self.illegalFoldersCache, folder, acc.actor)
         return ILLEGAL_ACCESS
 
     def updateDesignationState(self, f: File, acc: FileAccess):
         """Add the file's folder to the correct folder cache."""
-        folder = File.getParentName(f.getName())
+        folder = f.getParentName()
         self.addToCache(self.designatedFoldersCache, folder, acc.actor)
 
     def updateIllegalState(self, f: File, acc: FileAccess):
         """Add the file's folder to the correct folder cache."""
-        folder = File.getParentName(f.getName())
+        folder = f.getParentName()
         self.addToCache(self.illegalFoldersCache, folder, acc.actor)
 
     def addToCache(self, cache: dict, folder: str, app: Application):
@@ -260,12 +260,12 @@ class FolderPolicy(Policy):
         """Tell if a folder has been previously accessed by an app."""
         if not folder:
             return False
-        s = cache.get(app.uid()) or set()
-        return folder in s
+        s = cache.get(app.uid())
+        return folder in s if s else False
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        folder = File.getParentName(f.getName())
+        folder = f.getParentName()
         if self.folderInCache(self.designatedFoldersCache, folder, app):
             return (True, 0)
         else:
@@ -294,7 +294,7 @@ class OneFolderPolicy(FolderPolicy):
                    acc: FileAccess,
                    composed: bool=False):
         """Assess the usability score of a FileAccess."""
-        folder = File.getParentName(f.getName())
+        folder = f.getParentName()
 
         if not composed:
             # This time we only allow one any access at first, so we don't
@@ -302,7 +302,7 @@ class OneFolderPolicy(FolderPolicy):
             if not self.appHasFolderCached(acc.actor) and \
                     (acc.evflags & EventFileFlags.designation):
                 self.incrementScore('desigAccess', f, acc.actor)
-                f.recordAccessCost(acc, DESIGNATION_ACCESS, appWide=True)
+                # f.recordAccessCost(acc, DESIGNATION_ACCESS, appWide=True)
                 self.addToCache(self.designatedFoldersCache, folder, acc.actor)
                 return DESIGNATION_ACCESS
 
@@ -312,14 +312,14 @@ class OneFolderPolicy(FolderPolicy):
                 if path.match(f.getName()) and \
                         acc.allowedByFlagFilter(evflags, f):
                     self.incrementScore('ownedPathAccess', f, acc.actor)
-                    f.recordAccessCost(acc, OWNED_PATH_ACCESS, appWide=True)
+                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS, appWide=True)
                     return OWNED_PATH_ACCESS
 
         # Files in the same folder as a designated file are allowed.
         if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
             if not composed:
                 self.incrementScore('policyAccess', f, acc.actor)
-                f.recordAccessCost(acc, POLICY_ACCESS, appWide=True)
+                # f.recordAccessCost(acc, POLICY_ACCESS, appWide=True)
             return POLICY_ACCESS
 
         if not composed:
@@ -332,12 +332,12 @@ class OneFolderPolicy(FolderPolicy):
                                        acc.actor) and not
                     f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS, appWide=True)):
                 self.incrementScore('grantingCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS, appWide=True):
-                self.incrementScore('grantingOwnedCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS, appWide=True):
-                self.incrementScore('grantingDesigCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, POLICY_ACCESS, appWide=True):
-                self.incrementScore('grantingPolicyCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS, appWide=True):
+            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS, appWide=True):
+            #     self.incrementScore('grantingDesigCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS, appWide=True):
+            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS, appWide=True)
             self.addToCache(self.illegalFoldersCache, folder, acc.actor)
         return ILLEGAL_ACCESS
@@ -345,7 +345,7 @@ class OneFolderPolicy(FolderPolicy):
     def updateDesignationState(self, f: File, acc: FileAccess):
         """Add the file's folder to the correct folder cache."""
         if not self.appHasFolderCached(acc.actor):
-            folder = File.getParentName(f.getName())
+            folder = f.getParentName()
             self.addToCache(self.designatedFoldersCache, folder, acc.actor)
 
     def appsHaveMemory(self):
@@ -373,8 +373,8 @@ class FutureAccessListPolicy(Policy):
         if not composed:
             if acc.evflags & EventFileFlags.designation:
                 self.incrementScore('desigAccess', f, acc.actor)
-                f.recordAccessCost(acc, DESIGNATION_ACCESS,
-                                   appWide=self.appWideRecords())
+                # f.recordAccessCost(acc, DESIGNATION_ACCESS,
+                #                    appWide=self.appWideRecords())
                 self.addToList(f, acc.actor)
                 return DESIGNATION_ACCESS
 
@@ -384,8 +384,8 @@ class FutureAccessListPolicy(Policy):
                 if path.match(f.getName()) and \
                         acc.allowedByFlagFilter(evflags, f):
                     self.incrementScore('ownedPathAccess', f, acc.actor)
-                    f.recordAccessCost(acc, OWNED_PATH_ACCESS,
-                                       appWide=self.appWideRecords())
+                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS,
+                    #                    appWide=self.appWideRecords())
                     return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
@@ -393,8 +393,8 @@ class FutureAccessListPolicy(Policy):
         if allowed:
             if not composed:
                 self.incrementScore('policyAccess', f, acc.actor)
-                f.recordAccessCost(acc, POLICY_ACCESS,
-                                   appWide=self.appWideRecords())
+                # f.recordAccessCost(acc, POLICY_ACCESS,
+                #                    appWide=self.appWideRecords())
             return POLICY_ACCESS
 
         if not composed:
@@ -406,15 +406,15 @@ class FutureAccessListPolicy(Policy):
             if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
                                           appWide=self.appWideRecords()):
                 self.incrementScore('grantingCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingOwnedCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingDesigCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingPolicyCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingDesigCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
+            #                           appWide=self.appWideRecords()):
+                # self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                appWide=self.appWideRecords())
         return ILLEGAL_ACCESS
@@ -501,8 +501,8 @@ class CompositionalPolicy(Policy):
         # Designation accesses are considered cost-free.
         if acc.evflags & EventFileFlags.designation:
             self.incrementScore('desigAccess', f, acc.actor)
-            f.recordAccessCost(acc, DESIGNATION_ACCESS,
-                               appWide=self.appWideRecords())
+            # f.recordAccessCost(acc, DESIGNATION_ACCESS,
+            #                    appWide=self.appWideRecords())
             for pol in self.policies:
                 pol.updateDesignationState(f, acc)
             return DESIGNATION_ACCESS
@@ -512,8 +512,8 @@ class CompositionalPolicy(Policy):
         for (path, evflags) in ownedPaths:
             if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
                 self.incrementScore('ownedPathAccess', f, acc.actor)
-                f.recordAccessCost(acc, OWNED_PATH_ACCESS,
-                                   appWide=self.appWideRecords())
+                # f.recordAccessCost(acc, OWNED_PATH_ACCESS,
+                #                    appWide=self.appWideRecords())
                 return OWNED_PATH_ACCESS
 
         # Loop through policies until we find a decision we can return.
@@ -537,15 +537,15 @@ class CompositionalPolicy(Policy):
             if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
                                           appWide=self.appWideRecords()):
                 self.incrementScore('grantingCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingOwnedCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingDesigCost', f, acc.actor)
-            if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
-                                      appWide=self.appWideRecords()):
-                self.incrementScore('grantingPolicyCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
+            #                           appWide=self.appWideRecords()):
+            #     self.incrementScore('grantingDesigCost', f, acc.actor)
+            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
+            #                           appWide=self.appWideRecords()):
+                # self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                appWide=self.appWideRecords())
 
@@ -556,8 +556,8 @@ class CompositionalPolicy(Policy):
         # decision == POLICY_ACCESS
         else:
             self.incrementScore('policyAccess', f, acc.actor)
-            f.recordAccessCost(acc, POLICY_ACCESS,
-                               appWide=self.appWideRecords())
+            # f.recordAccessCost(acc, POLICY_ACCESS,
+            #                    appWide=self.appWideRecords())
 
             for pol in self.policies:
                 pol.updateAllowedState(f, acc)
