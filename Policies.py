@@ -119,14 +119,16 @@ class FileTypePolicy(Policy):
 
         return self.appLibCapsCache[actor]
 
-    def getAppAllowedTypes(self, actor: Application):
+    def getAppAllowedTypes(self, app: Application):
         """Return the handled MIME types for one Application."""
-        if actor.desktopid not in self.appMimeTypesCache:
-            allowedTypes = actor.getSetting('MimeType',
-                                            type='string list')
-            self.appMimeTypesCache[actor.desktopid] = allowedTypes
+        if app.desktopid not in self.appMimeTypesCache:
+            allowedTypes = app.getSetting('MimeType', type='string list')
+            self.appMimeTypesCache[app.desktopid] = allowedTypes
 
-        return self.appMimeTypesCache[actor.desktopid]
+            mimeCost = app.getSetting('MimeTypeCost', type='numeric') or 0
+            self.incrementScore('configCost', None, app, increment=mimeCost)
+
+        return self.appMimeTypesCache[app.desktopid]
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""

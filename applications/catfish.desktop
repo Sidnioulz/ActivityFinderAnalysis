@@ -91,4 +91,5 @@ Icon=catfish
 Terminal=false
 Type=Desktop
 MimeType=*;
+MimeTypeCost=1;
 LibraryCaps=music;image;video;documents;

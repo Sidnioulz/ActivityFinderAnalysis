@@ -179,63 +179,6 @@ class TestPolicies(unittest.TestCase):
         self.assertEqual(pol.s.policyAccess, self.policy)
         self.assertEqual(pol.s.illegalAccess, self.illegal)
 
-    def test_one_library(self):
-        pol = OneLibraryPolicy(userConf=self.userConf)
-
-        f001 = self.fileFactory.getFile(name=self.p001, time=20)
-        accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
-        self.illegal += 1
-        self._assert(pol)
-
-        f002 = self.fileFactory.getFile(name=self.p002, time=20)
-        accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
-        self.policy += 1
-        self._assert(pol)
-
-        f003 = self.fileFactory.getFile(name=self.p003, time=20)
-        accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
-        self.desig += 1
-        self._assert(pol)
-
-        f004 = self.fileFactory.getFile(name=self.p004, time=20)
-        accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
-        self.illegal += 1
-        self._assert(pol)
-
-        f005 = self.fileFactory.getFile(name=self.p005, time=20)
-        accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
-        self.illegal += 1
-        self._assert(pol)
-
-        f006 = self.fileFactory.getFile(name=self.p006, time=20)
-        accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
-        self.policy += 1
-        self._assert(pol)
-
-        f007 = self.fileFactory.getFile(name=self.p007, time=20)
-        accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
-        self.desig += 1
-        self._assert(pol)
-
-        f008 = self.fileFactory.getFile(name=self.p008, time=20)
-        accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
-        self.policy += 1
-        self._assert(pol)
-
-        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
-        accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
-        self.illegal += 1
-        self._assert(pol)
-
     def test_unsecure(self):
         pol = UnsecurePolicy(userConf=self.userConf)
         self._reset()
@@ -249,9 +192,6 @@ class TestPolicies(unittest.TestCase):
         f002 = self.fileFactory.getFile(name=self.p002, time=21)
         accs = f002.getAccesses()
         pol.accessFunc(None, f002, accs[0])
-        self.policy += 1
-        self._assert(pol)
-        pol.accessFunc(None, f002, accs[1])
         self.policy += 1
         self._assert(pol)
 
@@ -350,6 +290,10 @@ class TestPolicies(unittest.TestCase):
         pol.accessFunc(None, f002, accs[0])
         self.policy += 1
         self._assert(pol)
+        pol.accessFunc(None, f002, accs[1])
+        self.policy += 1
+        self._assert(pol)
+        self.assertEqual(pol.s.configCost, 1)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
