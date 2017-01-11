@@ -146,8 +146,7 @@ class FileTypePolicy(Policy):
         fileType = f.getType()
         if not fileType:
             dot = f.getFileName().rfind(".")
-            slash = f.getFileName().rfind("/")
-            if dot != -1 and dot > slash+1:
+            if dot != -1 and dot > 0:
                 ext = f.getFileName()[dot+1:]
                 self.unsupportedExts.add(ext)
 
@@ -185,90 +184,69 @@ class FolderPolicy(Policy):
                  name: str='FolderPolicy'):
         """Construct a FolderPolicy."""
         super(FolderPolicy, self).__init__(userConf, name)
-        self.designatedFoldersCache = dict()
-        self.illegalFoldersCache = dict()
+        self.desigCache = dict()
+        self.illegalCache = dict()
 
-    def accessFunc(self,
-                   engine: PolicyEngine,
-                   f: File,
-                   acc: FileAccess,
-                   composed: bool=False):
-        """Assess the usability score of a FileAccess."""
-        folder = f.getParentName()
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        return f.getParentName()
 
-        if not composed:
-            # Designation accesses are considered cost-free.
-            if acc.evflags & EventFileFlags.designation:
-                self.incrementScore('desigAccess', f, acc.actor)
-                # f.recordAccessCost(acc, DESIGNATION_ACCESS)
-                self.addToCache(self.designatedFoldersCache, folder, acc.actor)
-                return DESIGNATION_ACCESS
+    def _accFunCondPolicy(self,
+                          f: File,
+                          acc: FileAccess,
+                          composed: bool,
+                          data):
+        """Calculate condition for POLICY_ACCESS to be returned."""
+        return self.dataInCache(self.desigCache, data, acc.actor)
 
-            # Some files are allowed because they clearly belong to the app
-            ownedPaths = self.generateOwnedPaths(acc.actor)
-            for (path, evflags) in ownedPaths:
-                if path.match(f.getName()) and \
-                        acc.allowedByFlagFilter(evflags, f):
-                    self.incrementScore('ownedPathAccess', f, acc.actor)
-                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS)
-                    return OWNED_PATH_ACCESS
+    def _accFunSimilarAccessCond(self,
+                                 f: File,
+                                 acc: FileAccess,
+                                 composed: bool,
+                                 data):
+        """Calculate condition for grantingCost to be incremented."""
+        return not self.dataInCache(self.illegalCache, data, acc.actor) and \
+            not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
+                                       appWide=self.appWideRecords())
 
-        # Files in the same folder as a designated file are allowed.
-        if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
-            if not composed:
-                self.incrementScore('policyAccess', f, acc.actor)
-                # f.recordAccessCost(acc, POLICY_ACCESS)
-            return POLICY_ACCESS
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on DESIGNATION_ACCESS."""
+        if not data:
+            data = self._accFunPreCompute(f, acc)
+        self.addToCache(self.desigCache, data, acc.actor)
 
-        if not composed:
-            # We could not justify the access, increase the usabiltiy cost.
-            self.incrementScore('illegalAccess', f, acc.actor)
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on POLICY_ACCESS."""
+        self.updateDesignationState(f, acc, data)
 
-            # If a prior interruption granted access, don't overcount.
-            self.incrementScore('cumulGrantingCost', f, acc.actor)
-            if (not self.folderInCache(self.illegalFoldersCache, folder,
-                    acc.actor)
-                    and not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS)):
-                self.incrementScore('grantingCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
-            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
-            #     self.incrementScore('grantingDesigCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
-            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
-            f.recordAccessCost(acc, ILLEGAL_ACCESS)
-            self.addToCache(self.illegalFoldersCache, folder, acc.actor)
-        return ILLEGAL_ACCESS
+    def updateIllegalState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on ILLEGAL_ACCESS."""
+        if not data:
+            data = self._accFunPreCompute(f, acc)
+        self.addToCache(self.illegalCache, data, acc.actor)
 
-    def updateDesignationState(self, f: File, acc: FileAccess):
-        """Add the file's folder to the correct folder cache."""
-        folder = f.getParentName()
-        self.addToCache(self.designatedFoldersCache, folder, acc.actor)
-
-    def updateIllegalState(self, f: File, acc: FileAccess):
-        """Add the file's folder to the correct folder cache."""
-        folder = f.getParentName()
-        self.addToCache(self.illegalFoldersCache, folder, acc.actor)
-
-    def addToCache(self, cache: dict, folder: str, app: Application):
-        """Record that a folder has been previously accessed by an app."""
-        if not folder:
+    def addToCache(self, cache: dict, data: str, app: Application):
+        """Record that data has been previously accessed by an app."""
+        if not data:
             return
-        s = cache.get(app.uid()) or set()
-        s.add(folder)
-        cache[app.uid()] = s
+        key = app.desktopid if self.appWideRecords() else app.uid()
+        s = cache.get(key) or set()
+        s.add(data)
+        cache[key] = s
 
-    def folderInCache(self, cache: dict, folder: str, app: Application):
-        """Tell if a folder has been previously accessed by an app."""
-        if not folder:
+    def dataInCache(self, cache: dict, data: str, app: Application):
+        """Tell if data has been previously accessed by an app."""
+        if not data:
             return False
-        s = cache.get(app.uid())
-        return folder in s if s else False
+        s = cache.get(app.desktopid if self.appWideRecords() else app.uid())
+        return data in s if s else False
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         folder = f.getParentName()
-        if self.folderInCache(self.designatedFoldersCache, folder, app):
+        if self.dataInCache(self.desigCache, folder, app):
             return (True, 0)
         else:
             return (False, 0)
@@ -282,80 +260,37 @@ class OneFolderPolicy(FolderPolicy):
                  name: str='OneFolderPolicy'):
         """Construct a OneFolderPolicy."""
         super(OneFolderPolicy, self).__init__(userConf, name)
-        self.designatedFoldersCache = dict()
-        self.illegalFoldersCache = dict()
+        self.desigCache = dict()
+        self.illegalCache = dict()
 
     def appHasFolderCached(self, app: Application):
         """Tell if a folder has been previously accessed by an app."""
-        s = self.designatedFoldersCache.get(app.uid())
+        s = self.desigCache.get(app.desktopid if self.appWideRecords() else
+                                app.uid())
         return s is not None
 
-    def accessFunc(self,
-                   engine: PolicyEngine,
-                   f: File,
-                   acc: FileAccess,
-                   composed: bool=False):
-        """Assess the usability score of a FileAccess."""
-        folder = f.getParentName()
+    def _accFunCondDesignation(self,
+                               f: File,
+                               acc: FileAccess,
+                               composed: bool,
+                               data):
+        """Calculate condition for DESIGNATION_ACCESS to be returned."""
+        return not self.appHasFolderCached(acc.actor) and \
+            (acc.evflags & EventFileFlags.designation)
 
-        if not composed:
-            # This time we only allow one any access at first, so we don't
-            # allow further accesses from other folders, even by designation.
-            if not self.appHasFolderCached(acc.actor) and \
-                    (acc.evflags & EventFileFlags.designation):
-                self.incrementScore('desigAccess', f, acc.actor)
-                # f.recordAccessCost(acc, DESIGNATION_ACCESS, appWide=True)
-                self.addToCache(self.designatedFoldersCache, folder, acc.actor)
-                return DESIGNATION_ACCESS
-
-            # Some files are allowed because they clearly belong to the app
-            ownedPaths = self.generateOwnedPaths(acc.actor)
-            for (path, evflags) in ownedPaths:
-                if path.match(f.getName()) and \
-                        acc.allowedByFlagFilter(evflags, f):
-                    self.incrementScore('ownedPathAccess', f, acc.actor)
-                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS, appWide=True)
-                    return OWNED_PATH_ACCESS
-
-        # Files in the same folder as a designated file are allowed.
-        if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
-            if not composed:
-                self.incrementScore('policyAccess', f, acc.actor)
-                # f.recordAccessCost(acc, POLICY_ACCESS, appWide=True)
-            return POLICY_ACCESS
-
-        if not composed:
-            # We could not justify the access, increase the usabiltiy cost.
-            self.incrementScore('illegalAccess', f, acc.actor)
-
-            # If a prior interruption granted access, don't overcount.
-            self.incrementScore('cumulGrantingCost', f, acc.actor)
-            if (not self.folderInCache(self.illegalFoldersCache, folder,
-                                       acc.actor) and not
-                    f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS, appWide=True)):
-                self.incrementScore('grantingCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS, appWide=True):
-            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS, appWide=True):
-            #     self.incrementScore('grantingDesigCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS, appWide=True):
-            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
-            f.recordAccessCost(acc, ILLEGAL_ACCESS, appWide=True)
-            self.addToCache(self.illegalFoldersCache, folder, acc.actor)
-        return ILLEGAL_ACCESS
-
-    def updateDesignationState(self, f: File, acc: FileAccess):
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Add the file's folder to the correct folder cache."""
         if not self.appHasFolderCached(acc.actor):
-            folder = f.getParentName()
-            self.addToCache(self.designatedFoldersCache, folder, acc.actor)
+            if not data:
+                data = self._accFunPreCompute(f, acc)
+            self.addToCache(self.desigCache, data, acc.actor)
 
     def appsHaveMemory(self):
         """Return True if Application have a memory across instances."""
         return False
 
 
-class FutureAccessListPolicy(Policy):
+class FutureAccessListPolicy(FolderPolicy):
     """Policy where files can be accessed by future instances indefinitely."""
 
     def __init__(self,
@@ -363,81 +298,12 @@ class FutureAccessListPolicy(Policy):
                  name: str='FutureAccessListPolicy'):
         """Construct a FutureAccessListPolicy."""
         super(FutureAccessListPolicy, self).__init__(userConf, name)
-        self.list = dict()
 
-    def accessFunc(self,
-                   engine: 'PolicyEngine',
-                   f: File,
-                   acc: FileAccess,
-                   composed: bool=False):
-        """Assess the usability score of a FileAccess."""
-        # Designation accesses are considered cost-free.
-        if not composed:
-            if acc.evflags & EventFileFlags.designation:
-                self.incrementScore('desigAccess', f, acc.actor)
-                # f.recordAccessCost(acc, DESIGNATION_ACCESS,
-                #                    appWide=self.appWideRecords())
-                self.addToList(f, acc.actor)
-                return DESIGNATION_ACCESS
-
-            # Some files are allowed because they clearly belong to the app
-            ownedPaths = self.generateOwnedPaths(acc.actor)
-            for (path, evflags) in ownedPaths:
-                if path.match(f.getName()) and \
-                        acc.allowedByFlagFilter(evflags, f):
-                    self.incrementScore('ownedPathAccess', f, acc.actor)
-                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS,
-                    #                    appWide=self.appWideRecords())
-                    return OWNED_PATH_ACCESS
-
-        # Check for legality coming from the acting app's policy.
-        (allowed, __) = self.allowedByPolicy(f, acc.actor)
-        if allowed:
-            if not composed:
-                self.incrementScore('policyAccess', f, acc.actor)
-                # f.recordAccessCost(acc, POLICY_ACCESS,
-                #                    appWide=self.appWideRecords())
-            return POLICY_ACCESS
-
-        if not composed:
-            # We could not justify the access, increase the usabiltiy cost.
-            self.incrementScore('illegalAccess', f, acc.actor)
-
-            # If a prior interruption granted access, don't overcount.
-            self.incrementScore('cumulGrantingCost', f, acc.actor)
-            if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
-                                          appWide=self.appWideRecords()):
-                self.incrementScore('grantingCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingDesigCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
-            #                           appWide=self.appWideRecords()):
-                # self.incrementScore('grantingPolicyCost', f, acc.actor)
-            f.recordAccessCost(acc, ILLEGAL_ACCESS,
-                               appWide=self.appWideRecords())
-        return ILLEGAL_ACCESS
-
-    def updateDesignationState(self, f: File, acc: FileAccess):
-        """Add the file to the list of seen files."""
-        self.addToList(f, acc.actor)
-
-    def updateAllowedState(self, f: File, acc: FileAccess):
-        """Add the file to the list of seen files."""
-        self.addToList(f, acc.actor)
-
-    def addToList(self, f: File, app: Application):
-        """Add a File to this policy's future access list."""
-        l = self.list.get(app.desktopid) or list()
-        l.append(f)
-        self.list[app.desktopid] = l
-
-    def fileInlist(self, f: File, app: Application):
-        """Tell if a File is in this policy's future access list."""
-        return f in (self.list.get(app.desktopid) or list())
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        return f.inode
 
     def appWideRecords(self):
         """Return True if access records are across instances, False else."""
@@ -445,7 +311,7 @@ class FutureAccessListPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        if self.fileInlist(f, app):
+        if self.dataInCache(self.desigCache, f.inode, app):
             return (True, 0)
         else:
             return (False, 0)
@@ -633,69 +499,91 @@ class StickyBitPolicy(Policy):
                  name: str='StickyBitPolicy'):
         """Construct a StickyBitPolicy."""
         super(StickyBitPolicy, self).__init__(userConf, name)
-        self.created = set()
-        self.folders = folders
 
-    def accessFunc(self,
-                   engine: PolicyEngine,
-                   f: File,
-                   acc: FileAccess,
-                   composed: bool=False):
-        """Assess the usability score of a FileAccess."""
+        self.created = dict()
+        self.folders = list()
+
+        home = userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
+        desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        user = userConf.getSetting("Username") or "user"
+        host = userConf.getSetting("Hostname") or "localhost"
+
+        for f in folders:
+            f = f.replace('@XDG_DESKTOP_DIR@', desk)
+            f = f.replace('@USER@', user)
+            f = f.replace('@HOSTNAME@', host)
+            f = f.replace('~', home)
+            self.folders.append(f)
+
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        # Verify if the file was in one of the authorised folders.
+        # Then, check if it was created, now, or previously.
+        fileJustCreated = acc.isFileCreation() and self.inRightFolder(f)
+        fileAmongCreated = fileJustCreated or self.wasCreatedBy(f, acc.actor)
+
+        return (fileJustCreated, fileAmongCreated)
+
+    def _accFunCondPolicy(self,
+                          f: File,
+                          acc: FileAccess,
+                          composed: bool,
+                          data):
+        """Calculate condition for POLICY_ACCESS to be returned."""
+        return data[1]
+
+    def inRightFolder(self, f: File):
+        """Check if the file is contained in one of the authorised folders."""
         folder = f.getParentName()
-        # TODO check if file creation
-        # TODO check if folder in self.folders
+        for allowedFolder in self.folders:
+            if folder.startswith(allowedFolder):
+                return True
+        return False
 
-        if not composed:
-            # TODO if so, add to self.created
+    def addCreatedFile(self, f: File, app: Application):
+        """Record that a file was created by an app."""
+        s = self.created.get(app.uid()) or set()
+        s.add(f)
+        self.created[app.uid()] = s
 
-        # if so, return POLICY_ACCESS
-        super(StickyBitPolicy, self).accessFunc(engine, f, acc, composed)
+    def wasCreatedBy(self, f: File, app: Application):
+        """Return True of :app: is known to have created :f:, else False."""
+        return f in (self.created.get(app.uid()) or set())
 
-        if not composed:
-            # Designation accesses are considered cost-free.
-            if acc.evflags & EventFileFlags.designation:
-                self.incrementScore('desigAccess', f, acc.actor)
-                # f.recordAccessCost(acc, DESIGNATION_ACCESS)
-                self.addToCache(self.designatedFoldersCache, folder, acc.actor)
-                return DESIGNATION_ACCESS
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on DESIGNATION_ACCESS."""
+        if (data or self._accFunPreCompute(f, acc))[0]:
+            self.addCreatedFile(f, acc.actor)
 
-            # Some files are allowed because they clearly belong to the app
-            ownedPaths = self.generateOwnedPaths(acc.actor)
-            for (path, evflags) in ownedPaths:
-                if path.match(f.getName()) and \
-                        acc.allowedByFlagFilter(evflags, f):
-                    self.incrementScore('ownedPathAccess', f, acc.actor)
-                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS)
-                    return OWNED_PATH_ACCESS
-
-        # Files in the same folder as a designated file are allowed.
-        if self.folderInCache(self.designatedFoldersCache, folder, acc.actor):
-            if not composed:
-                self.incrementScore('policyAccess', f, acc.actor)
-                # f.recordAccessCost(acc, POLICY_ACCESS)
-            return POLICY_ACCESS
-
-        if not composed:
-            # We could not justify the access, increase the usabiltiy cost.
-            self.incrementScore('illegalAccess', f, acc.actor)
-
-            # If a prior interruption granted access, don't overcount.
-            self.incrementScore('cumulGrantingCost', f, acc.actor)
-            if (not self.folderInCache(self.illegalFoldersCache, folder,
-                    acc.actor)
-                    and not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS)):
-                self.incrementScore('grantingCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS):
-            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS):
-            #     self.incrementScore('grantingDesigCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS):
-            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
-            f.recordAccessCost(acc, ILLEGAL_ACCESS)
-            self.addToCache(self.illegalFoldersCache, folder, acc.actor)
-        return ILLEGAL_ACCESS
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on POLICY_ACCESS."""
+        self.updateDesignationState(f, acc, data)
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        return (f in self.created, 0)
+        return (self.wasCreatedBy(f, app), 0)
+
+
+class FilenamePolicy(FolderPolicy):
+    """Policy where files with the same filename can be accessed."""
+
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 name: str='FilenamePolicy'):
+        """Construct a FilenamePolicy."""
+        super(FilenamePolicy, self).__init__(userConf, name)
+
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        return f.getNameWithoutExtension()
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        if self.dataInCache(self.desigCache, f.getNameWithoutExtension(), app):
+            return (True, 0)
+        else:
+            return (False, 0)

@@ -31,9 +31,6 @@ class PolicyScores(object):
 
         # Interruptions to an interaction (security confirmation dialogs)
         self.grantingCost = 0   # Cost of granting access to a file on the spot
-        # self.grantingOwnedCost = 0   # For debug: past owned files now illegal
-        # self.grantingDesigCost = 0   # For debug: past desig files now illegal
-        # self.grantingPolicyCost = 0   # For debug: past pol files now illegal
         self.cumulGrantingCost = 0  # Cumulative number of illegal accesses
         self.splittingCost = 0  # Cost of splitting a process into 2 instances
 
@@ -324,7 +321,7 @@ class Policy(object):
         # Security score for each application individually
         print("Calculating security over-entitlements for all apps...")
 
-        totalDists = list()
+        totalDists = []
         totalCount = 0
 
         appStore = ApplicationStore.get()
@@ -347,13 +344,14 @@ class Policy(object):
                     count += 1
                     dists += [r]
 
-            props = list(d[0] / d[1] for d in dists)
+            props = list((d[0] / d[1] if d[1] else 0) for d in dists)
             minOE = min(props)
             maxOE = max(props)
             avgOE = sum(props) / count
             medOE = statistics.median(props)
             totalDists += dists
             totalCount += count
+            print("f", count, totalCount)
 
             extraText = "\nAPP INSTANCE STATS SORTED BY UID\n" \
                         "Distribution of over-entitlements: %s\n" \
@@ -374,15 +372,20 @@ class Policy(object):
 
         # Security - general score
         print("\nSECURITY OVERENTITLEMENT OVERALL SCORE")
-        props = list(d[0] / d[1] for d in totalDists)
-        minOE = min(props)
-        maxOE = max(props)
-        avgOE = sum(totalDists) / totalCount
-        medOE = statistics.median(props)
-        extraText = "Min: %f\n" \
-                    "Max: %f\n" \
-                    "Average: %f\n" \
-                    "Median: %f\n" % (minOE, maxOE, avgOE, medOE)
+        props = list((d[0] / d[1] if d[1] else 0) for d in totalDists)
+        if props:
+            minOE = min(props)
+            maxOE = max(props)
+            avgOE = sum(props) / totalCount
+            medOE = statistics.median(props)
+            extraText = "Min: %f\n" \
+                        "Max: %f\n" \
+                        "Average: %f\n" \
+                        "Median: %f\n" % (minOE, maxOE, avgOE, medOE)
+        else:
+            extraText = "No over-entitlements statistics are available for " \
+                        "policies where all non-designation accesses were " \
+                        "denied."
 
         self.ss.printScores(outputDir=scoreDir,
                             filename="general.securityscore",
@@ -578,18 +581,51 @@ class Policy(object):
 
         return self.appPathCache[actor]
 
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        return None
+
+    def _accFunCondDesignation(self,
+                               f: File,
+                               acc: FileAccess,
+                               composed: bool,
+                               data):
+        """Calculate condition for DESIGNATION_ACCESS to be returned."""
+        return acc.evflags & EventFileFlags.designation
+
+    def _accFunCondPolicy(self,
+                          f: File,
+                          acc: FileAccess,
+                          composed: bool,
+                          data):
+        """Calculate condition for POLICY_ACCESS to be returned."""
+        (allowed, __) = self.allowedByPolicy(f, acc.actor)
+        return allowed
+
+    def _accFunSimilarAccessCond(self,
+                                 f: File,
+                                 acc: FileAccess,
+                                 composed: bool,
+                                 data):
+        """Calculate condition for grantingCost to be incremented."""
+        return not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
+                                          appWide=self.appWideRecords())
+
     def accessFunc(self,
                    engine: 'PolicyEngine',
                    f: File,
                    acc: FileAccess,
                    composed: bool=False):
         """Assess the usability score of a FileAccess."""
+        data = self._accFunPreCompute(f, acc)
+
         if not composed:
             # Designation accesses are considered cost-free.
-            if acc.evflags & EventFileFlags.designation:
+            if self._accFunCondDesignation(f, acc, composed, data):
                 self.incrementScore('desigAccess', f, acc.actor)
-                # f.recordAccessCost(acc, DESIGNATION_ACCESS,
-                #                    appWide=self.appWideRecords())
+                self.updateDesignationState(f, acc, data)
                 return DESIGNATION_ACCESS
 
             # Some files are allowed because they clearly belong to the app
@@ -598,17 +634,13 @@ class Policy(object):
                 if path.match(f.getName()) and \
                         acc.allowedByFlagFilter(evflags, f):
                     self.incrementScore('ownedPathAccess', f, acc.actor)
-                    # f.recordAccessCost(acc, OWNED_PATH_ACCESS,
-                    #                    appWide=self.appWideRecords())
                     return OWNED_PATH_ACCESS
 
         # Check for legality coming from the acting app's policy.
-        (allowed, __) = self.allowedByPolicy(f, acc.actor)
-        if allowed:
+        if self._accFunCondPolicy(f, acc, composed, data):
             if not composed:
                 self.incrementScore('policyAccess', f, acc.actor)
-                # f.recordAccessCost(acc, POLICY_ACCESS,
-                #                    appWide=self.appWideRecords())
+                self.updateAllowedState(f, acc, data)
             return POLICY_ACCESS
 
         if not composed:
@@ -617,35 +649,26 @@ class Policy(object):
 
             # If a prior interruption granted access, don't overcount.
             self.incrementScore('cumulGrantingCost', f, acc.actor)
-            if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
-                                          appWide=self.appWideRecords()):
+            if self._accFunSimilarAccessCond(f, acc, composed, data):
                 self.incrementScore('grantingCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingDesigCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingPolicyCost', f, acc.actor)
             f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                appWide=self.appWideRecords())
+            self.updateIllegalState(f, acc, data)
         return ILLEGAL_ACCESS
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         raise NotImplementedError
 
-    def updateDesignationState(self, f: File, acc: FileAccess):
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on DESIGNATION_ACCESS."""
         pass
 
-    def updateAllowedState(self, f: File, acc: FileAccess):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on POLICY_ACCESS."""
         pass
 
-    def updateIllegalState(self, f: File, acc: FileAccess):
+    def updateIllegalState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on ILLEGAL_ACCESS."""
         pass
 

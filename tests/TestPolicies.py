@@ -10,7 +10,8 @@ from FileFactory import FileFactory
 from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FileTypePolicy, FolderPolicy, OneFolderPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
-                     StrictCompositionalPolicy
+                     StrictCompositionalPolicy, StickyBitPolicy, \
+                     FilenamePolicy
 
 
 class TestOneLibraryPolicy(unittest.TestCase):
@@ -134,8 +135,8 @@ class TestPolicies(unittest.TestCase):
         e003b.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e003b)
 
-        self.p004 = "/home/user/Downloads/logo2.png"
-        s004 = "open64|%s|fd 10: with flag 524288, e0|" % self.p004
+        self.p004 = "/home/user/Downloads/logo.png"
+        s004 = "open64|%s|fd 10: with flag 64, e0|" % self.p004
         e004 = Event(actor=self.a1, time=14, syscallStr=s004)
         e004.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e004)
@@ -159,7 +160,7 @@ class TestPolicies(unittest.TestCase):
         self.eventStore.append(e007)
 
         self.p008 = "/home/user/Images/other.foo"
-        s008 = "open64|%s|fd 10: with flag 524288, e0|" % self.p008
+        s008 = "open64|%s|fd 10: with flag 64, e0|" % self.p008
         e008 = Event(actor=self.a1, time=18, syscallStr=s008)
         e008.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e008)
@@ -682,6 +683,123 @@ class TestPolicies(unittest.TestCase):
         accs = f003b.getAccesses()
         pol.accessFunc(None, f003b, accs[1])
         self.policy += 1
+        self._assert(pol)
+
+    def test_sticky_bit(self):
+        pol = StickyBitPolicy(userConf=self.userConf,
+                              folders=["/tmp",
+                                       "~/Desktop",
+                                       "~/Downloads"])
+
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, accs[0])
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        pol.accessFunc(None, f003b, accs[1])
+        self.illegal += 1
+        self._assert(pol)
+
+    def test_filename(self):
+        pol = FilenamePolicy(userConf=self.userConf)
+
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, accs[0])
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self.desig += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self.illegal += 1
+        self._assert(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        pol.accessFunc(None, f003b, accs[1])
+        self.illegal += 1
         self._assert(pol)
 
     def tearDown(self):
