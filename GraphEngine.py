@@ -7,7 +7,6 @@ from ApplicationStore import ApplicationStore
 from FileStore import FileStore
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import Policy
-from utils import outputFsEnabled
 import itertools
 
 # TODO policy allowed filter
