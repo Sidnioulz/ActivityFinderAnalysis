@@ -35,14 +35,14 @@ def main(argv):
     # Parse command-line parameters
     try:
         (opts, args) = getopt.getopt(argv, "hcdf:srpgi:", ["help",
-                                                          "check-missing",
-                                                          "debug",
-                                                          "inode",
-                                                          "related-files",
-                                                          "output-fs=",
-                                                          "score",
-                                                          "print-clusters",
-                                                          "graph-clusters"])
+                                                           "check-missing",
+                                                           "debug",
+                                                           "inode",
+                                                           "related-files",
+                                                           "output-fs=",
+                                                           "score",
+                                                           "print-clusters",
+                                                           "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
