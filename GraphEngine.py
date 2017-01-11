@@ -5,12 +5,10 @@ from File import File, FileAccess
 from Application import Application
 from ApplicationStore import ApplicationStore
 from FileStore import FileStore
+from FileFactory import FileFactory
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import Policy
 import itertools
-
-# TODO policy allowed filter
-# TODO use appsHaveMemory for instance links
 
 
 class CommonGraph(object):
@@ -120,14 +118,15 @@ class CommonGraph(object):
 
         # Plot the base graph.
         try:
-
             if output:
                 path = self.outputDir + "/" + output + ".graph.svg"
                 plot(self.g, path, **vs)
             else:
                 plot(self.g, **vs)
         except(OSError) as e:
-            print(self.outputDir + "/" + output + ".graph.svg")
+            print("Error while plotting to %s: %s " % (
+                  self.outputDir + "/" + output + ".graph.svg",
+                  e))
 
         # Detect communities in the graph.
         comm = self.g.community_fastgreedy(weights=self.g.es["weight"])
@@ -159,11 +158,16 @@ class CommonGraph(object):
 
         vs["vertex_label"] = minimal_labels
 
-        if output:
-            path = self.outputDir + "/" + output + ".clusters.svg"
-            plot(clusters, path, **vs)
-        else:
-            plot(clusters, **vs)
+        try:
+            if output:
+                path = self.outputDir + "/" + output + ".clusters.svg"
+                plot(clusters, path, **vs)
+            else:
+                plot(clusters, **vs)
+        except(OSError) as e:
+            print("Error while plotting to %s: %s " % (
+                  self.outputDir + "/" + output + ".graph.svg",
+                  e))
 
 
 class AccessGraph(CommonGraph):
