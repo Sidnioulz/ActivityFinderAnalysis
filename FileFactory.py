@@ -30,6 +30,18 @@ class FileFactory(object):
             raise ValueError("A FileFactory must have a valid FileStore.")
         self.fileStore = fileStore
         self.appStore = appStore
+        self._fileList = list()   # type: list
+
+    def getFileLinks(self, reset: bool=False):
+        """Return a list of all file pairs that are linked to one another."""
+        if not self._fileList or reset:
+            self._fileList = dict()
+            for file in self.fileStore:
+                pred = file.getPredecessor()
+                if pred:
+                    self._fileList[pred] = file.inode
+
+        return self._fileList
 
     def __getFile(self, name: str, time: int, ftype: str=''):
         """Internal implementation of getFile()."""
