@@ -566,6 +566,45 @@ class StickyBitPolicy(Policy):
         return (self.wasCreatedBy(f, app), 0)
 
 
+class ProtectedFolderPolicy(Policy):
+    """Policy where accesses in some folders are forbidden."""
+
+    def __init__(self,
+                 userConf: UserConfigLoader,
+                 folders: list=["~/Protected", "~/.ssh", "~/.pki"],
+                 name: str='ProtectedFolderPolicy'):
+        """Construct a ProtectedFolderPolicy."""
+        super(ProtectedFolderPolicy, self).__init__(userConf, name)
+
+        self.folders = list()
+
+        home = userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
+        desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        user = userConf.getSetting("Username") or "user"
+        host = userConf.getSetting("Hostname") or "localhost"
+
+        for f in folders:
+            f = f.replace('@XDG_DESKTOP_DIR@', desk)
+            f = f.replace('@USER@', user)
+            f = f.replace('@HOSTNAME@', host)
+            f = f.replace('~', home)
+            self.folders.append(f)
+
+    def inForbiddenFolder(self, f: File):
+        """Return True if :f: is in a folder forbidden for this policy."""
+        # Verify if the file was in one of the forbidden folders.
+        # Then, check if it was created, now, or previously.
+        folder = f.getParentName()
+        for forbiddenFolder in self.folders:
+            if folder.startswith(forbiddenFolder):
+                return True
+        return False
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        return (not self.inForbiddenFolder(f), 0)
+
+
 class FilenamePolicy(FolderPolicy):
     """Policy where files with the same filename can be accessed."""
 
