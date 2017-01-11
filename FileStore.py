@@ -36,11 +36,6 @@ class FileStore(object):
         self.nameStore = dict()   # type: dict
         self.inodeStore = dict()  # type: dict
 
-    def guessFileTypes(self):
-        """Guess file types for files without a type, using their extension."""
-        # TODO
-        pass
-
     def getChildren(self, f: File, time: int):
         parent = f.getName() + '/'
         children = []
