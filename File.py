@@ -249,6 +249,16 @@ class File(object):
         """Return the path of the file."""
         return self.path
 
+    def getNameWithoutExtension(self):
+        """Return the path of the file without its ending extension."""
+        dot = self.path.rfind(".")
+        slash = self.path.rfind("/")
+
+        if dot <= slash+1:
+            return self.path
+        else:
+            return self.path[:dot]
+
     def getFileName(self, folderEnd: bool=False):
         """Return the file name (last end of the path) of the file."""
         lastDir = self.path.rfind('/')
