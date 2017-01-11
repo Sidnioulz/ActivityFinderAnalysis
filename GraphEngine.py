@@ -48,6 +48,7 @@ class CommonGraph(object):
         """Populate the AccessGraph, filtering it based on a Policy."""
         appStore = ApplicationStore.get()
         fileStore = FileStore.get()
+        fileFactory = FileFactory.get()
 
         # Add all user apps.
         for app in appStore:
@@ -78,6 +79,17 @@ class CommonGraph(object):
                 for acc in f.getAccesses():
                     if _allowed(policy, f, acc):
                         self._addAccess(f, acc)
+
+        links = fileFactory.getFileLinks()
+        for (pred, follow) in links.items():
+            source = str(pred)
+            dest = str(follow)
+            if source in self.vertices and dest in self.vertices:
+                print("Info: adding link from File %s to File %s in graph "
+                      "as there is a file move/copy event between those." % (
+                       source, dest))
+                self.edges.add((source, dest))
+                self.weights[(source, dest)] = 9999
 
         self._construct()
 
