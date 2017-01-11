@@ -48,10 +48,12 @@ class FileFactory(object):
             # We must make our own file, which pre-existed. Note that since
             # events are sorted, this should never happen.
             if time < tstart:
-                print("Warning: an Event referenced a file that existed before"
-                      " the first file on the heap for name '%s'. This should "
-                      "not happen because Events are supposedly sorted prior "
-                      "to being simulated." % name, file=sys.stderr)
+                print("Warning: the File Factory was asked to provide File "
+                      "'%s' at time '%d', but no such file existed until time "
+                      "'%d'. This should not happen because Events are "
+                      "supposedly sorted prior to being simulated." % (
+                       name, time, tstart),
+                      file=sys.stderr)
                 f = File(path=name, tstart=prevTend, tend=tstart, ftype=ftype)
                 f.setGuessFlags(True, True)
                 self.fileStore.addFile(f)
