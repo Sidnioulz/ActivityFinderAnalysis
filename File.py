@@ -134,7 +134,7 @@ class FileCopy(object):
     copytype = None
 
     def __init__(self,
-                 path: str,
+                 inode: int,
                  time: int,
                  copytype: str):
         """Construct a FileCopy, with a type ('move', 'copy', 'link').
@@ -142,7 +142,7 @@ class FileCopy(object):
         Valid types are 'move', 'copy', 'link' and 'symlink'.
         """
         super(FileCopy, self).__init__()
-        self.path = path
+        self.inode = inode
         self.time = time
         self.copytype = copytype
 
@@ -296,11 +296,11 @@ class File(object):
         """Return the next names of the file, if any."""
         return self.follow
 
-    def setPredecessor(self, name: str, time: int, copytype: str):
-        self.pred = FileCopy(name, time, copytype)
+    def setPredecessor(self, inode: int, time: int, copytype: str):
+        self.pred = FileCopy(inode, time, copytype)
 
-    def addFollower(self, name: str, time: int, copytype: str):
-        copy = FileCopy(name, time, copytype)
+    def addFollower(self, inode: int, time: int, copytype: str):
+        copy = FileCopy(inode, time, copytype)
         self.follow.append(copy)
 
     def clearFollowers(self):

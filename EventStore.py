@@ -296,8 +296,8 @@ class EventStore(object):
             # Update the files' links
             ctype = 'copy' if keepOld else 'move'
             oldFile = fileFactory.getFile(old.getName(), event.getTime())
-            oldFile.addFollower(newFile.getName(), event.getTime(), ctype)
-            newFile.setPredecessor(oldFile.getName(), event.getTime(), ctype)
+            oldFile.addFollower(newFile.inode, event.getTime(), ctype)
+            newFile.setPredecessor(oldFile.inode, event.getTime(), ctype)
             fileStore.updateFile(oldFile)
             fileStore.updateFile(newFile)
 
