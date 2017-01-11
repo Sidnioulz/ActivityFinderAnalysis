@@ -2,7 +2,7 @@
 
 from File import File, FileAccess, EventFileFlags
 from Application import Application
-from PolicyEngine import Policy, PolicyEngine
+from PolicyEngine import Policy
 from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
                       OWNED_PATH_ACCESS
