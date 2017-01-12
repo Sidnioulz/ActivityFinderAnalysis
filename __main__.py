@@ -11,7 +11,8 @@ from PolicyEngine import PolicyEngine, Policy
 from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
-                     OneFolderPolicy, FutureAccessListPolicy
+                     OneFolderPolicy, FutureAccessListPolicy, \
+                     StickyBitPolicy, FilenamePolicy, ProtectedFolderPolicy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -185,7 +186,9 @@ def main(argv):
 
         g = AccessGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        g.plot(output=pol.name+"-graph-accesses" if pol else "graph-accesses")
+        output = pol.name+"-graph-accesses" if pol else "graph-accesses"
+        g.plot(output=output)
+        g.modeliseOptimisation(output=output, quiet=quiet)
         if not quiet:
             print("Done.")
 
@@ -193,8 +196,9 @@ def main(argv):
             print("\nCompiling the general Activity Graph...")
         g = ActivityGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        g.plot(output=pol.name+"-graph-activities" if pol else
-               "graph-activities")
+        output = pol.name+"-graph-activities" if pol else "graph-activities"
+        g.plot(output=output)
+        g.modeliseOptimisation(output=output, quiet=quiet)
         if not quiet:
             print("Done.")
 
@@ -202,8 +206,9 @@ def main(argv):
             print("\nCompiling the general Instance Graph...")
         g = InstanceGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        g.plot(output=pol.name+"-graph-instances" if pol else
-               "graph-instances")
+        output = pol.name+"-graph-instances" if pol else "graph-instances"
+        g.plot(output=output)
+        g.modeliseOptimisation(output=output, quiet=quiet)
         if not quiet:
             print("Done.")
 
@@ -214,13 +219,21 @@ def main(argv):
     if scoreEnabled():
         engine = PolicyEngine()
 
-        policies = [UnsecurePolicy, DesignationPolicy, FolderPolicy,
-                    OneFolderPolicy, OneLibraryPolicy, CompoundLibraryPolicy,
-                    FutureAccessListPolicy, FileTypePolicy]
-        # policies = [FutureAccessListPolicy, FolderPolicy]  # FIXME debug
+        policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
+                    DesignationPolicy, FileTypePolicy, FolderPolicy,
+                    OneFolderPolicy, FutureAccessListPolicy, StickyBitPolicy,
+                    FilenamePolicy, ProtectedFolderPolicy]
 
-        for polName in policies:
-            pol = polName(userConf=userConf)
+        polArgs = [None, None, None,
+                   None, None, None,
+                   None, None, dict(folders=["~/Downloads", "/tmp"]),
+                   None, dict(folders=["~/Private", "~/.ssh", "~/.pki"])]
+
+        for (polIdx, polName) in enumerate(policies):
+            if polArgs[polIdx]:
+                pol = polName(userConf=userConf, **polArgs[polIdx])
+            else:
+                pol = polName(userConf=userConf)
 
             print("\nRunning %s..." % pol.name)
             engine.runPolicy(pol,
