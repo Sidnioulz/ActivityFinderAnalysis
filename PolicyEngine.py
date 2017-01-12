@@ -351,7 +351,6 @@ class Policy(object):
             medOE = statistics.median(props)
             totalDists += dists
             totalCount += count
-            print("f", count, totalCount)
 
             extraText = "\nAPP INSTANCE STATS SORTED BY UID\n" \
                         "Distribution of over-entitlements: %s\n" \
