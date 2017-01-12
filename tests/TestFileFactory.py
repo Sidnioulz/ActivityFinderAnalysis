@@ -60,6 +60,8 @@ class TestFileFactory(unittest.TestCase):
         f3 = self.factory.getFile(path, 0)
         self.assertEqual(f3.getTimeOfEnd(), 100)
 
+    # TODO test file links
+
     def tearDown(self):
         FileStore.reset()
         ApplicationStore.reset()
