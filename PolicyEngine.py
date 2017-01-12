@@ -999,6 +999,28 @@ class Policy(object):
         """Return True if Applications have a memory across instances."""
         return True
 
+    def globalConfigCost(self):
+        """Return True if the Policy has a global config cost for all apps."""
+        return False
+
+    def configCostCarryover(self):
+        """Apply the global config cost to all sub PolicyScores."""
+        """Increment a given score for the Policy, File and Application."""
+
+        gbScore = self.s.configCost
+
+        for (key, score) in self.perInstanceScores.items():
+            score.configCost = gbScore
+            self.perInstanceScores[key] = score
+
+        for (key, score) in self.perAppScores.items():
+            score.configCost = gbScore
+            self.perInstanceScores[key] = score
+
+        for (key, score) in self.perFileScores.items():
+            score.configCost = gbScore
+            self.perInstanceScores[key] = score
+
 
 class PolicyEngine(object):
     """An engine for running algorithms that implement a file AC policy."""
@@ -1038,6 +1060,10 @@ class PolicyEngine(object):
         for file in self.fileStore:
             file.clearAccessCosts()
         del accesses
+
+        # If there is a global config cost, ensure all sub-scores remember it.
+        if policy.globalConfigCost():
+            policy.configCostCarryover()
 
         # And security scores of each app
         policy.securityRun(self)

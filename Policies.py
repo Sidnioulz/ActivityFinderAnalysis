@@ -97,6 +97,10 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
         # Record the cost of configuring the policy
         self.incrementScore('configCost', None, None, increment=confCost)
 
+    def globalConfigCost(self):
+        """Return True if the Policy has a global config cost for all apps."""
+        return True
+
 
 class FileTypePolicy(Policy):
     """Policy where accesses are allowed by on files' file types."""
