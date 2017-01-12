@@ -9,6 +9,8 @@ from FileFactory import FileFactory
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import Policy
 import itertools
+import sys
+import os
 
 
 class CommonGraph(object):
@@ -22,6 +24,7 @@ class CommonGraph(object):
         """Construct a CommonGraph."""
         super(CommonGraph, self).__init__()
         self.g = None
+        self.clusters = None
         self.outputDir = outputDir or '/tmp/'
         self.printClusterInstances = False
 
@@ -110,6 +113,11 @@ class CommonGraph(object):
         self.g.vs["name"] = idgen.values()
         self.g.vs["type"] = list((self.vertices[n] for n in self.g.vs["name"]))
 
+    def computeClusters(self):
+        """Compute the clusters for this graph."""
+        comm = self.g.community_fastgreedy(weights=self.g.es["weight"])
+        self.clusters = comm.as_clustering()
+
     def plot(self, output: str=None):
         """Plot the graph and its communities, possibly to an output file."""
 
@@ -141,14 +149,13 @@ class CommonGraph(object):
                   e))
 
         # Detect communities in the graph.
-        comm = self.g.community_fastgreedy(weights=self.g.es["weight"])
-        clusters = comm.as_clustering()
+        self.computeClusters()
 
         # Plot the base graph with colours based on the communities.
-        vs["vertex_color"] = clusters.membership
+        vs["vertex_color"] = self.clusters.membership
         edge_widths = []
         for (s, d) in self.g.get_edgelist():
-            if clusters.membership[s] == clusters.membership[d]:
+            if self.clusters.membership[s] == self.clusters.membership[d]:
                 edge_widths.append(1)
             else:
                 edge_widths.append(3)
@@ -163,7 +170,8 @@ class CommonGraph(object):
                 continue
 
             for neighbour in self.g.neighbors(label):
-                if clusters.membership[neighbour] != clusters.membership[idx]:
+                if self.clusters.membership[neighbour] != \
+                        self.clusters.membership[idx]:
                     break
             else:
                 minimal_labels[idx] = None
@@ -173,13 +181,112 @@ class CommonGraph(object):
         try:
             if output:
                 path = self.outputDir + "/" + output + ".clusters.svg"
-                plot(clusters, path, **vs)
+                plot(self.clusters, path, **vs)
             else:
-                plot(clusters, **vs)
+                plot(self.clusters, **vs)
         except(OSError) as e:
             print("Error while plotting to %s: %s " % (
                   self.outputDir + "/" + output + ".graph.svg",
                   e))
+
+    def modeliseOptimisation(self, output: str=None, quiet: bool=False):
+        """Modelise how efficiently the community finding improved security."""
+        if not self.clusters:
+            raise ValueError("Clusters for this graph have not been "
+                             "computed yet.")
+
+        msg = ""
+
+        crossing = self.clusters.crossing()
+        grantingCost = 0
+        splittingCost = 0
+        for (index, x) in enumerate(crossing):
+            if not x:
+                continue
+
+            edge = self.g.es[index]
+            source = self.g.vs[edge.source]
+            target = self.g.vs[edge.target]
+            sourceType = source.attributes()['type']
+            targetType = target.attributes()['type']
+
+            # Case where a file-file node was removed. Should normally not
+            # happen so we will not write support for it yet.
+            if sourceType == "file":
+                print("Warning: file-file node removed by graph community "
+                      "finding algorithm. Not implemented yet.",
+                      file=sys.stderr)
+                raise NotImplementedError
+                # TODO: take the target file and strip it of all its accesses?
+            else:
+                if targetType == "file":
+                    grantingCost += 1
+                elif targetType == "app":
+                    splittingCost += 1
+
+        editCount = grantingCost+splittingCost
+        msg += ("%d edits performed: %d app splits and %d accesses "
+                "revoked.\n" % (
+                 editCount,
+                 splittingCost,
+                 grantingCost))
+
+        msg += ("\nGraph statistics prior to community finding:\n")
+        originalClusters = self.g.clusters()
+        sizes = sorted(list((len(x) for x in originalClusters)))
+        msg += ("* size distribution: %s\n" % sizes.__str__())
+        msg += ("* cluster count: %d\n" % len(sizes))
+        msg += ("* smallest cluster: %d\n" % min(sizes))
+        msg += ("* largest cluster: %d\n" % max(sizes))
+        avgPreSize = sum(sizes) / len(sizes)
+        msg += ("* average size: %f\n" % avgPreSize)
+        # preMod = self.g.modularity(membership=originalClusters)
+        # msg += ("* graph modularity: %f\n" % preMod)
+        preVertexSum = sum(sizes)
+        preReach = sum([i ** 2 for i in sizes]) / preVertexSum
+        msg += ("* average reachability: %f\n" % preReach)
+
+        msg += ("\nGraph statistics after community finding:\n")
+        sizes = sorted(list((len(x) for x in self.clusters)))
+        postVertexSum = sum(sizes)
+        msg += ("* size distribution: %s\n" % sizes.__str__())
+        msg += ("* cluster count: %d\n" % len(sizes))
+        msg += ("* smallest cluster: %d\n" % min(sizes))
+        msg += ("* largest cluster: %d\n" % max(sizes))
+        avgPostSize = sum(sizes) / len(sizes)
+        msg += ("* average size: %f\n" % avgPostSize)
+        # postMod = self.clusters.modularity
+        # msg += ("* graph modularity: %f\n" % self.clusters.modularity)
+        postVertexSum = sum(sizes)
+        postReach = sum([i ** 2 for i in sizes]) / postVertexSum
+        msg += ("* average reachability: %f\n" % postReach)
+
+        deltaSize = avgPostSize / avgPreSize
+        sizeEfficiency = deltaSize / editCount
+        msg += "\nEvolution of avg. cluster size: {:.2%}\n".format(deltaSize)
+        msg += "Efficiency of edits wrt. average size: %f\n" % sizeEfficiency
+
+        # deltaMod = postMod / preMod
+        # modEfficiency = deltaMod / editCount
+        # msg += "\nEvolution of modularity: {:.2%}\n".format(deltaMod)
+        # msg += "Efficiency of edits wrt. modularity: %f\n" % modEfficiency
+
+        deltaReach = postReach / preReach
+        reachEfficiency = deltaReach / editCount
+        msg += "\nEvolution of reachability: {:.2%}\n".format(deltaReach)
+        msg += "Efficiency of edits wrt. reachability: %f\n" % reachEfficiency
+
+        if not quiet:
+            print(msg)
+
+        if output:
+            path = self.outputDir + "/" + output + ".graphstats.txt"
+            os.makedirs(File.getParentNameFromName(path),
+                        exist_ok=True)
+            with open(path, "a") as f:
+                print(msg, file=f)
+
+        # TODO flatten up graphs into files only before calculating modularity?
 
 
 class AccessGraph(CommonGraph):
