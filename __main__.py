@@ -185,7 +185,7 @@ def main(argv):
 
         g = AccessGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        g.plot(output="graph-accesses")
+        g.plot(output=pol.name+"-graph-accesses" if pol else "graph-accesses")
         if not quiet:
             print("Done.")
 
@@ -193,7 +193,8 @@ def main(argv):
             print("\nCompiling the general Activity Graph...")
         g = ActivityGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        g.plot(output="graph-activities")
+        g.plot(output=pol.name+"-graph-activities" if pol else
+               "graph-activities")
         if not quiet:
             print("Done.")
 
@@ -201,7 +202,8 @@ def main(argv):
             print("\nCompiling the general Instance Graph...")
         g = InstanceGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        g.plot(output="graph-instances")
+        g.plot(output=pol.name+"-graph-instances" if pol else
+               "graph-instances")
         if not quiet:
             print("Done.")
 
