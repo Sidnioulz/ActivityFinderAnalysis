@@ -35,6 +35,41 @@ class PolicyScores(object):
         self.isolationCost = 0  # Cost of separating an instance from its state
         self.splittingCost = 0  # Cost of splitting a process into 2 instances
 
+        # Costs to reach optimal partitioning on information flow graph.
+        self.graphGrantingCost = 0
+        self.graphIsolationCost = 0
+        self.graphSplittingCost = 0
+
+        # For each app, we keep a record of how many files they have accessed
+        # compared to how many files they are allowed to access. This ratio
+        # allows us to compare the overentitlements between policies. The per-
+        # app ratio is relevant to overentitlement in general, the per-instance
+        # ratio is useful for discussing the potential immediate consequences
+        # of a benign app being exploited (notwithstanding app statefulness).
+        self.overEntitlements = [set(), set()]
+
+    def __eq__(self, other):
+        """Compare this PolicyScores to :other:."""
+        if not isinstance(other, self.__class__):
+            raise TypeError("Cannot increment a PolicyScores with something "
+                            "other than another PolicyScores.")
+
+        return \
+            self.desigAccess == other.desigAccess and \
+            self.ownedPathAccess == other.ownedPathAccess and \
+            self.policyAccess == other.policyAccess and \
+            self.illegalAccess == other.illegalAccess and \
+            self.configCost == other.configCost and \
+            self.grantingCost == other.grantingCost and \
+            self.cumulGrantingCost == other.cumulGrantingCost and \
+            self.isolationCost == other.isolationCost and \
+            self.splittingCost == other.splittingCost and \
+            self.graphGrantingCost == other.graphGrantingCost and \
+            self.graphIsolationCost == other.graphIsolationCost and \
+            self.graphSplittingCost == other.graphSplittingCost and \
+            self.overEntitlements[0] == other.overEntitlements[0] and \
+            self.overEntitlements[1] == other.overEntitlements[1]
+
     def __iadd__(self, other):
         """Add the scores from :other: to this PolicyScores."""
         if not isinstance(other, self.__class__):
@@ -50,74 +85,9 @@ class PolicyScores(object):
         self.cumulGrantingCost += other.cumulGrantingCost
         self.isolationCost += other.isolationCost
         self.splittingCost += other.splittingCost
-
-        return self
-
-    def printScores(self,
-                    outputDir: str=None,
-                    filename: str=None,
-                    quiet: bool=False):
-        """Print the access and cost scores of this PolicyScores."""
-
-        msg = ("Accesses:\n")
-        msg += ("\t* by designation: %d\n" % self.desigAccess)
-        msg += ("\t* file owned by app: %d\n" % self.ownedPathAccess)
-        msg += ("\t* policy-allowed: %d\n" % self.policyAccess)
-        msg += ("\t* illegal: %d\n" % self.illegalAccess)
-
-        msg += ("\nCosts:")
-        msg += ("\t* configuration: %d\n" % self.configCost)
-        msg += ("\t* granting: %d\n" % self.grantingCost)
-        # if debugEnabled():
-        #     msg += ("\t*TEST illegal w/ past owned path: %d\n" %
-        #             self.grantingOwnedCost)
-        #     msg += ("\t*TEST illegal w/ past designation: %d\n" %
-        #             self.grantingDesigCost)
-        #     msg += ("\t*TEST illegal w/ past policy-allowed: %d\n" %
-        #             self.grantingPolicyCost)
-        msg += ("\t* cumulative granting: %d\n" % self.cumulGrantingCost)
-        msg += ("\t* isolating apps: %d\n" % self.isolationCost)
-        msg += ("\t* splitting apps: %d\n" % self.splittingCost)
-
-        if not quiet:
-            print(msg)
-
-        if outputDir:
-            filename = outputDir + '/' + filename
-            os.makedirs(File.getParentNameFromName(filename),
-                        exist_ok=True)
-            with open(filename, "a") as f:
-                print(msg, file=f)
-
-
-class SecurityScores(object):
-    """Security scores for Policies."""
-
-    def __init__(self):
-        """Construct a SecurityScores."""
-        super(SecurityScores, self).__init__()
-        # For each app, we keep a record of how many files they have accessed
-        # compared to how many files they are allowed to access. This ratio
-        # allows us to compare the overentitlements between policies. The per-
-        # app ratio is relevant to overentitlement in general, the per-instance
-        # ratio is useful for discussing the potential immediate consequences
-        # of a benign app being exploited (notwithstanding app statefulness).
-        self.overEntitlements = [set(), set()]
-
-    def __eq__(self, other):
-        """Compare this SecurityScores to :other:."""
-        if not isinstance(other, self.__class__):
-            raise TypeError("Cannot increment a SecurityScores with something "
-                            "other than another SecurityScores.")
-
-        return self.overEntitlements[0] == other.overEntitlements[0] and \
-            self.overEntitlements[1] == other.overEntitlements[1]
-
-    def __iadd__(self, other):
-        """Add the scores from :other: to this SecurityScores."""
-        if not isinstance(other, self.__class__):
-            raise TypeError("Cannot increment a SecurityScores with something "
-                            "other than another SecurityScores.")
+        self.graphGrantingCost += other.graphGrantingCost
+        self.graphIsolationCost += other.graphIsolationCost
+        self.graphSplittingCost += other.graphSplittingCost
 
         self.overEntitlements[0] = \
             self.overEntitlements[0].union(list(other.overEntitlements[0]))
@@ -132,9 +102,27 @@ class SecurityScores(object):
                     userHome: str=None,
                     extraText: str=None,
                     quiet: bool=False):
-        """Print the security scores."""
+        """Print the access, cost and security scores of this PolicyScores."""
 
-        msg = ("Security over-entitlements:\n")
+        msg = ("Accesses:\n")
+        msg += ("\t* by designation: %d\n" % self.desigAccess)
+        msg += ("\t* file owned by app: %d\n" % self.ownedPathAccess)
+        msg += ("\t* policy-allowed: %d\n" % self.policyAccess)
+        msg += ("\t* illegal: %d\n" % self.illegalAccess)
+
+        msg += ("\nCosts:\n")
+        msg += ("\t* configuration: %d\n" % self.configCost)
+        msg += ("\t* granting: %d\n" % self.grantingCost)
+        msg += ("\t* cumulative granting: %d\n" % self.cumulGrantingCost)
+        msg += ("\t* isolating apps: %d\n" % self.isolationCost)
+        msg += ("\t* splitting apps: %d\n" % self.splittingCost)
+
+        msg += ("\nCosts to optimal graph configuration:\n")
+        msg += ("\t* g-granting: %d\n" % self.graphGrantingCost)
+        msg += ("\t* g-isolating apps: %d\n" % self.graphIsolationCost)
+        msg += ("\t* g-splitting apps: %d\n" % self.graphSplittingCost)
+
+        msg += ("\nSecurity over-entitlements:\n")
         msg += ("\t* %d files used / %d reachable\n" % (
                 (len(self.overEntitlements[0]),
                  len(self.overEntitlements[1]))))
@@ -185,7 +173,7 @@ class Policy(object):
 
     def clearScores(self):
         """Initialise scores to zero before processing FileAccesses."""
-        # Usability general score
+        # General score (usability, overEntitlements, access counts)
         self.s = PolicyScores()
 
         # Scores per Application instance, and per Application
@@ -195,10 +183,7 @@ class Policy(object):
         # Scores for each individual File
         self.perFileScores = dict()
 
-        # Security score, and security clusters
-        self.ss = SecurityScores()
-        self.perAppSecurityScores = dict()
-        self.perInstanceSecurityScores = dict()
+        # Security clusters
         self.clusters = None
         self.clustersInst = None
         self.accessLists = None
@@ -229,29 +214,62 @@ class Policy(object):
         else:
             scoreDir = None
 
-        print("\n#####################~  USABILITY  ~#####################")
-
-        # Score for each application individually
+        # Application scores.
+        totalOEDists = []
+        totalOECount = 0
         systemS = PolicyScores()
         desktopS = PolicyScores()
         userappS = PolicyScores()
         appStore = ApplicationStore.get()
+        userHome = self.userConf.getSetting("HomeDir")
         for desktopid in sorted(self.perAppScores.keys()):
-            score = self.perAppScores[desktopid]
-            # print("\n\nApp: %s" % desktopid)
-            score.printScores(outputDir=scoreDir,
-                              filename="App - %s.score" % desktopid,
-                              quiet=True)
+            dists = []
+            count = 0
 
             # Loop through application instances and print their scores.
             apps = appStore.lookupDesktopId(desktopid)
-            for app in apps:
-                iScore = self.perInstanceScores.get(app)
+            for app in sorted(apps, key=lambda a: a.uid()):
+                iScore = self.perInstanceScores.get(app.uid())
                 if iScore:
-                    iScore.printScores(outputDir=scoreDir,
-                                       filename="App - %s - Instance %s.score"
-                                       % (desktopid, app.uid()),
-                                       quiet=True)
+                    r = iScore.printScores(outputDir=scoreDir,
+                                           filename="App - %s - Instance %s."
+                                           "score" % (desktopid,
+                                                      app.uid()),
+                                           userHome=userHome,
+                                           quiet=True)
+
+                    count += 1
+                    dists += [r]
+
+            props = list((d[0] / d[1] if d[1] else 0) for d in dists)
+            if props:
+                minOE = min(props)
+                maxOE = max(props)
+                avgOE = sum(props) / count
+                medOE = statistics.median(props)
+                totalOEDists += dists
+                totalOECount += count
+
+                extraText = "\nAPP INSTANCE STATS SORTED BY UID\n" \
+                            "Distribution of over-entitlements: %s\n" \
+                            "Over-entitlement proportions: %s\n" \
+                            "Min: %f\n" \
+                            "Max: %f\n" \
+                            "Average: %f\n" \
+                            "Median: %f\n" % (
+                             str(dists), str(props), minOE, maxOE, avgOE,
+                             medOE)
+            else:
+                extraText = None
+                # TODO verify OE scores printed in the files overall
+
+            # And then save the app's score file with the extra statistics.
+            score = self.perAppScores[desktopid]
+            score.printScores(outputDir=scoreDir,
+                              filename="App - %s.score" % desktopid,
+                              userHome=userHome,
+                              extraText=extraText,
+                              quiet=True)
 
             # Identify if the application is of desktop/system/DE type.
             if apps:
@@ -262,20 +280,23 @@ class Policy(object):
                 elif apps[0].isUserlandApp():
                     userappS += score
 
-        # Score for each type of application
+        # Score for each type of application.
         print("-------------------")
         print("\nALL SYSTEM APPS")
         systemS.printScores(outputDir=scoreDir,
-                            filename="SystemApps.score")
+                            filename="SystemApps.score",
+                            userHome=userHome)
         print("\nALL DESKTOP APPS")
         desktopS.printScores(outputDir=scoreDir,
-                             filename="DesktopApps.score")
+                             filename="DesktopApps.score",
+                             userHome=userHome)
         print("\nALL USER APPS")
         userappS.printScores(outputDir=scoreDir,
-                             filename="UserlandApps.score")
+                             filename="UserlandApps.score",
+                             userHome=userHome)
         print("-------------------")
 
-        # File scores
+        # File scores.
         systemF = PolicyScores()
         userDocF = PolicyScores()
         userHome = self.userConf.getSetting("HomeDir")
@@ -296,6 +317,7 @@ class Policy(object):
                 # print("\n\nFile: %s:%s" % (last.inode, outfilename))
                 score.printScores(outputDir=outputDir,
                                   filename=outfilename,
+                                  userHome=userHome,
                                   quiet=True)
 
                 if last.isUserDocument(userHome, allowHiddenFiles=True):
@@ -304,78 +326,21 @@ class Policy(object):
                     systemF += score
         print("\nALL SYSTEM FILES")
         systemF.printScores(outputDir=scoreDir,
-                            filename="SystemFiles.score")
+                            filename="SystemFiles.score",
+                            userHome=userHome)
         print("\nALL USER DOCUMENTS")
         userDocF.printScores(outputDir=scoreDir,
-                             filename="UserDocFiles.score")
+                             filename="UserDocFiles.score",
+                             userHome=userHome)
         print("-------------------")
 
-        # General score
+        # General scores.
         print("\nGENERAL SCORES")
-        self.s.printScores(outputDir=scoreDir,
-                           filename="general.score")
-        print("-------------------")
-        print("\n\n\n")
-
-        print("\n#####################~  SECURITY  ~#####################")
-        # Security score for each application individually
-        print("Calculating security over-entitlements for all apps...")
-
-        totalDists = []
-        totalCount = 0
-
-        appStore = ApplicationStore.get()
-        for desktopid in sorted(self.perAppSecurityScores.keys()):
-            dists = []
-            count = 0
-
-            # Loop through application instances and print their scores.
-            apps = appStore.lookupDesktopId(desktopid)
-            for app in sorted(apps, key=lambda a: a.uid()):
-                iScore = self.perInstanceSecurityScores.get(app.uid())
-                if iScore:
-                    r = iScore.printScores(outputDir=scoreDir,
-                                           filename="App - %s - Instance %s.s"
-                                           "ecurityscore" % (desktopid,
-                                                             app.uid()),
-                                           userHome=userHome,
-                                           quiet=True)
-
-                    count += 1
-                    dists += [r]
-
-            props = list((d[0] / d[1] if d[1] else 0) for d in dists)
-            minOE = min(props)
-            maxOE = max(props)
-            avgOE = sum(props) / count
-            medOE = statistics.median(props)
-            totalDists += dists
-            totalCount += count
-
-            extraText = "\nAPP INSTANCE STATS SORTED BY UID\n" \
-                        "Distribution of over-entitlements: %s\n" \
-                        "Over-entitlement proportions: %s\n" \
-                        "Min: %f\n" \
-                        "Max: %f\n" \
-                        "Average: %f\n" \
-                        "Median: %f\n" % (
-                         str(dists), str(props), minOE, maxOE, avgOE, medOE)
-
-            # And then save the app's score file with the extra statistics.
-            score = self.perAppSecurityScores[desktopid]
-            score.printScores(outputDir=scoreDir,
-                              filename="App - %s.securityscore" % desktopid,
-                              userHome=userHome,
-                              extraText=extraText,
-                              quiet=True)
-
-        # Security - general score
-        print("\nSECURITY OVERENTITLEMENT OVERALL SCORE")
-        props = list((d[0] / d[1] if d[1] else 0) for d in totalDists)
+        props = list((d[0] / d[1] if d[1] else 0) for d in totalOEDists)
         if props:
             minOE = min(props)
             maxOE = max(props)
-            avgOE = sum(props) / totalCount
+            avgOE = sum(props) / totalOECount
             medOE = statistics.median(props)
             extraText = "Min: %f\n" \
                         "Max: %f\n" \
@@ -386,10 +351,10 @@ class Policy(object):
                         "policies where all non-designation accesses were " \
                         "denied."
 
-        self.ss.printScores(outputDir=scoreDir,
-                            filename="general.securityscore",
-                            userHome=userHome,
-                            extraText=extraText)
+        self.s.printScores(outputDir=scoreDir,
+                           filename="general.score",
+                           userHome=userHome,
+                           extraText=extraText)
         print("-------------------")
 
         print("\nINFORMATION FLOW CLUSTERS")
@@ -465,19 +430,19 @@ class Policy(object):
                                  "actor parameter.")
 
         # Global score
-        self.ss.overEntitlements[0 if accessed else 1].add(file)
+        self.s.overEntitlements[0 if accessed else 1].add(file)
 
         # Per instance score
-        iScore = self.perInstanceSecurityScores.get(actor.uid()) or \
-            SecurityScores()
+        iScore = self.perInstanceScores.get(actor.uid()) or \
+            PolicyScores()
         iScore.overEntitlements[0 if accessed else 1].add(file)
-        self.perInstanceSecurityScores[actor.uid()] = iScore
+        self.perInstanceScores[actor.uid()] = iScore
 
         # Per app score
-        aScore = self.perAppSecurityScores.get(actor.getDesktopId()) or \
-            SecurityScores()
+        aScore = self.perAppScores.get(actor.getDesktopId()) or \
+            PolicyScores()
         aScore.overEntitlements[0 if accessed else 1].add(file)
-        self.perAppSecurityScores[actor.getDesktopId()] = aScore
+        self.perAppScores[actor.getDesktopId()] = aScore
 
     def generateOwnedPaths(self, actor: Application):
         """Return the paths where an Application can fully write Files."""
@@ -1016,11 +981,11 @@ class Policy(object):
 
         for (key, score) in self.perAppScores.items():
             score.configCost = gbScore
-            self.perInstanceScores[key] = score
+            self.perAppScores[key] = score
 
         for (key, score) in self.perFileScores.items():
             score.configCost = gbScore
-            self.perInstanceScores[key] = score
+            self.perFileScores[key] = score
 
 
 class PolicyEngine(object):

@@ -243,10 +243,12 @@ class CommonGraph(object):
                           "finding algorithm. Not supported.",
                           file=sys.stderr)
                     raise NotImplementedError
+            elif targetType == "file":  # sourceType in "app", "appstate"
+                grantingCost += 1
             else:
-                if targetType == "file":
-                    grantingCost += 1
-                elif targetType == "app":
+                # app-app links are just noise in the UnifiedGraph
+                if sourceType != "app" and targetType == "app" or \
+                         sourceType == "app" and targetType != "app":
                     isolationCost += 1
 
         editCount = grantingCost+isolationCost+splittingCost

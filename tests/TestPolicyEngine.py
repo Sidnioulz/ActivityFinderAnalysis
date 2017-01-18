@@ -8,7 +8,7 @@ from File import EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
 from Policies import OneLibraryPolicy, FolderPolicy
-from PolicyEngine import PolicyEngine, SecurityScores
+from PolicyEngine import PolicyEngine, PolicyScores
 
 
 class TestSecurityScores(unittest.TestCase):
@@ -306,32 +306,32 @@ class TestSecurityScores(unittest.TestCase):
         f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)
         f4 = self.fileFactory.getFile("/home/user/Images/Art.xcf", 20)
 
-        self.assertEqual(2, len(pol.ss.overEntitlements[0]))
-        self.assertEqual(2, len(pol.ss.overEntitlements[1]))
+        self.assertEqual(2, len(pol.s.overEntitlements[0]))
+        self.assertEqual(2, len(pol.s.overEntitlements[1]))
 
-        self.assertNotIn(f2, pol.ss.overEntitlements[0])
-        self.assertNotIn(f2, pol.ss.overEntitlements[1])
+        self.assertNotIn(f2, pol.s.overEntitlements[0])
+        self.assertNotIn(f2, pol.s.overEntitlements[1])
 
-        self.assertIn(f3, pol.ss.overEntitlements[0])
-        self.assertIn(f3, pol.ss.overEntitlements[1])
-        self.assertIn(f4, pol.ss.overEntitlements[0])
-        self.assertIn(f4, pol.ss.overEntitlements[1])
+        self.assertIn(f3, pol.s.overEntitlements[0])
+        self.assertIn(f3, pol.s.overEntitlements[1])
+        self.assertIn(f4, pol.s.overEntitlements[0])
+        self.assertIn(f4, pol.s.overEntitlements[1])
 
-        gimp = SecurityScores()
+        gimp = PolicyScores()
 
-        for oe in pol.perInstanceSecurityScores:
-            oes = pol.perInstanceSecurityScores[oe].overEntitlements
+        for oe in pol.perInstanceScores:
+            oes = pol.perInstanceScores[oe].overEntitlements
             if oe == self.ag2.uid():
-                gimp += pol.perInstanceSecurityScores[oe]
+                gimp += pol.perInstanceScores[oe]
                 self.assertEqual(0, len(oes[0]))
                 self.assertEqual(2, len(oes[1]))
             elif oe == self.ag1.uid():
-                gimp += pol.perInstanceSecurityScores[oe]
+                gimp += pol.perInstanceScores[oe]
                 self.assertEqual(1, len(oes[0]))
                 self.assertEqual(2, len(oes[1]))
 
-        calcGimp = pol.perAppSecurityScores.get("gimp") or \
-            SecurityScores()
+        calcGimp = pol.perAppScores.get("gimp") or \
+            PolicyScores()
         self.assertEqual(gimp, calcGimp)
 
     def test_stateful_policy(self):
