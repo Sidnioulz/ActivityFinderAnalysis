@@ -32,6 +32,7 @@ class PolicyScores(object):
         # Interruptions to an interaction (security confirmation dialogs)
         self.grantingCost = 0   # Cost of granting access to a file on the spot
         self.cumulGrantingCost = 0  # Cumulative number of illegal accesses
+        self.isolationCost = 0  # Cost of separating an instance from its state
         self.splittingCost = 0  # Cost of splitting a process into 2 instances
 
     def __iadd__(self, other):
@@ -46,10 +47,8 @@ class PolicyScores(object):
         self.illegalAccess += other.illegalAccess
         self.configCost += other.configCost
         self.grantingCost += other.grantingCost
-        # self.grantingOwnedCost += other.grantingOwnedCost
-        # self.grantingDesigCost += other.grantingDesigCost
-        # self.grantingPolicyCost += other.grantingPolicyCost
         self.cumulGrantingCost += other.cumulGrantingCost
+        self.isolationCost += other.isolationCost
         self.splittingCost += other.splittingCost
 
         return self
@@ -77,6 +76,7 @@ class PolicyScores(object):
         #     msg += ("\t*TEST illegal w/ past policy-allowed: %d\n" %
         #             self.grantingPolicyCost)
         msg += ("\t* cumulative granting: %d\n" % self.cumulGrantingCost)
+        msg += ("\t* isolating apps: %d\n" % self.isolationCost)
         msg += ("\t* splitting apps: %d\n" % self.splittingCost)
 
         if not quiet:
@@ -872,6 +872,8 @@ class Policy(object):
                 print("\nEXCLUSION LIST SCORES FOR USER APP INSTANCES\n")
             for (app, exclScores) in sorted(appExclScores.items()):
                 (msg, __) = _printExclViolations(exclScores, 0)
+
+                # TODO: overhead cost #clusters for each exclusion.
 
                 if not quiet:
                     print("\n%s:" % app)

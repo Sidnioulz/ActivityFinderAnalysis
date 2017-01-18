@@ -8,6 +8,7 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import Policy
+from utils import intersection
 import itertools
 import sys
 import os
@@ -189,6 +190,11 @@ class CommonGraph(object):
                   self.outputDir + "/" + output + ".graph.svg",
                   e))
 
+    def flatten(self):
+        """Create a version of the graph with only File nodes."""
+        pass
+        # TODO
+
     def modeliseOptimisation(self, output: str=None, quiet: bool=False):
         """Modelise how efficiently the community finding improved security."""
         if not self.clusters:
@@ -199,6 +205,7 @@ class CommonGraph(object):
 
         crossing = self.clusters.crossing()
         grantingCost = 0
+        isolationCost = 0
         splittingCost = 0
         for (index, x) in enumerate(crossing):
             if not x:
@@ -213,21 +220,40 @@ class CommonGraph(object):
             # Case where a file-file node was removed. Should normally not
             # happen so we will not write support for it yet.
             if sourceType == "file":
-                print("Warning: file-file node removed by graph community "
-                      "finding algorithm. Not implemented yet.",
-                      file=sys.stderr)
-                raise NotImplementedError
-                # TODO: take the target file and strip it of all its accesses?
+                # Check if an app co-accessed the files. If so, increase the
+                # cost of splitting that app instance into two.
+                sAccessors = []
+                for n in source.neighbors():
+                    if n.attributes()['type'] == 'app':
+                        sAccessors.append(n)
+                tAccessors = []
+                for n in target.neighbors():
+                    if n.attributes()['type'] == 'app':
+                        tAccessors.append(n)
+
+                inter = intersection(sAccessors, tAccessors)
+                print(sAccessors, tAccessors)
+                print(inter)
+
+                for i in inter:
+                    splittingCost += 1
+                    # TODO
+                if not inter:
+                    print("Warning: file-file node removed by graph community "
+                          "finding algorithm. Not supported.",
+                          file=sys.stderr)
+                    raise NotImplementedError
             else:
                 if targetType == "file":
                     grantingCost += 1
                 elif targetType == "app":
-                    splittingCost += 1
+                    isolationCost += 1
 
-        editCount = grantingCost+splittingCost
-        msg += ("%d edits performed: %d app splits and %d accesses "
-                "revoked.\n" % (
+        editCount = grantingCost+isolationCost+splittingCost
+        msg += ("%d edits performed: %d apps isolated, %d apps split and %d "
+                "accesses revoked.\n" % (
                  editCount,
+                 isolationCost,
                  splittingCost,
                  grantingCost))
 
@@ -413,6 +439,66 @@ class InstanceGraph(CommonGraph):
         """Link file vertices of an instance together."""
         filePairs = dict()
 
+        for (source, files) in self.filesPerInstance.items():
+            # We'll have duplicate edges in the edges set (e.g. 6->4 and 4->6)
+            # if we don't sort inodes prior to listing inode pairs.
+            edges = list(itertools.combinations(sorted(files), 2))
+            for edge in edges:
+                cnt = filePairs.get(edge) or 0
+                filePairs[edge] = cnt+1
+
+        for (pair, count) in filePairs.items():
+            self.edges.add(pair)
+            self.weights[pair] = count
+
+
+class UnifiedGraph(CommonGraph):
+    """A graph modelling accesses for individual Applications."""
+
+    def __init__(self, outputDir: str=None):
+        """Construct an UnifiedGraph."""
+        super(UnifiedGraph, self).__init__(outputDir)
+        self.filesPerInstance = dict()
+
+    def _addAppNode(self, app: Application):
+        """Add an Application vertex to the graph."""
+        # Add a vertex for the app.
+        self.vertices[app.uid()] = "app"
+
+        # Remember instances of an app so we can connect them.
+        inst = self.instances.get(app.desktopid) or []
+        inst.append(app.uid())
+        self.instances[app.desktopid] = inst
+
+        # Ensure there is a node modelling the app's state.
+        self.vertices[app.desktopid] = "appstate"
+        self.edges.add((app.desktopid, app.uid()))
+        self.weights[(app.desktopid, app.uid())] = 1
+
+    def _addAccess(self, f: File, acc: FileAccess):
+        """Add a FileAccess edge to the graph."""
+        # Get the source and destination vertex ids.
+        source = acc.actor.uid()
+        dest = str(f.inode)
+
+        self.edges.add((source, dest))
+        self.weights[(source, dest)] = 1
+
+        # Collect the individual files accessed by every instance.
+        insts = self.filesPerInstance.get(source) or set()
+        insts.add(str(f.inode))
+        self.filesPerInstance[source] = insts
+
+    def _linkInstances(self):
+        """Link application instance vertices together."""
+        for (app, insts) in self.instances.items():
+            weight = 0.1 / len(insts)
+            edges = list(itertools.combinations(insts, 2))
+            for edge in edges:
+                self.edges.add(edge)
+                self.weights[edge] = weight
+
+        filePairs = dict()
         for (source, files) in self.filesPerInstance.items():
             # We'll have duplicate edges in the edges set (e.g. 6->4 and 4->6)
             # if we don't sort inodes prior to listing inode pairs.

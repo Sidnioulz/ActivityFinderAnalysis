@@ -6,7 +6,7 @@ from FileStore import FileStore
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
-from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph
+from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph, UnifiedGraph
 from PolicyEngine import PolicyEngine, Policy
 from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
@@ -195,24 +195,34 @@ def main(argv):
             print("Done.")
 
         if not quiet:
-            print("\nCompiling the general Activity Graph...")
-        g = ActivityGraph(outputDir=outputDir)
+            print("\nCompiling the Unified Graph...")
+        g = UnifiedGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
-        output = pol.name+"-graph-activities" if pol else "graph-activities"
+        output = pol.name+"-graph-unified" if pol else "graph-unified"
         g.plot(output=output)
         g.modeliseOptimisation(output=output, quiet=quiet)
         if not quiet:
             print("Done.")
 
-        if not quiet:
-            print("\nCompiling the general Instance Graph...")
-        g = InstanceGraph(outputDir=outputDir)
-        g.populate(userConf=userConf, policy=pol)
-        output = pol.name+"-graph-instances" if pol else "graph-instances"
-        g.plot(output=output)
-        g.modeliseOptimisation(output=output, quiet=quiet)
-        if not quiet:
-            print("Done.")
+        # if not quiet:
+        #     print("\nCompiling the general Activity Graph...")
+        # g = ActivityGraph(outputDir=outputDir)
+        # g.populate(userConf=userConf, policy=pol)
+        # output = pol.name+"-graph-activities" if pol else "graph-activities"
+        # g.plot(output=output)
+        # g.modeliseOptimisation(output=output, quiet=quiet)
+        # if not quiet:
+        #     print("Done.")
+
+        # if not quiet:
+        #     print("\nCompiling the general Instance Graph...")
+        # g = InstanceGraph(outputDir=outputDir)
+        # g.populate(userConf=userConf, policy=pol)
+        # output = pol.name+"-graph-instances" if pol else "graph-instances"
+        # g.plot(output=output)
+        # g.modeliseOptimisation(output=output, quiet=quiet)
+        # if not quiet:
+        #     print("Done.")
 
     if graphEnabled():
         _runGraph(None)
