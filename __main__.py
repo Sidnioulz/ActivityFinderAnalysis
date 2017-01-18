@@ -184,7 +184,8 @@ def main(argv):
     def _runGraph(pol: Policy=None, quiet: bool=False):
         if not quiet:
             print("\nCompiling the general Access Graph...")
-        outputDir = pol.getOutputDir(parent=outputFsEnabled()) if pol else None
+        outputDir = pol.getOutputDir(parent=outputFsEnabled()) if pol \
+            else outputFsEnabled()
 
         g = AccessGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
