@@ -137,6 +137,16 @@ def hasIntersection(s1, s2):
     return False
 
 
+def intersection(l1, l2):
+    """Return the intersection of two lists. Naive implementation."""
+    ret = []
+    for i in l1:
+        if i in l2:
+            ret.append(i)
+
+    return ret
+
+
 def initMimeTypes():
     "Initialise the MIME type library and add Linux specific types."
     mimetypes.init()
