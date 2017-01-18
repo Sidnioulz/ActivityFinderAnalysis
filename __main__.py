@@ -31,7 +31,7 @@ USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
 # Main function
 # @profile
 def main(argv):
-    __opt_inode_query = -1
+    __opt_inode_query = None
 
     # Parse command-line parameters
     try:
@@ -96,7 +96,7 @@ def main(argv):
                     print(USAGE_STRING)
                     sys.exit(2)
                 try:
-                    __opt_inode_query = int(arg[1:] if arg[0] == '=' else arg)
+                    __opt_inode_query = (arg[1:] if arg[0] == '=' else arg)
                 except(ValueError) as e:
                     print(USAGE_STRING)
                     sys.exit(2)
@@ -154,10 +154,12 @@ def main(argv):
     print("Simulated all events.")
 
     # Manage --inode queries
-    if __opt_inode_query >= 0:
-        f = fileStore.getFile(__opt_inode_query)
-        print("\nInode queried: %d" % __opt_inode_query)
-        print("Corresponding file: %s\n\t(%s)" % (f.getName(), f))
+    if __opt_inode_query:
+        inodes = __opt_inode_query.split(",")
+        for inode in sorted(int(i) for i in inodes):
+            f = fileStore.getFile(inode)
+            print("\nInode queried: %d" % inode)
+            print("Corresponding file: %s\n\t(%s)" % (f.getName(), f))
         sys.exit(0)
 
     # Print the model as proof of concept
