@@ -1,6 +1,6 @@
 """A graph representation of user document accesses by userland apps."""
 
-from igraph import Graph, UniqueIdGenerator, plot
+from igraph import Graph, UniqueIdGenerator, plot, VertexClustering
 from File import File, FileAccess
 from Application import Application
 from ApplicationStore import ApplicationStore
@@ -120,13 +120,13 @@ class CommonGraph(object):
         self.clusters = comm.as_clustering()
 
     def plot(self, output: str=None):
-        """Plot the graph and its communities, possibly to an output file."""
+        """Plot the graph and its communities to an output file."""
 
         # Get style options set for the base graph plot.
         vs = {}
         vs["vertex_size"] = 5
-        vs["vertex_color"] = [AccessGraph.cd[t] for t in self.g.vs["type"]]
-        vs["vertex_shape"] = [AccessGraph.sd[t] for t in self.g.vs["type"]]
+        vs["vertex_color"] = [CommonGraph.cd[t] for t in self.g.vs["type"]]
+        vs["vertex_shape"] = [CommonGraph.sd[t] for t in self.g.vs["type"]]
         labels = list(self.g.vs["name"])
         for (idx, label) in enumerate(labels):
             if self.vertices[label] not in ("file", "appstate"):
@@ -187,19 +187,14 @@ class CommonGraph(object):
                 plot(self.clusters, **vs)
         except(OSError) as e:
             print("Error while plotting to %s: %s " % (
-                  self.outputDir + "/" + output + ".graph.svg",
+                  self.outputDir + "/" + output + ".clusters.svg",
                   e))
 
-    def flatten(self):
-        """Create a version of the graph with only File nodes."""
-        pass
-        # TODO
-
-    def modeliseOptimisation(self, output: str=None, quiet: bool=False):
-        """Modelise how efficiently the community finding improved security."""
+    def calculateCosts(self, output: str=None, quiet: bool=False):
+        """Model the usability costs needed to reach found communities."""
         if not self.clusters:
-            raise ValueError("Clusters for this graph have not been "
-                             "computed yet.")
+            raise ValueError("Clusters for a graph must be computed "
+                             "before calculating its cost.")
 
         msg = ""
 
@@ -252,57 +247,16 @@ class CommonGraph(object):
                     isolationCost += 1
 
         editCount = grantingCost+isolationCost+splittingCost
-        msg += ("%d edits performed: %d apps isolated, %d apps split and %d "
-                "accesses revoked.\n" % (
+        msg += ("%d edits performed: %d apps isolated, %d apps split and "
+                "%d accesses revoked.\n" % (
                  editCount,
                  isolationCost,
                  splittingCost,
                  grantingCost))
 
-        msg += ("\nGraph statistics prior to community finding:\n")
-        originalClusters = self.g.clusters()
-        sizes = sorted(list((len(x) for x in originalClusters)))
-        msg += ("* size distribution: %s\n" % sizes.__str__())
-        msg += ("* cluster count: %d\n" % len(sizes))
-        msg += ("* smallest cluster: %d\n" % min(sizes))
-        msg += ("* largest cluster: %d\n" % max(sizes))
-        avgPreSize = sum(sizes) / len(sizes)
-        msg += ("* average size: %f\n" % avgPreSize)
-        # preMod = self.g.modularity(membership=originalClusters)
-        # msg += ("* graph modularity: %f\n" % preMod)
-        preVertexSum = sum(sizes)
-        preReach = sum([i ** 2 for i in sizes]) / preVertexSum
-        msg += ("* average reachability: %f\n" % preReach)
-
-        msg += ("\nGraph statistics after community finding:\n")
-        sizes = sorted(list((len(x) for x in self.clusters)))
-        postVertexSum = sum(sizes)
-        msg += ("* size distribution: %s\n" % sizes.__str__())
-        msg += ("* cluster count: %d\n" % len(sizes))
-        msg += ("* smallest cluster: %d\n" % min(sizes))
-        msg += ("* largest cluster: %d\n" % max(sizes))
-        avgPostSize = sum(sizes) / len(sizes)
-        msg += ("* average size: %f\n" % avgPostSize)
-        # postMod = self.clusters.modularity
-        # msg += ("* graph modularity: %f\n" % self.clusters.modularity)
-        postVertexSum = sum(sizes)
-        postReach = sum([i ** 2 for i in sizes]) / postVertexSum
-        msg += ("* average reachability: %f\n" % postReach)
-
-        deltaSize = avgPostSize / avgPreSize
-        sizeEfficiency = deltaSize / editCount
-        msg += "\nEvolution of avg. cluster size: {:.2%}\n".format(deltaSize)
-        msg += "Efficiency of edits wrt. average size: %f\n" % sizeEfficiency
-
-        # deltaMod = postMod / preMod
-        # modEfficiency = deltaMod / editCount
-        # msg += "\nEvolution of modularity: {:.2%}\n".format(deltaMod)
-        # msg += "Efficiency of edits wrt. modularity: %f\n" % modEfficiency
-
-        deltaReach = postReach / preReach
-        reachEfficiency = deltaReach / editCount
-        msg += "\nEvolution of reachability: {:.2%}\n".format(deltaReach)
-        msg += "Efficiency of edits wrt. reachability: %f\n" % reachEfficiency
+        # TODO self.policy.incrementScore
+        # TODO self.policy.incrementScore
+        # TODO self.policy.incrementScore
 
         if not quiet:
             print(msg)
@@ -314,7 +268,220 @@ class CommonGraph(object):
             with open(path, "a") as f:
                 print(msg, file=f)
 
-        # TODO flatten up graphs into files only before calculating modularity?
+        self.editCount = editCount
+
+    def calculateReachability(self, output: str=None, quiet: bool=False):
+        """Model the reachability improvement of community finding."""
+        if not self.clusters:
+            raise ValueError("Clusters for a graph must be computed "
+                             "before modelling how community isolation "
+                             "decreases its average reachability.")
+        if not self.editCount:
+            raise ValueError("Costs for a graph must be calculated "
+                             "before modelling how community isolation "
+                             "decreases its average reachability.")
+
+        msg = ""
+
+        def _print(clusters, header, tag):
+            msg = "\nGraph statistics %s:\n" % header
+            sizes = [x for x in sorted(list((len(x) for x in clusters)))
+                     if x != 0]
+            msg += ("* %s-size distribution: %s\n" % (tag,
+                                                      sizes.__str__()))
+            msg += ("* %s-cluster count: %d\n" % (tag, len(sizes)))
+            msg += ("* %s-smallest cluster: %d\n" % (tag, min(sizes)))
+            msg += ("* %s-largest cluster: %d\n" % (tag, max(sizes)))
+            avgSize = sum(sizes) / len(sizes)
+            msg += ("* %s-average size: %f\n" % (tag, avgSize))
+            vertexSum = sum(sizes)
+            reach = sum([i ** 2 for i in sizes]) / vertexSum
+            msg += ("* %s-average reachability: %f\n" % (tag, reach))
+
+            return (msg, avgSize, reach)
+
+        def _printAndSum(g, editCount, tagPrefix=None):
+            msg = "\n"
+
+            preTag = tagPrefix+"-pre" if tagPrefix else "pre"
+            _m, avgPreSize, preReach = _print(g.g.clusters(),
+                                              "pre community finding",
+                                              preTag)
+            msg += _m
+
+            postTag = tagPrefix+"-post" if tagPrefix else "post"
+            _m, avgPostSize, postReach = _print(g.clusters,
+                                                "post community finding",
+                                                postTag)
+            msg += _m
+
+            deltaSize = 1 - (avgPostSize / avgPreSize)
+            sizeEfficiency = deltaSize / editCount
+            msg += "\nEvol. of avg. cluster size: {:.2%}\n".format(deltaSize)
+            msg += ("Efficiency of edits wrt. average size: %f\n" %
+                    sizeEfficiency)
+
+            deltaReach = 1 - (postReach / preReach)
+            reachEfficiency = deltaReach / editCount
+            msg += "\nEvol. of reachability: {:.2%}\n".format(deltaReach)
+            msg += ("Efficiency of edits wrt. reachability: %f\n" %
+                    reachEfficiency)
+
+            return msg
+
+        msg += _printAndSum(self, self.editCount)
+
+        fg = FlatGraph(parent=self)
+        fg.plot(output=output)
+        msg += _printAndSum(fg, self.editCount, tagPrefix="flat")
+
+        if not quiet:
+            print(msg)
+
+        if output:
+            path = self.outputDir + "/" + output + ".graphstats.txt"
+            os.makedirs(File.getParentNameFromName(path),
+                        exist_ok=True)
+            with open(path, "a") as f:
+                print(msg, file=f)
+
+
+class FlatGraph(object):
+    """An internal class for graph flattening."""
+
+    def __init__(self, parent: CommonGraph):
+        """Construct a FlatGraph."""
+        super(FlatGraph, self).__init__()
+        if not isinstance(parent, CommonGraph):
+            raise TypeError("FlatGraph constructor needs a CommonGraph "
+                            "parent, received a %s." %
+                            parent.__class__.__name__)
+
+        self.g = None
+        self.outputDir = parent.outputDir
+        self.vertices = dict()
+        self.edges = set()
+        self.weights = dict()
+
+        # Step 1. make a copy of the graph without file-file nodes, to
+        # find paths between files that go through apps.
+        copy = parent.g.copy()  # type: Graph
+        types = parent.g.vs['type']
+        names = parent.g.vs['name']
+        toBeRemoved = []
+        namesRemoved = []
+        for edge in copy.es:
+            if types[edge.source] == "file" and \
+                    types[edge.target] == "file":
+                toBeRemoved.append(edge)
+                namesRemoved.append((names[edge.source],
+                                     names[edge.target]))
+
+        copy.delete_edges(toBeRemoved)
+
+        # Step 2. run an all-pairs shortest path algorithm.
+        fileNodes = list((copy.vs[i] for i, t in enumerate(types) if
+                          t == "file"))
+
+        shortestPaths = dict()
+        for v in fileNodes:
+            shortestPaths[v] = copy.get_shortest_paths(v, to=fileNodes)
+
+        # Step 3. pick out file-file paths with no intermediary files.
+        for (v, vPaths) in shortestPaths.items():
+            delList = []
+            for (idx, p) in enumerate(vPaths):
+                if len(p) < 1:
+                    continue
+
+                # Ignore paths with intermediary files.
+                for node in p[1:-1]:
+                    if types[node] == "file":
+                        delList.append(idx)
+
+            # Remove unsuitable paths.
+            for i in sorted(delList, reverse=True):
+                del vPaths[i]
+            shortestPaths[v] = vPaths
+
+        # Step 4. construct a graph with only file nodes.
+        # First, gather the edges.
+        edges = []
+        weights = dict()
+        idgen = UniqueIdGenerator()
+
+        for (v, vPaths) in shortestPaths.items():
+            for p in vPaths:
+                if len(p) <= 1:
+                    continue
+                key = (names[p[0]], names[p[-1]])
+                edges.append(key)
+                weights[key] = 1 / (len(p) - 1)
+
+        for edge in namesRemoved:
+            edges.append(edge)
+            weights[edge] = 1
+
+        # Next, build the graph.
+        edgelist = [(idgen[s], idgen[d]) for s, d in edges]
+        self.g = Graph(edgelist)
+        self.g.es["weight"] = list((weights[e] for e in edges))
+        self.g.vs["name"] = idgen.values()
+
+        # Steph 5. apply community information to the nodes.
+        parentMembers = parent.clusters.membership
+        members = [0] * len(parentMembers)
+        assigned = [0] * len(parentMembers)
+        for idx, n in enumerate(parentMembers):
+            members[idgen[names[idx]]] = n
+            assigned[idgen[names[idx]]] = 1
+        self.membership = members[:len(self.g.vs)]
+        self.clusters = VertexClustering(self.g,
+                                         membership=self.membership)
+
+    def plot(self, output: str=None):
+        """Plot the graph and its communities to an output file."""
+
+        # Get style options set for the base graph plot.
+        vs = {}
+        vs["vertex_size"] = 5
+        vs["vertex_shape"] = "circle"
+        vs["layout"] = self.g.layout("fr")
+        vs["bbox"] = (2400, 1600)
+        vs["margin"] = 20
+
+        # Plot the base graph with colours based on the communities.
+        vs["vertex_color"] = self.membership
+        print(len(self.membership), len(self.g.vs))
+        edge_widths = []
+        for (s, d) in self.g.get_edgelist():
+            if self.membership[s] == self.membership[d]:
+                edge_widths.append(1)
+            else:
+                edge_widths.append(3)
+        vs["edge_width"] = edge_widths
+
+        # Only keep labels for community-bridging vertices.
+        minimal_labels = list(self.g.vs["name"])
+        for (idx, label) in enumerate(minimal_labels):
+            for neighbour in self.g.neighbors(label):
+                if self.membership[neighbour] != self.membership[idx]:
+                    break
+            else:
+                minimal_labels[idx] = None
+
+        vs["vertex_label"] = minimal_labels
+
+        try:
+            if output:
+                path = self.outputDir + "/" + output + ".flat.svg"
+                plot(self.clusters, path, **vs)
+            else:
+                plot(self.clusters, **vs)
+        except(OSError) as e:
+            print("Error while plotting to %s: %s " % (
+                  self.outputDir + "/" + output + ".flat.svg",
+                  e))
 
 
 class AccessGraph(CommonGraph):

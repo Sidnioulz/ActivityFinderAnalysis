@@ -6,7 +6,8 @@ from FileStore import FileStore
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
-from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph, UnifiedGraph
+from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph, \
+                        UnifiedGraph, FlatGraph
 from PolicyEngine import PolicyEngine, Policy
 from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
@@ -187,23 +188,24 @@ def main(argv):
         outputDir = pol.getOutputDir(parent=outputFsEnabled()) if pol \
             else outputFsEnabled()
 
-        g = AccessGraph(outputDir=outputDir)
-        g.populate(userConf=userConf, policy=pol)
-        output = pol.name+"-graph-accesses" if pol else "graph-accesses"
-        g.plot(output=output)
-        g.modeliseOptimisation(output=output, quiet=quiet)
-        if not quiet:
-            print("Done.")
-
         if not quiet:
             print("\nCompiling the Unified Graph...")
         g = UnifiedGraph(outputDir=outputDir)
         g.populate(userConf=userConf, policy=pol)
         output = pol.name+"-graph-unified" if pol else "graph-unified"
         g.plot(output=output)
-        g.modeliseOptimisation(output=output, quiet=quiet)
+        g.calculateCosts(output=output, quiet=quiet)
+        g.calculateReachability(output=output, quiet=quiet)
         if not quiet:
             print("Done.")
+
+        # g = AccessGraph(outputDir=outputDir)
+        # g.populate(userConf=userConf, policy=pol)
+        # output = pol.name+"-graph-accesses" if pol else "graph-accesses"
+        # g.plot(output=output)
+        # g.modeliseOptimisation(output=output, quiet=quiet)
+        # if not quiet:
+        #     print("Done.")
 
         # if not quiet:
         #     print("\nCompiling the general Activity Graph...")
