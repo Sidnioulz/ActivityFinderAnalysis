@@ -512,12 +512,8 @@ class AccessGraph(CommonGraph):
         source = acc.actor.uid()
         dest = str(f.inode)
 
-        self.edges.add((source, dest))
-
         # Add the edge, and count a single access (unweighted clustering).
-        # self.edges.add((source, dest))
-        # cnt = self.weights.get((source, dest)) or 0
-        # self.weights[(source, dest)] = cnt + 1  # FIXME always 1 here?
+        self.edges.add((source, dest))
         self.weights[(source, dest)] = 1
 
     def _linkInstances(self):
