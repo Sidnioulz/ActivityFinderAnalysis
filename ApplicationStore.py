@@ -1,5 +1,4 @@
 """A place to store and merge fragments of Application instances."""
-from utils import time2Str
 from Application import Application
 from Event import Event
 from constants import APPMERGEWINDOW
@@ -266,11 +265,11 @@ class ApplicationStore(object):
                     # whole (short) list of pids. So let's keep it fool-proof.
                     pids = self._mergePidList(pids)
 
-                    # raise ValueError("Applications %s and %s have the same PID"
-                    #                  " (%d) and their runtimes overlap:\n"
-                    #                  "\t%s \t %s\n\t%s \t %s\nbut they have"
-                    #                  " different identities. This is a bug in"
-                    #                  " the collected data." % (
+                    # raise ValueError("Applications %s and %s have the same "
+                    #                  "PID (%d) and their runtimes overlap:\n"
+                    #                  "\t%s \t %s\n\t%s \t %s\nbut they have "
+                    #                  "different identities. This is a bug "
+                    #                  "in the collected data." % (
                     #                    app.getDesktopId(),
                     #                    bpp.getDesktopId(),
                     #                    app.getPid(),
