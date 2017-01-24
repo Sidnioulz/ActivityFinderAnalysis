@@ -3,7 +3,6 @@
 from File import File, FileAccess, EventFileFlags
 from Application import Application
 from PolicyEngine import Policy
-from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
                       OWNED_PATH_ACCESS
 import sys
@@ -13,10 +12,9 @@ class OneLibraryPolicy(Policy):
     """Libraries made up of a single location. One library set per app."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='OneLibraryPolicy'):
         """Construct a OneLibraryPolicy."""
-        super(OneLibraryPolicy, self).__init__(userConf, name)
+        super(OneLibraryPolicy, self).__init__(name)
 
         self.appPolicyCache = dict()
 
@@ -25,14 +23,14 @@ class OneLibraryPolicy(Policy):
         self.musicLibrary = dict()
         self.videoLibrary = dict()
 
-        self.loadUserLibraryPreferences(userConf)
+        self.loadUserLibraryPreferences()
 
-    def loadUserLibraryPreferences(self, userConf: UserConfigLoader):
+    def loadUserLibraryPreferences(self):
         """Load user's library and folder names."""
-        self.documentsLibrary[userConf.getSetting('XdgDocumentsDir')] = 0
-        self.imageLibrary[userConf.getSetting('XdgImageDir')] = 0
-        self.musicLibrary[userConf.getSetting('XdgMusicDir')] = 0
-        self.videoLibrary[userConf.getSetting('XdgVideoDir')] = 0
+        self.documentsLibrary[self.userConf.getSetting('XdgDocumentsDir')] = 0
+        self.imageLibrary[self.userConf.getSetting('XdgImageDir')] = 0
+        self.musicLibrary[self.userConf.getSetting('XdgMusicDir')] = 0
+        self.videoLibrary[self.userConf.getSetting('XdgVideoDir')] = 0
 
     def getAppPolicy(self, actor: Application):
         """Return the library capabilities policy for one Application."""
@@ -63,34 +61,33 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
     """Libraries made up of compound locations. One library set per app."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='CompoundLibraryPolicy'):
         """Construct a CompoundLibraryPolicy."""
-        super(CompoundLibraryPolicy, self).__init__(userConf, name)
+        super(CompoundLibraryPolicy, self).__init__(name)
 
-    def loadUserLibraryPreferences(self, userConf: UserConfigLoader):
-        super(CompoundLibraryPolicy, self).loadUserLibraryPreferences(userConf)
+    def loadUserLibraryPreferences(self):
+        super(CompoundLibraryPolicy, self).loadUserLibraryPreferences()
 
         """Load user's extra libraries."""
         confCost = 0
-        for d in userConf.getSetting('ExtraDocumentsDirs',
-                                     defaultValue=[],
-                                     type='string list'):
+        for d in self.userConf.getSetting('ExtraDocumentsDirs',
+                                          defaultValue=[],
+                                          type='string list'):
             self.documentsLibrary[d] = 1
             confCost += 1
-        for d in userConf.getSetting('ExtraImageDirs',
-                                     defaultValue=[],
-                                     type='string   list'):
+        for d in self.userConf.getSetting('ExtraImageDirs',
+                                          defaultValue=[],
+                                          type='string list'):
             self.imageLibrary[d] = 1
             confCost += 1
-        for d in userConf.getSetting('ExtraMusicDirs',
-                                     defaultValue=[],
-                                     type='string   list'):
+        for d in self.userConf.getSetting('ExtraMusicDirs',
+                                          defaultValue=[],
+                                          type='string list'):
             self.musicLibrary[d] = 1
             confCost += 1
-        for d in userConf.getSetting('ExtraVideoDirs',
-                                     defaultValue=[],
-                                     type='string   list'):
+        for d in self.userConf.getSetting('ExtraVideoDirs',
+                                          defaultValue=[],
+                                          type='string list'):
             self.videoLibrary[d] = 1
             confCost += 1
 
@@ -106,10 +103,9 @@ class FileTypePolicy(Policy):
     """Policy where accesses are allowed by on files' file types."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='FileTypePolicy'):
         """Construct a FileTypePolicy."""
-        super(FileTypePolicy, self).__init__(userConf, name)
+        super(FileTypePolicy, self).__init__(name)
         self.unsupportedExts = set()
         self.appLibCapsCache = dict()
         self.appMimeTypesCache = dict()
@@ -170,10 +166,9 @@ class DesignationPolicy(Policy):
     """Policy where only accesses by designation are allowed."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='DesignationPolicy'):
         """Construct a DesignationPolicy."""
-        super(DesignationPolicy, self).__init__(userConf, name)
+        super(DesignationPolicy, self).__init__(name)
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
@@ -184,10 +179,9 @@ class FolderPolicy(Policy):
     """Policy where whole folders can be accessed after a designation event."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='FolderPolicy'):
         """Construct a FolderPolicy."""
-        super(FolderPolicy, self).__init__(userConf, name)
+        super(FolderPolicy, self).__init__(name)
         self.desigCache = dict()
         self.illegalCache = dict()
 
@@ -260,10 +254,9 @@ class OneFolderPolicy(FolderPolicy):
     """Policy where apps can access a single folder only."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='OneFolderPolicy'):
         """Construct a OneFolderPolicy."""
-        super(OneFolderPolicy, self).__init__(userConf, name)
+        super(OneFolderPolicy, self).__init__(name)
         self.desigCache = dict()
         self.illegalCache = dict()
 
@@ -298,10 +291,9 @@ class FutureAccessListPolicy(FolderPolicy):
     """Policy where files can be accessed by future instances indefinitely."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='FutureAccessListPolicy'):
         """Construct a FutureAccessListPolicy."""
-        super(FutureAccessListPolicy, self).__init__(userConf, name)
+        super(FutureAccessListPolicy, self).__init__(name)
 
     def _accFunPreCompute(self,
                           f: File,
@@ -325,10 +317,9 @@ class UnsecurePolicy(Policy):
     """Policy where every access is allowed, apps are basically unsandboxed."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='UnsecurePolicy'):
         """Construct a UnsecurePolicy."""
-        super(UnsecurePolicy, self).__init__(userConf, name)
+        super(UnsecurePolicy, self).__init__(name)
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
@@ -344,7 +335,6 @@ class CompositionalPolicy(Policy):
     """
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  policies: list,
                  name: str="CompositionalPolicy"):
         """Construct a CompositionalPolicy."""
@@ -355,10 +345,10 @@ class CompositionalPolicy(Policy):
 
         self.policies = []
         for polClass in policies:
-            pol = polClass(userConf)
+            pol = polClass()
             self.policies.append(pol)
 
-        super(CompositionalPolicy, self).__init__(userConf, cname)
+        super(CompositionalPolicy, self).__init__(cname)
 
     def accessFunc(self,
                    engine: 'PolicyEngine',
@@ -466,13 +456,10 @@ class StrictCompositionalPolicy(CompositionalPolicy):
     """
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  policies: list,
                  name: str="StrictCompositionalPolicy"):
         """Construct a StrictCompositionalPolicy."""
-        super(StrictCompositionalPolicy, self).__init__(userConf,
-                                                        policies,
-                                                        name)
+        super(StrictCompositionalPolicy, self).__init__(policies, name)
 
     def _returnWeakAccessFuncDecision(self, f: File, acc: FileAccess):
         """Return the default decision for this compositional policy."""
@@ -498,19 +485,18 @@ class StickyBitPolicy(Policy):
     """Policy where only accesses to files that one created are allowed."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  folders: list=["/tmp"],
                  name: str='StickyBitPolicy'):
         """Construct a StickyBitPolicy."""
-        super(StickyBitPolicy, self).__init__(userConf, name)
+        super(StickyBitPolicy, self).__init__(name)
 
         self.created = dict()
         self.folders = list()
 
-        home = userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
-        desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
-        user = userConf.getSetting("Username") or "user"
-        host = userConf.getSetting("Hostname") or "localhost"
+        home = self.userConf.getHomeDir() or "/MISSING-HOME-DIR"
+        desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        user = self.userConf.getSetting("Username") or "user"
+        host = self.userConf.getSetting("Hostname") or "localhost"
 
         for f in folders:
             f = f.replace('@XDG_DESKTOP_DIR@', desk)
@@ -574,18 +560,17 @@ class ProtectedFolderPolicy(Policy):
     """Policy where accesses in some folders are forbidden."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  folders: list=["~/Protected", "~/.ssh", "~/.pki"],
                  name: str='ProtectedFolderPolicy'):
         """Construct a ProtectedFolderPolicy."""
-        super(ProtectedFolderPolicy, self).__init__(userConf, name)
+        super(ProtectedFolderPolicy, self).__init__(name)
 
         self.folders = list()
 
-        home = userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
-        desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
-        user = userConf.getSetting("Username") or "user"
-        host = userConf.getSetting("Hostname") or "localhost"
+        home = self.userConf.getHomeDir() or "/MISSING-HOME-DIR"
+        desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        user = self.userConf.getSetting("Username") or "user"
+        host = self.userConf.getSetting("Hostname") or "localhost"
 
         for f in folders:
             f = f.replace('@XDG_DESKTOP_DIR@', desk)
@@ -613,10 +598,9 @@ class FilenamePolicy(FolderPolicy):
     """Policy where files with the same filename can be accessed."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str='FilenamePolicy'):
         """Construct a FilenamePolicy."""
-        super(FilenamePolicy, self).__init__(userConf, name)
+        super(FilenamePolicy, self).__init__(name)
 
     def _accFunPreCompute(self,
                           f: File,

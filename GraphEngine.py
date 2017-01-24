@@ -48,11 +48,12 @@ class CommonGraph(object):
         """Add a FileAccess edge to the graph."""
         raise NotImplementedError
 
-    def populate(self, userConf: UserConfigLoader, policy: Policy=None):
+    def populate(self, policy: Policy=None):
         """Populate the AccessGraph, filtering it based on a Policy."""
         appStore = ApplicationStore.get()
         fileStore = FileStore.get()
         fileFactory = FileFactory.get()
+        userConf = UserConfigLoader.get()
 
         # Add all user apps.
         for app in appStore:
@@ -66,7 +67,7 @@ class CommonGraph(object):
 
         # Add all user documents.
         for f in fileStore:
-            if not f.isUserDocument(userHome=userConf.getSetting("HomeDir"),
+            if not f.isUserDocument(userHome=userConf.getHomeDir(),
                                     allowHiddenFiles=True):
                 continue
 

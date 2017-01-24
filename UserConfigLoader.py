@@ -6,6 +6,23 @@ from constants import USERCFG_VERSION
 class UserConfigLoader(object):
     """UserConfigLoader loads settings related to the user being analysed."""
 
+    __loader = None
+
+    @staticmethod
+    def get(path: str=None):
+        """Return the UserConfigLoader for the entire application."""
+        if not UserConfigLoader.__loader:
+            if path:
+                UserConfigLoader.__loader = UserConfigLoader(path)
+            else:
+                raise ValueError("UserConfigLoader is not initialised yet and "
+                                 "needs a config file path.")
+        return UserConfigLoader.__loader
+
+    @staticmethod
+    def reset():
+        UserConfigLoader.__loader = None
+
     def __init__(self, path: str):
         """Construct a UserConfigLoader."""
         super(UserConfigLoader, self).__init__()
@@ -23,6 +40,10 @@ class UserConfigLoader(object):
                                             "mismatch: expected %f, was %f" % (
                                              USERCFG_VERSION,
                                              vs or -1.0))
+
+    def getHomeDir(self):
+        """Get the user's home directory."""
+        return self.getSetting("HomeDir")
 
     def getSetting(self, key: str, defaultValue=None, type: str="string"):
         """Get a stored setting relative to the current participant."""

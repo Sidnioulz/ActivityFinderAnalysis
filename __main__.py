@@ -6,9 +6,8 @@ from FileStore import FileStore
 from PreloadLoggerLoader import PreloadLoggerLoader
 from SqlLoader import SqlLoader
 from UserConfigLoader import UserConfigLoader
-from GraphEngine import AccessGraph, ActivityGraph, InstanceGraph, \
-                        UnifiedGraph, FlatGraph
-from PolicyEngine import PolicyEngine, Policy
+from GraphEngine import GraphEngine
+from PolicyEngine import PolicyEngine
 from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
@@ -109,7 +108,7 @@ def main(argv):
     initMimeTypes()
 
     # Load up user-related variables
-    userConf = UserConfigLoader(USERCONFIGPATH)
+    userConf = UserConfigLoader.get(path=USERCONFIGPATH)
 
     # Load up and check the SQLite database
     sql = None
@@ -246,9 +245,9 @@ def main(argv):
 
         for (polIdx, polName) in enumerate(policies):
             if polArgs[polIdx]:
-                pol = polName(userConf=userConf, **polArgs[polIdx])
+                pol = polName(**polArgs[polIdx])
             else:
-                pol = polName(userConf=userConf)
+                pol = polName()
 
             print("\nRunning %s..." % pol.name)
             engine.runPolicy(pol,
@@ -263,7 +262,7 @@ def main(argv):
 
     # Calculate frequently co-accessed files:
     if relatedFilesEnabled():
-        engine = FrequentFileEngine(userConf=userConf)
+        engine = FrequentFileEngine()
 
         print("\nMining for frequently co-accessed files...")
         engine.mineFiles()

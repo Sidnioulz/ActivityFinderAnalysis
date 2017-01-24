@@ -9,12 +9,11 @@ import mimetypes
 class FrequentFileEngine(object):
     """An engine to mine patterns of frequently co-accessed Files."""
 
-    def __init__(self,
-                 userConf: UserConfigLoader):
+    def __init__(self):
         """Construct a FrequentFileEngine."""
         super(FrequentFileEngine, self).__init__()
         self.outputDir = outputFsEnabled() or '/tmp/'
-        self.userConf = userConf
+        self.userConf = UserConfigLoader.get()
 
     def mineFiles(self, differentiateAccesses: bool=True):
         """Mine for frequently co-accessed individual Files."""
@@ -27,7 +26,7 @@ class FrequentFileEngine(object):
         # List the data we'll use in a more useful format. Only user docs.
         for doc in fileStore:
             # Ignore non-documents.
-            if not doc.isUserDocument(self.userConf.getSetting("HomeDir"),
+            if not doc.isUserDocument(self.userConf.getHomeDir(),
                                       allowHiddenFiles=True):
                 continue
 
@@ -99,7 +98,7 @@ class FrequentFileEngine(object):
         # List the data we'll use in a more useful format. Only user docs.
         for doc in fileStore:
             # Ignore non-documents.
-            if not doc.isUserDocument(self.userConf.getSetting("HomeDir"),
+            if not doc.isUserDocument(self.userConf.getHomeDir(),
                                       allowHiddenFiles=True):
                 continue
 

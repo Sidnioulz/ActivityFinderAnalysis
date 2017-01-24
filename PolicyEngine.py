@@ -162,12 +162,11 @@ class Policy(object):
     """Virtual pure parent class for policy algorithms."""
 
     def __init__(self,
-                 userConf: UserConfigLoader,
                  name: str):
         """Construct a Policy."""
         super(Policy, self).__init__()
         self.name = name
-        self.userConf = userConf
+        self.userConf = UserConfigLoader.get()
         self.appPathCache = dict()
         self.clearScores()
 
@@ -221,7 +220,7 @@ class Policy(object):
         desktopS = PolicyScores()
         userappS = PolicyScores()
         appStore = ApplicationStore.get()
-        userHome = self.userConf.getSetting("HomeDir")
+        userHome = self.userConf.getHomeDir()
         for desktopid in sorted(self.perAppScores.keys()):
             dists = []
             count = 0
@@ -299,7 +298,7 @@ class Policy(object):
         # File scores.
         systemF = PolicyScores()
         userDocF = PolicyScores()
-        userHome = self.userConf.getSetting("HomeDir")
+        userHome = self.userConf.getHomeDir()
         fileStore = FileStore.get()
         for key in sorted(fileStore.nameStore, key=lambda s: s.lower()):
             files = fileStore.nameStore[key]
@@ -448,7 +447,7 @@ class Policy(object):
         """Return the paths where an Application can fully write Files."""
         if actor not in self.appPathCache:
             paths = []
-            home = self.userConf.getSetting("HomeDir") or "/MISSING-HOME-DIR"
+            home = self.userConf.getHomeDir() or "/MISSING-HOME-DIR"
             desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
             user = self.userConf.getSetting("Username") or "user"
             host = self.userConf.getSetting("Hostname") or "localhost"
@@ -866,7 +865,7 @@ class Policy(object):
         # First, build clusters of files co-accessed by every single app.
         accessListsApp = dict()
         accessListsInst = dict()
-        userHome = self.userConf.getSetting("HomeDir")
+        userHome = self.userConf.getHomeDir()
         for f in engine.fileStore:
             # Ignore folders without accesses (auto-created by factory).
             if f.isFolder() and not f.hasAccesses():
