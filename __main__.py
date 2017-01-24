@@ -181,53 +181,10 @@ def main(argv):
                             userHome=userConf.getSetting("HomeDir"),
                             showDesignatedOnly=False)
 
-    def _runGraph(pol: Policy=None, quiet: bool=False):
-        if not quiet:
-            print("\nCompiling the general Access Graph...")
-        outputDir = pol.getOutputDir(parent=outputFsEnabled()) if pol \
-            else outputFsEnabled()
-
-        if not quiet:
-            print("\nCompiling the Unified Graph...")
-        g = UnifiedGraph(outputDir=outputDir)
-        g.populate(userConf=userConf, policy=pol)
-        output = pol.name+"-graph-unified" if pol else "graph-unified"
-        g.plot(output=output)
-        g.calculateCosts(output=output, quiet=quiet)
-        g.calculateReachability(output=output, quiet=quiet)
-        if not quiet:
-            print("Done.")
-
-        # g = AccessGraph(outputDir=outputDir)
-        # g.populate(userConf=userConf, policy=pol)
-        # output = pol.name+"-graph-accesses" if pol else "graph-accesses"
-        # g.plot(output=output)
-        # g.modeliseOptimisation(output=output, quiet=quiet)
-        # if not quiet:
-        #     print("Done.")
-
-        # if not quiet:
-        #     print("\nCompiling the general Activity Graph...")
-        # g = ActivityGraph(outputDir=outputDir)
-        # g.populate(userConf=userConf, policy=pol)
-        # output = pol.name+"-graph-activities" if pol else "graph-activities"
-        # g.plot(output=output)
-        # g.modeliseOptimisation(output=output, quiet=quiet)
-        # if not quiet:
-        #     print("Done.")
-
-        # if not quiet:
-        #     print("\nCompiling the general Instance Graph...")
-        # g = InstanceGraph(outputDir=outputDir)
-        # g.populate(userConf=userConf, policy=pol)
-        # output = pol.name+"-graph-instances" if pol else "graph-instances"
-        # g.plot(output=output)
-        # g.modeliseOptimisation(output=output, quiet=quiet)
-        # if not quiet:
-        #     print("Done.")
-
+    # Build a general access graph.
     if graphEnabled():
-        _runGraph(None)
+        engine = GraphEngine()
+        engine.runGraph(policy=None)
 
     # Policy engine. Create a policy and run a simulation to score it.
     if scoreEnabled():
@@ -253,9 +210,6 @@ def main(argv):
             engine.runPolicy(pol,
                              outputDir=outputFsEnabled(),
                              printClusters=printClustersEnabled())
-
-            if graphEnabled():
-                _runGraph(pol)
 
             if pol.name == "FileTypePolicy" and checkMissingEnabled():
                 pol.abortIfUnsupportedExtensions()

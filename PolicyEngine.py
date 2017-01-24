@@ -6,7 +6,7 @@ from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
                       ILLEGAL_ACCESS
-from utils import debugEnabled, hasIntersection, pyre
+from utils import debugEnabled, graphEnabled, hasIntersection, pyre
 from blist import sortedlist
 import os
 import statistics
@@ -209,7 +209,7 @@ class Policy(object):
                 raise FileNotFoundError("Output directory given to the "
                                         "PolicyEngine does not exist: %s" %
                                         outputDir)
-            os.makedirs(scoreDir, exist_ok=False)
+            os.makedirs(scoreDir, exist_ok=True)
         else:
             scoreDir = None
 
@@ -1032,6 +1032,12 @@ class PolicyEngine(object):
 
         # And security scores of each app
         policy.securityRun(self)
+
+        # Graph printing, if enabled.
+        if graphEnabled():
+            from GraphEngine import GraphEngine
+            engine = GraphEngine()
+            engine.runGraph(policy=policy)
 
         if not quiet:
             policy.printScores(outputDir, printClusters=printClusters)

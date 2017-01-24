@@ -8,14 +8,14 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import Policy
-from utils import intersection
+from utils import intersection, outputFsEnabled
 import itertools
 import sys
 import os
 
 
 class CommonGraph(object):
-    """A graph representation of user document accesses by userland apps."""
+    """A graph representation of document accesses by userland apps."""
 
     # Styling dictionaries.
     cd = {"file": "blue", "app": "pink", "appstate": "red"}
@@ -191,13 +191,17 @@ class CommonGraph(object):
                   self.outputDir + "/" + output + ".clusters.svg",
                   e))
 
-    def calculateCosts(self, output: str=None, quiet: bool=False):
+    def calculateCosts(self,
+                       output: str=None,
+                       quiet: bool=False,
+                       policy: Policy=None):
         """Model the usability costs needed to reach found communities."""
         if not self.clusters:
             raise ValueError("Clusters for a graph must be computed "
                              "before calculating its cost.")
 
         msg = ""
+        appStore = ApplicationStore.get()
 
         crossing = self.clusters.crossing()
         grantingCost = 0
@@ -212,6 +216,8 @@ class CommonGraph(object):
             target = self.g.vs[edge.target]
             sourceType = source.attributes()['type']
             targetType = target.attributes()['type']
+            sourceName = source.attributes()['name']
+            targetName = target.attributes()['name']
 
             # Case where a file-file node was removed. Should normally not
             # happen so we will not write support for it yet.
@@ -228,24 +234,40 @@ class CommonGraph(object):
                         tAccessors.append(n)
 
                 inter = intersection(sAccessors, tAccessors)
-                print(sAccessors, tAccessors)
-                print(inter)
 
                 for i in inter:
                     splittingCost += 1
-                    # TODO
+                    if policy:
+                        app = appStore.lookupUid(sourceName)
+                        policy.incrementScore('graphSplittingCost',
+                                              None, app)
                 if not inter:
-                    print("Warning: file-file node removed by graph community "
-                          "finding algorithm. Not supported.",
+                    print("Warning: file-file node removed by graph "
+                          "community finding algorithm. Not supported.",
                           file=sys.stderr)
                     raise NotImplementedError
             elif targetType == "file":  # sourceType in "app", "appstate"
                 grantingCost += 1
+                if sourceType == "app" and policy:
+                    app = appStore.lookupUid(sourceName)
+                    policy.incrementScore('graphGrantingCost',
+                                          None, app)
+                elif policy:
+                    policy.incrementScore('graphGranting', None, None)
             else:
                 # app-app links are just noise in the UnifiedGraph
-                if sourceType != "app" and targetType == "app" or \
-                         sourceType == "app" and targetType != "app":
+                if sourceType != "app" and targetType == "app":
                     isolationCost += 1
+                    if policy:
+                        app = appStore.lookupUid(targetName)
+                        policy.incrementScore('graphIsolationCost',
+                                              None, app)
+                elif sourceType == "app" and targetType != "app":
+                    isolationCost += 1
+                    if policy:
+                        app = appStore.lookupUid(sourceName)
+                        policy.incrementScore('graphIsolationCost',
+                                              None, app)
 
         editCount = grantingCost+isolationCost+splittingCost
         msg += ("%d edits performed: %d apps isolated, %d apps split and "
@@ -254,10 +276,6 @@ class CommonGraph(object):
                  isolationCost,
                  splittingCost,
                  grantingCost))
-
-        # TODO self.policy.incrementScore
-        # TODO self.policy.incrementScore
-        # TODO self.policy.incrementScore
 
         if not quiet:
             print(msg)
@@ -676,3 +694,31 @@ class UnifiedGraph(CommonGraph):
         for (pair, count) in filePairs.items():
             self.edges.add(pair)
             self.weights[pair] = count
+
+
+class GraphEngine(object):
+    """An engine for creating graphs given a file AC policy."""
+
+    def __init__(self):
+        """Construct a GraphEngine."""
+        super(GraphEngine, self).__init__()
+
+    def runGraph(self,
+                 policy: Policy=None,
+                 outputDir: str=None,
+                 quiet: bool=False):
+        """Build a graph of IFs in the simulation given a policy."""
+        outputDir = policy.getOutputDir(parent=outputFsEnabled()) if \
+            policy else outputFsEnabled()
+
+        if not quiet:
+            print("\nCompiling the Unified Graph...")
+        g = UnifiedGraph(outputDir=outputDir)
+        g.populate(policy=policy)
+        output = policy.name+"-graph-unified" if policy else \
+            "graph-unified"
+        g.plot(output=output)
+        g.calculateCosts(output=output, policy=policy, quiet=quiet)
+        g.calculateReachability(output=output, quiet=quiet)
+        if not quiet:
+            print("Done.")
