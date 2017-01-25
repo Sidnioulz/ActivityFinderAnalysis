@@ -3,7 +3,6 @@ from File import File, EventFileFlags
 from utils import time2Str, debugEnabled
 import os
 import shutil
-import sys
 
 
 class FileStore(object):
