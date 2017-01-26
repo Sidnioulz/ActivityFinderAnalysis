@@ -262,6 +262,9 @@ class Policy(object):
                 extraText = None
                 # TODO verify OE scores printed in the files overall
 
+            oneInst = appStore.lookupDesktopId(desktopid, limit=1)
+            extraText += "\n\nAPPTYPE: %s" % oneInst[0].getAppType()
+
             # And then save the app's score file with the extra statistics.
             score = self.perAppScores[desktopid]
             score.printScores(outputDir=scoreDir,
