@@ -5,3 +5,4 @@ python-blist
 python-orange
 Orange3-Associate
 python-igraph
+python-pygal

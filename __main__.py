@@ -32,18 +32,20 @@ USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
 # @profile
 def main(argv):
     __opt_inode_query = None
+    __opt_post_analysis = None
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hcdf:srpgi:", ["help",
-                                                           "check-missing",
-                                                           "debug",
-                                                           "inode",
-                                                           "related-files",
-                                                           "output-fs=",
-                                                           "score",
-                                                           "print-clusters",
-                                                           "graph-clusters"])
+        (opts, args) = getopt.getopt(argv, "hacdf:srpgi:", ["help",
+                                                            "post-analysis",
+                                                            "check-missing",
+                                                            "debug",
+                                                            "inode",
+                                                            "related-files",
+                                                            "output-fs=",
+                                                            "score",
+                                                            "print-clusters",
+                                                            "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -56,6 +58,9 @@ def main(argv):
                       "for apps in the user's directory are\n\tmissing. If so,"
                       " aborts execution of the program.\n")
                 print("--help:\n\tPrints this help information and exits.\n")
+                print("--post-analysis:\n\tUses the analysis output pointed to"
+                      " by --output-fs in order to produce graphs and "
+                      "statistics.\n")
                 print("--debug:\n\tPrints additional debug information in "
                       "various code paths to help debug\n\tthe program.\n")
                 print("--output-fs=<DIR>:\n\tSaves a copy of the simulated "
@@ -100,6 +105,18 @@ def main(argv):
                 except(ValueError) as e:
                     print(USAGE_STRING)
                     sys.exit(2)
+            elif opt in ('-a', '--post-analysis'):
+                __opt_post_analysis = True
+
+    if __opt_post_analysis:
+        if not outputFsEnabled():
+            raise AttributeError("Post-analysis requires an output filesystem "
+                                 "to analyse. Use the --output-fs option.")
+        else:
+            from AnalysisEngine import AnalysisEngine
+            engine = AnalysisEngine(inputDir=outputFsEnabled())
+            engine.analyse()
+            sys.exit(0)
 
     # Make the application, event and file stores
     store = ApplicationStore.get()
