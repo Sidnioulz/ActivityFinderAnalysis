@@ -340,6 +340,13 @@ class Application(object):
                          type=type,
                          list=isList) or defaultValue
 
+    def getAppType(self):
+        """Return the type of the Appplication (sys/desktop/study/userland)."""
+        t = self.getSetting('Type')
+        if not t:
+            raise ValueError("Application %s has no type." % self.uid())
+        return t
+
     def isSystemApp(self):
         """Tell if the Application is a system daemon or service."""
         t = self.getSetting('Type')
