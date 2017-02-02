@@ -213,6 +213,12 @@ class Policy(object):
         else:
             scoreDir = None
 
+        # Security scores first as they increment splittingCost in some apps.
+        print("\nINFORMATION FLOW CLUSTERS")
+        self.printSecurityClusters(outputDir=scoreDir,
+                            printClusters=printClusters)
+        print("-------------------")
+
         # Application scores.
         totalOEDists = []
         totalOECount = 0
@@ -260,7 +266,6 @@ class Policy(object):
                              medOE)
             else:
                 extraText = None
-                # TODO verify OE scores printed in the files overall
 
             oneInst = appStore.lookupDesktopId(desktopid, limit=1)
             extraText += "\n\nAPPTYPE: %s" % oneInst[0].getAppType()
@@ -357,11 +362,6 @@ class Policy(object):
                            filename="general.score",
                            userHome=userHome,
                            extraText=extraText)
-        print("-------------------")
-
-        print("\nINFORMATION FLOW CLUSTERS")
-        self.printSecurityClusters(outputDir=scoreDir,
-                                   printClusters=printClusters)
         print("\n\n\n")
 
     def incrementScore(self,
@@ -758,12 +758,13 @@ class Policy(object):
 
             return msg
 
-        def _printExclViolations(exclScores, violationCount):
+        def _printExclViolations(exclScores):
             """Print cross-overs of exclusion lists in each cluster."""
             if not self.exclList:
                 return ""
 
             msg = ""
+            violationCount = 0
 
             for (eIndex, listScores) in enumerate(exclScores):
                 msg += ("Exclusion list #%d: %s\n" % (
@@ -806,8 +807,7 @@ class Policy(object):
                     msg += ("  %s\n" % f.getName())
                 msg += "\n"
 
-                (ret, cnt) = _printExclViolations(exclScores[cIndex],
-                                                  violationCount)
+                (ret, cnt) = _printExclViolations(exclScores[cIndex])
                 msg += ret
                 violationCount += cnt
             msg += "\n"
@@ -835,12 +835,18 @@ class Policy(object):
 
         def _writeApps(appExclScores):
             """Write the output of the print function to a file and stdout."""
+            appStore = ApplicationStore.get()
             if not quiet:
                 print("\nEXCLUSION LIST SCORES FOR USER APP INSTANCES\n")
             for (app, exclScores) in sorted(appExclScores.items()):
-                (msg, __) = _printExclViolations(exclScores, 0)
+                (msg, cnt) = _printExclViolations(exclScores)
 
-                # TODO: overhead cost #clusters for each exclusion.
+                if cnt:
+                    appUid = app[app.find("Instance ")+len("Instance "):
+                                 -len(".score")]
+                    inst = appStore.lookupUid(appUid)
+                    if inst:
+                        self.incrementScore('splittingCost', None, inst, cnt)
 
                 if not quiet:
                     print("\n%s:" % app)
