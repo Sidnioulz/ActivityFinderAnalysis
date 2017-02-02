@@ -16,7 +16,7 @@ class TestSecurityScores(unittest.TestCase):
         self.eventStore = EventStore.get()
         self.appStore = ApplicationStore.get()
         self.fileFactory = FileFactory.get()
-        self.userConf = UserConfigLoader("user.ini")
+        self.userConf = UserConfigLoader.get("user.ini")
         self.engine = PolicyEngine()
 
         self.ar1 = Application("ristretto.desktop", pid=21, tstart=1,
@@ -41,7 +41,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         # Ensure there is no cluster.
@@ -60,7 +60,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         # Ensure there is no cluster.
@@ -94,7 +94,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         # Ensure there is only one cluster.
@@ -132,7 +132,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         # Ensure there are three clusters.
@@ -194,7 +194,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         def _ctfn(clusters, scores, assertFn):
@@ -249,7 +249,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         def _ctfn(clusters, scores):
@@ -299,7 +299,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = OneLibraryPolicy(userConf=self.userConf)
+        pol = OneLibraryPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         f2 = self.fileFactory.getFile("/home/other/Photo.jpg", 20)
@@ -351,7 +351,7 @@ class TestSecurityScores(unittest.TestCase):
 
         # Simulate.
         self.eventStore.simulateAllEvents()
-        pol = FolderPolicy(userConf=self.userConf)
+        pol = FolderPolicy()
         self.engine.runPolicy(pol, quiet=True)
 
         f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)

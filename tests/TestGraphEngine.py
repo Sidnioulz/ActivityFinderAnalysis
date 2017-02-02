@@ -16,7 +16,7 @@ class TestGraph(unittest.TestCase):
         self.appStore = ApplicationStore.get()
         self.fileFactory = FileFactory.get()
         self.fileStore = FileStore.get()
-        self.userConf = UserConfigLoader("user.ini")
+        self.userConf = UserConfigLoader.get("user.ini")
 
         self.ar1 = Application("ristretto.desktop", pid=21, tstart=1,
                                tend=2000)
@@ -55,7 +55,7 @@ class TestGraph(unittest.TestCase):
 
     def test_graph_print(self):
         g = AccessGraph()
-        g.populate(userConf=self.userConf)
+        g.populate()
         g.plot(output="graph-accesses")
         self.assertTrue(os.path.isfile("/tmp/graph-accesses.graph.svg"))
         self.assertTrue(os.path.isfile("/tmp/graph-accesses.clusters.svg"))
