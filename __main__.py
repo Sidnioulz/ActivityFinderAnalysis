@@ -13,7 +13,7 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
                      OneFolderPolicy, FutureAccessListPolicy, \
                      StickyBitPolicy, FilenamePolicy, ProtectedFolderPolicy, \
-                     Win8Policy
+                     Win8Policy, Win10Policy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -217,7 +217,7 @@ def main(argv):
                    None, None, None]
                    # dict(folders=["~/Downloads", "/tmp"]),  # FIXME
 
-        policies = [Win8Policy]  # FIXME
+        policies = [Win10Policy]  # FIXME
 
         for (polIdx, polName) in enumerate(policies):
             if polArgs[polIdx]:

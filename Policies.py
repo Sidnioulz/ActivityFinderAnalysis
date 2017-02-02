@@ -524,11 +524,13 @@ class StickyBitPolicy(Policy):
 
         home = self.userConf.getHomeDir() or "/MISSING-HOME-DIR"
         desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        down = self.userConf.getSetting("XdgDownloadsDir") or "~/Downloads"
         user = self.userConf.getSetting("Username") or "user"
         host = self.userConf.getSetting("Hostname") or "localhost"
 
         for f in folders:
             f = f.replace('@XDG_DESKTOP_DIR@', desk)
+            f = f.replace('@XDG_DOWNLOADS_DIR@', down)
             f = f.replace('@USER@', user)
             f = f.replace('@HOSTNAME@', host)
             f = f.replace('~', home)
@@ -598,11 +600,13 @@ class ProtectedFolderPolicy(Policy):
 
         home = self.userConf.getHomeDir() or "/MISSING-HOME-DIR"
         desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        down = self.userConf.getSetting("XdgDownloadsDir") or "~/Downloads"
         user = self.userConf.getSetting("Username") or "user"
         host = self.userConf.getSetting("Hostname") or "localhost"
 
         for f in folders:
             f = f.replace('@XDG_DESKTOP_DIR@', desk)
+            f = f.replace('@XDG_DOWNLOADS_DIR@', down)
             f = f.replace('@USER@', user)
             f = f.replace('@HOSTNAME@', host)
             f = f.replace('~', home)
@@ -649,10 +653,11 @@ class DocumentsFileTypePolicy(StrictCompositionalPolicy):
     """Windows 8 Policy bit - DocumentsLibrary + FileType."""
 
     def __init__(self,
+                 supportedLibraries: list=["documents"],
                  name: str='DocumentsFileTypePolicy'):
         """Construct a DocumentsFileTypePolicy."""
         policies = [OneLibraryPolicy, FileTypePolicy]
-        polArgs = [dict(supportedLibraries=["documents"]), None]
+        polArgs = [dict(supportedLibraries=supportedLibraries), None]
         super(DocumentsFileTypePolicy, self).__init__(policies=policies,
                                                       polArgs=polArgs,
                                                       name=name)
@@ -671,5 +676,24 @@ class Win8Policy(CompositionalPolicy):
                    None,
                    None]
         super(Win8Policy, self).__init__(policies=policies,
+                                         polArgs=polArgs,
+                                         name=name)
+
+
+class Win10Policy(CompositionalPolicy):
+    """Windows 10 Policy."""
+
+    def __init__(self,
+                 name: str='Win10Policy'):
+        """Construct a Win10Policy."""
+        policies = [CompoundLibraryPolicy,
+                    DocumentsFileTypePolicy,
+                    StickyBitPolicy,
+                    FutureAccessListPolicy]
+        polArgs = [dict(supportedLibraries=["music", "image", "video"]),
+                   dict(supportedLibraries=["documents", "removableMedia"]),
+                   dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),
+                   None]
+        super(Win10Policy, self).__init__(policies=policies,
                                          polArgs=polArgs,
                                          name=name)
