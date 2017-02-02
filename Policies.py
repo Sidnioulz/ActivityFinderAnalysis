@@ -24,6 +24,7 @@ class OneLibraryPolicy(Policy):
         self.imageLibrary = dict()
         self.musicLibrary = dict()
         self.videoLibrary = dict()
+        self.removableMediaLibrary = dict()
 
         self.loadUserLibraryPreferences()
 
@@ -33,6 +34,11 @@ class OneLibraryPolicy(Policy):
         self.imageLibrary[self.userConf.getSetting('XdgImageDir')] = 0
         self.musicLibrary[self.userConf.getSetting('XdgMusicDir')] = 0
         self.videoLibrary[self.userConf.getSetting('XdgVideoDir')] = 0
+
+        for d in self.userConf.getSetting('RemovableMediaDirs',
+                                          defaultValue=[],
+                                          type='string list'):
+            self.removableMediaLibrary[d] = 1
 
     def getAppPolicy(self, actor: Application):
         """Return the library capabilities policy for one Application."""
@@ -102,6 +108,17 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
     def globalConfigCost(self):
         """Return True if the Policy has a global config cost for all apps."""
         return True
+
+
+class RemovableMediaPolicy(OneLibraryPolicy):
+    """Grant access to removable media folders."""
+
+    def __init__(self,
+                 name: str='OneLibraryPolicy'):
+        """Construct a OneLibraryPolicy."""
+        rm = ['removableMedia']
+        super(OneLibraryPolicy, self).__init__(supportedLibraries=rm,
+                                               name=name)
 
 
 class FileTypePolicy(Policy):
