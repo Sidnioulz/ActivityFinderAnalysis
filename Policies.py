@@ -368,27 +368,21 @@ class CompositionalPolicy(Policy):
                    acc: FileAccess,
                    composed: bool=False):
         """Assess the usability score of a FileAccess."""
-        if composed:
-            raise AttributeError("Compositions of compositional policies are"
-                                 "not supported, aborting.")
 
-        # Designation accesses are considered cost-free.
-        if acc.evflags & EventFileFlags.designation:
-            self.incrementScore('desigAccess', f, acc.actor)
-            # f.recordAccessCost(acc, DESIGNATION_ACCESS,
-            #                    appWide=self.appWideRecords())
-            for pol in self.policies:
-                pol.updateDesignationState(f, acc)
-            return DESIGNATION_ACCESS
+        if not composed:
+            # Designation accesses are considered cost-free.
+            if acc.evflags & EventFileFlags.designation:
+                self.incrementScore('desigAccess', f, acc.actor)
+                self.updateDesignationState(f, acc)
+                return DESIGNATION_ACCESS
 
-        # Some files are allowed because they clearly belong to the app
-        ownedPaths = self.generateOwnedPaths(acc.actor)
-        for (path, evflags) in ownedPaths:
-            if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
-                self.incrementScore('ownedPathAccess', f, acc.actor)
-                # f.recordAccessCost(acc, OWNED_PATH_ACCESS,
-                #                    appWide=self.appWideRecords())
-                return OWNED_PATH_ACCESS
+            # Some files are allowed because they clearly belong to the app
+            ownedPaths = self.generateOwnedPaths(acc.actor)
+            for (path, evflags) in ownedPaths:
+                if path.match(f.getName()) and \
+                        acc.allowedByFlagFilter(evflags, f):
+                    self.incrementScore('ownedPathAccess', f, acc.actor)
+                    return OWNED_PATH_ACCESS
 
         # Loop through policies until we find a decision we can return.
         for pol in self.policies:
@@ -403,38 +397,26 @@ class CompositionalPolicy(Policy):
 
         # Now, we update scores and return the decision.
         if decision == ILLEGAL_ACCESS:
-            # We could not justify the access, increase the usabiltiy cost.
-            self.incrementScore('illegalAccess', f, acc.actor)
+            if not composed:
+                # We could not justify the access, increase the usabiltiy cost.
+                self.incrementScore('illegalAccess', f, acc.actor)
 
-            # If a prior interruption granted access, don't overcount.
-            self.incrementScore('cumulGrantingCost', f, acc.actor)
-            if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
-                                          appWide=self.appWideRecords()):
-                self.incrementScore('grantingCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, OWNED_PATH_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingOwnedCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, DESIGNATION_ACCESS,
-            #                           appWide=self.appWideRecords()):
-            #     self.incrementScore('grantingDesigCost', f, acc.actor)
-            # if f.hadPastSimilarAccess(acc, POLICY_ACCESS,
-            #                           appWide=self.appWideRecords()):
-                # self.incrementScore('grantingPolicyCost', f, acc.actor)
-            f.recordAccessCost(acc, ILLEGAL_ACCESS,
-                               appWide=self.appWideRecords())
-
-            for pol in self.policies:
-                pol.updateIllegalState(f, acc)
+                # If a prior interruption granted access, don't overcount.
+                self.incrementScore('cumulGrantingCost', f, acc.actor)
+                if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
+                                              appWide=self.appWideRecords()):
+                    self.incrementScore('grantingCost', f, acc.actor)
+                f.recordAccessCost(acc, ILLEGAL_ACCESS,
+                                   appWide=self.appWideRecords())
+                self.updateIllegalState(f, acc)
 
             return ILLEGAL_ACCESS
+
         # decision == POLICY_ACCESS
         else:
-            self.incrementScore('policyAccess', f, acc.actor)
-            # f.recordAccessCost(acc, POLICY_ACCESS,
-            #                    appWide=self.appWideRecords())
-
-            for pol in self.policies:
-                pol.updateAllowedState(f, acc)
+            if not composed:
+                self.incrementScore('policyAccess', f, acc.actor)
+                self.updateAllowedState(f, acc)
 
             return POLICY_ACCESS
 
@@ -456,6 +438,21 @@ class CompositionalPolicy(Policy):
                 return (True, 0)
 
         return (False, 0)
+
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on DESIGNATION_ACCESS."""
+        for pol in self.policies:
+            pol.updateDesignationState(f, acc)
+
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on POLICY_ACCESS."""
+        for pol in self.policies:
+            pol.updateAllowedState(f, acc)
+
+    def updateIllegalState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on ILLEGAL_ACCESS."""
+        for pol in self.policies:
+            pol.updateIllegalState(f, acc)
 
 
 class StrictCompositionalPolicy(CompositionalPolicy):
