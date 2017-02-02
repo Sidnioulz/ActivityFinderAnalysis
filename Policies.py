@@ -626,3 +626,33 @@ class FilenamePolicy(FolderPolicy):
             return (True, 0)
         else:
             return (False, 0)
+
+
+class DocumentsFileTypePolicy(StrictCompositionalPolicy):
+    """Windows 8 Policy bit - DocumentsLibrary + FileType."""
+
+    def __init__(self,
+                 name: str='DocumentsFileTypePolicy'):
+        """Construct a DocumentsFileTypePolicy."""
+        policies = [OneLibraryPolicy, FileTypePolicy]
+        polArgs = [dict(supportedLibraries=["documents"]), None]
+        super(DocumentsFileTypePolicy, self).__init__(policies=policies,
+                                                      polArgs=polArgs,
+                                                      name=name)
+
+
+class Win8Policy(CompositionalPolicy):
+    """Windows 8 Policy."""
+
+    def __init__(self,
+                 name: str='Win8Policy'):
+        """Construct a Win8Policy."""
+        policies = [OneLibraryPolicy,
+                    DocumentsFileTypePolicy,
+                    FutureAccessListPolicy]
+        polArgs = [dict(supportedLibraries=["music", "image", "video"]),
+                   None,
+                   None]
+        super(Win8Policy, self).__init__(policies=policies,
+                                         polArgs=polArgs,
+                                         name=name)

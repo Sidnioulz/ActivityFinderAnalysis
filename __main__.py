@@ -12,7 +12,8 @@ from FrequentFileEngine import FrequentFileEngine
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
                      OneFolderPolicy, FutureAccessListPolicy, \
-                     StickyBitPolicy, FilenamePolicy, ProtectedFolderPolicy
+                     StickyBitPolicy, FilenamePolicy, ProtectedFolderPolicy, \
+                     Win8Policy
 from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
@@ -209,13 +210,14 @@ def main(argv):
 
         policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
                     DesignationPolicy, FileTypePolicy, FolderPolicy,
-                    OneFolderPolicy, FutureAccessListPolicy, StickyBitPolicy,
-                    FilenamePolicy, ProtectedFolderPolicy]
+                    OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy]
 
         polArgs = [None, None, None,
                    None, None, None,
-                   None, None, dict(folders=["~/Downloads", "/tmp"]),
-                   None, dict(folders=["~/Private", "~/.ssh", "~/.pki"])]
+                   None, None, None]
+                   # dict(folders=["~/Downloads", "/tmp"]),  # FIXME
+
+        policies = [Win8Policy]  # FIXME
 
         for (polIdx, polName) in enumerate(policies):
             if polArgs[polIdx]:
