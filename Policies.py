@@ -344,10 +344,13 @@ class CompositionalPolicy(Policy):
                  polArgs: list,
                  name: str="CompositionalPolicy"):
         """Construct a CompositionalPolicy."""
-        cname = name + " ["
-        for polClass in policies:
-            cname += polClass.__name__ + ", "
-        cname += "]"
+        if name.endswith("CompositionalPolicy"):
+            cname = name + " ["
+            for polClass in policies:
+                cname += polClass.__name__ + ", "
+            cname += "]"
+        else:
+            cname = name
 
         self.policies = []
         for (polIdx, polClass) in enumerate(policies):
