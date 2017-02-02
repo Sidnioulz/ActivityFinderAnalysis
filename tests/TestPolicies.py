@@ -510,7 +510,8 @@ class TestPolicies(unittest.TestCase):
         self._assert(pol)
 
     def test_compositional(self):
-        pol = CompositionalPolicy(policies=[FileTypePolicy, OneLibraryPolicy])
+        pol = CompositionalPolicy(policies=[FileTypePolicy, OneLibraryPolicy],
+                                  polArgs=[None, None])
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -568,7 +569,8 @@ class TestPolicies(unittest.TestCase):
 
     def test_strict_compositional(self):
         pol = StrictCompositionalPolicy(policies=[FileTypePolicy,
-                                                  OneLibraryPolicy])
+                                                  OneLibraryPolicy],
+                                        polArgs=[None, None])
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -626,7 +628,9 @@ class TestPolicies(unittest.TestCase):
 
     def test_compositional_stateful(self):
         pol = CompositionalPolicy(policies=[OneLibraryPolicy,
-                                            FutureAccessListPolicy])
+                                            FutureAccessListPolicy],
+                                  polArgs=[dict(supportedLibraries=["image"]),
+                                           None])
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()

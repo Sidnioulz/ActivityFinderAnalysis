@@ -12,11 +12,13 @@ class OneLibraryPolicy(Policy):
     """Libraries made up of a single location. One library set per app."""
 
     def __init__(self,
+                 supportedLibraries=['documents', 'image', 'music', 'video'],
                  name: str='OneLibraryPolicy'):
         """Construct a OneLibraryPolicy."""
         super(OneLibraryPolicy, self).__init__(name)
 
         self.appPolicyCache = dict()
+        self.supportedLibraries = supportedLibraries
 
         self.documentsLibrary = dict()
         self.imageLibrary = dict()
@@ -45,6 +47,9 @@ class OneLibraryPolicy(Policy):
         """Tell if a File is allowed to be accessed by a Policy."""
         policies = self.getAppPolicy(actor)
         for pol in policies:
+            if pol not in self.supportedLibraries:
+                continue
+
             try:
                 attr = self.__getattribute__(pol+"Library")
             except (AttributeError):
@@ -336,6 +341,7 @@ class CompositionalPolicy(Policy):
 
     def __init__(self,
                  policies: list,
+                 polArgs: list,
                  name: str="CompositionalPolicy"):
         """Construct a CompositionalPolicy."""
         cname = name + " ["
@@ -344,8 +350,11 @@ class CompositionalPolicy(Policy):
         cname += "]"
 
         self.policies = []
-        for polClass in policies:
-            pol = polClass()
+        for (polIdx, polClass) in enumerate(policies):
+            if polArgs[polIdx]:
+                pol = polClass(**polArgs[polIdx])
+            else:
+                pol = polClass()
             self.policies.append(pol)
 
         super(CompositionalPolicy, self).__init__(cname)
@@ -457,9 +466,12 @@ class StrictCompositionalPolicy(CompositionalPolicy):
 
     def __init__(self,
                  policies: list,
+                 polArgs: list,
                  name: str="StrictCompositionalPolicy"):
         """Construct a StrictCompositionalPolicy."""
-        super(StrictCompositionalPolicy, self).__init__(policies, name)
+        super(StrictCompositionalPolicy, self).__init__(policies,
+                                                        polArgs,
+                                                        name)
 
     def _returnWeakAccessFuncDecision(self, f: File, acc: FileAccess):
         """Return the default decision for this compositional policy."""
