@@ -421,8 +421,7 @@ class CompositionalPolicy(Policy):
 
                 # If a prior interruption granted access, don't overcount.
                 self.incrementScore('cumulGrantingCost', f, acc.actor)
-                if not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
-                                              appWide=self.appWideRecords()):
+                if self._accFunSimilarAccessCond(f, acc, composed, None):
                     self.incrementScore('grantingCost', f, acc.actor)
                 f.recordAccessCost(acc, ILLEGAL_ACCESS,
                                    appWide=self.appWideRecords())
@@ -437,6 +436,19 @@ class CompositionalPolicy(Policy):
                 self.updateAllowedState(f, acc)
 
             return POLICY_ACCESS
+
+    def _accFunSimilarAccessCond(self,
+                                 f: File,
+                                 acc: FileAccess,
+                                 composed: bool,
+                                 data):
+        """Calculate condition for grantingCost to be incremented."""
+        for pol in self.policies:
+            data = pol._accFunPreCompute(f, acc)
+            if not pol._accFunSimilarAccessCond(f, acc, composed, data):
+                return False
+
+        return True
 
     def _returnWeakAccessFuncDecision(self, f: File, acc: FileAccess):
         """Return the default decision for this compositional policy."""
@@ -659,9 +671,7 @@ class DocumentsFileTypePolicy(StrictCompositionalPolicy):
         """Construct a DocumentsFileTypePolicy."""
         policies = [OneLibraryPolicy, FileTypePolicy]
         polArgs = [dict(supportedLibraries=supportedLibraries), None]
-        super(DocumentsFileTypePolicy, self).__init__(policies=policies,
-                                                      polArgs=polArgs,
-                                                      name=name)
+        super(DocumentsFileTypePolicy, self).__init__(policies, polArgs, name)
 
 
 class Win8Policy(CompositionalPolicy):
@@ -676,9 +686,7 @@ class Win8Policy(CompositionalPolicy):
         polArgs = [dict(supportedLibraries=["music", "image", "video"]),
                    None,
                    None]
-        super(Win8Policy, self).__init__(policies=policies,
-                                         polArgs=polArgs,
-                                         name=name)
+        super(Win8Policy, self).__init__(policies, polArgs, name)
 
 
 class Win10Policy(CompositionalPolicy):
@@ -695,6 +703,54 @@ class Win10Policy(CompositionalPolicy):
                    dict(supportedLibraries=["documents", "removableMedia"]),
                    dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),
                    None]
-        super(Win10Policy, self).__init__(policies=policies,
-                                         polArgs=polArgs,
-                                         name=name)
+        super(Win10Policy, self).__init__(policies, polArgs, name)
+
+
+class FFFPolicy(CompositionalPolicy):
+    """Folder v FutureAccessList v FileTypeAssoc."""
+
+    def __init__(self,
+                 name: str='FFFPolicy'):
+        """Construct a FFFPolicy."""
+        policies = [FolderPolicy, FileTypePolicy, FutureAccessListPolicy]
+        polArgs = [None, None, None]
+        super(FFFPolicy, self).__init__(policies, polArgs, name)
+
+
+class OneFFFPolicy(CompositionalPolicy):
+    """OneFolder v FutureAccessList v FileTypeAssoc."""
+
+    def __init__(self,
+                 name: str='OneFFFPolicy'):
+        """Construct a OneFFFPolicy."""
+        policies = [OneFolderPolicy, FileTypePolicy, FutureAccessListPolicy]
+        polArgs = [None, None, None]
+        super(OneFFFPolicy, self).__init__(policies, polArgs, name)
+
+
+class FFFSbPolicy(CompositionalPolicy):
+    """Folder v FutureAccessList v FileTypeAssoc v StickyBitPolicy."""
+
+    def __init__(self,
+                 name: str='FFFSbPolicy'):
+        """Construct a FFFSbPolicy."""
+        policies = [FolderPolicy, FileTypePolicy, FutureAccessListPolicy,
+                    StickyBitPolicy]
+        polArgs = [None, None, None,
+                   dict(folders=["@XDG_DOWNLOADS_DIR@", "@XDG_DESKTOP_DIR@",
+                                 "/tmp"]),]
+        super(FFFSbPolicy, self).__init__(policies, polArgs, name)
+
+
+class OneFFFSbPolicy(CompositionalPolicy):
+    """OneFolder v FutureAccessList v FileTypeAssoc."""
+
+    def __init__(self,
+                 name: str='OneFFFSbPolicy'):
+        """Construct a OneFFFSbPolicy."""
+        policies = [OneFolderPolicy, FileTypePolicy, FutureAccessListPolicy,
+                    StickyBitPolicy]
+        polArgs = [None, None, None,
+                   dict(folders=["@XDG_DOWNLOADS_DIR@", "@XDG_DESKTOP_DIR@",
+                                 "/tmp"]),]
+        super(OneFFFSbPolicy, self).__init__(policies, polArgs, name)
