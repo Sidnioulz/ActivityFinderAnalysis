@@ -11,7 +11,7 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FileTypePolicy, FolderPolicy, OneFolderPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
-                     FilenamePolicy, ProtectedFolderPolicy
+                     FilenamePolicy, ProtectedFolderPolicy, FFFPolicy
 
 
 class TestOneLibraryPolicy(unittest.TestCase):
@@ -146,6 +146,9 @@ class TestPolicies(unittest.TestCase):
         e005 = Event(actor=self.a1, time=15, syscallStr=s005)
         e005.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e005)
+        e005b = Event(actor=self.a1, time=3005, syscallStr=s005)
+        e005b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e005b)
 
         self.p006 = "/home/user/Images/random.txt"
         s006 = "open64|%s|fd 10: with flag 524288, e0|" % self.p006
@@ -165,6 +168,27 @@ class TestPolicies(unittest.TestCase):
         e008.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e008)
 
+        self.p009 = "/home/user/Downloads/unknown.data"
+        s009 = "open64|%s|fd 10: with flag 64, e0|" % self.p009
+        # e009 = Event(actor=self.a1, time=18, syscallStr=s009)
+        # e009.evflags |= EventFileFlags.designation  # this event by designation
+        # self.eventStore.append(e009)
+        e009b = Event(actor=self.a3, time=3009, syscallStr=s009)
+        e009b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e009b)
+
+        self.p010 = "/home/user/Dropbox/Photos/holidays.metadata"
+        s010 = "open64|%s|fd 10: with flag 524288, e0|" % self.p010
+        e010 = Event(actor=self.a1, time=20, syscallStr=s010)
+        e010.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e010)
+
+        self.p011 = "/home/user/Dropbox/Photos/holidays.evenmoremetadata"
+        s011 = "open64|%s|fd 11: with flag 524288, e0|" % self.p011
+        e011 = Event(actor=self.a3, time=3020, syscallStr=s011)
+        e011.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e011)
+
         self.eventStore.simulateAllEvents()
         self._reset()
 
@@ -173,12 +197,18 @@ class TestPolicies(unittest.TestCase):
         self.desig = 0
         self.policy = 0
         self.illegal = 0
+        self.grantingCost = 0
+        self.cumulGrantingCost = 0
 
     def _assert(self, pol):
         self.assertEqual(pol.s.ownedPathAccess, self.owned)
         self.assertEqual(pol.s.desigAccess, self.desig)
         self.assertEqual(pol.s.policyAccess, self.policy)
         self.assertEqual(pol.s.illegalAccess, self.illegal)
+
+    def _assertCosts(self, pol):
+        self.assertEqual(pol.s.grantingCost, self.grantingCost)
+        self.assertEqual(pol.s.cumulGrantingCost, self.cumulGrantingCost)
 
     def test_unsecure(self):
         pol = UnsecurePolicy()
@@ -917,6 +947,160 @@ class TestPolicies(unittest.TestCase):
         pol.accessFunc(None, f003b, accs[1])
         self.illegal += 1
         self._assert(pol)
+
+    def _test_folder_costs(self, pol):
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, accs[0])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, accs[0])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, accs[0])
+        self._assertCosts(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, accs[0])
+        self._assertCosts(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, accs[0])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+        pol.accessFunc(None, f005, accs[1])
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, accs[0])
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self._assertCosts(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self._assertCosts(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        pol.accessFunc(None, f003b, accs[1])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+
+        f009 = self.fileFactory.getFile(name=self.p009, time=20)
+        accs = f009.getAccesses()
+        self.cumulGrantingCost += 1
+        pol.accessFunc(None, f009, accs[0])
+        self._assertCosts(pol)
+
+        f010 = self.fileFactory.getFile(name=self.p010, time=20)
+        accs = f010.getAccesses()
+        pol.accessFunc(None, f010, accs[0])
+        self.cumulGrantingCost += 1  # f003b authorised folder
+        self._assertCosts(pol)
+
+        f011 = self.fileFactory.getFile(name=self.p011, time=20)
+        accs = f011.getAccesses()
+        pol.accessFunc(None, f011, accs[0])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1  # f003b authorised folder
+        self._assertCosts(pol)
+
+    def test_folder_granting_costs(self):
+        pol = FolderPolicy()
+        self._test_folder_costs(pol)
+
+    def test_compositional_granting_costs(self):
+        pol = CompositionalPolicy(policies=[FolderPolicy, DesignationPolicy],
+                                  polArgs=[None, None])
+        self._test_folder_costs(pol)
+
+    def test_fff_granting_costs(self):
+        pol = FFFPolicy()
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, accs[0])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1
+        self._assertCosts(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, accs[0])
+        self._assertCosts(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, accs[0])
+        self._assertCosts(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, accs[0])
+        self._assertCosts(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, accs[0])
+        self._assertCosts(pol)
+        pol.accessFunc(None, f005, accs[1])
+        self._assertCosts(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, accs[0])
+        self._assertCosts(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, accs[0])
+        self._assertCosts(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, accs[0])
+        self._assertCosts(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        pol.accessFunc(None, f003b, accs[1])
+        self._assertCosts(pol)
+
+        # f003 made f003b legal which made this call legal.
+        f009 = self.fileFactory.getFile(name=self.p009, time=20)
+        accs = f009.getAccesses()
+        pol.accessFunc(None, f009, accs[0])
+
+        f010 = self.fileFactory.getFile(name=self.p010, time=20)
+        accs = f010.getAccesses()
+        pol.accessFunc(None, f010, accs[0])
+        self._assertCosts(pol)
+
+        f011 = self.fileFactory.getFile(name=self.p011, time=20)
+        accs = f011.getAccesses()
+        pol.accessFunc(None, f011, accs[0])
+        self.grantingCost += 1
+        self.cumulGrantingCost += 1  # f003b authorised folder
+        self._assertCosts(pol)
 
     def tearDown(self):
         self.userConf = None
