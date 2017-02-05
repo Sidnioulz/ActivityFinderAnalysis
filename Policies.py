@@ -72,9 +72,10 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
     """Libraries made up of compound locations. One library set per app."""
 
     def __init__(self,
+                 supportedLibraries=['documents', 'image', 'music', 'video'],
                  name: str='CompoundLibraryPolicy'):
         """Construct a CompoundLibraryPolicy."""
-        super(CompoundLibraryPolicy, self).__init__(name)
+        super(CompoundLibraryPolicy, self).__init__(supportedLibraries, name)
 
     def loadUserLibraryPreferences(self):
         super(CompoundLibraryPolicy, self).loadUserLibraryPreferences()
