@@ -8,7 +8,8 @@ from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
                       POSIX_OPENDIR_RE, POSIX_UNLINK_RE, POSIX_CLOSE_RE, \
                       POSIX_FCLOSE_RE, POSIX_RENAME_RE, POSIX_DUP_RE, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
-                      O_TRUNC, O_DIRECTORY, FD_OPEN, FD_CLOSE
+                      O_TRUNC, O_DIRECTORY, FD_OPEN, FD_CLOSE, \
+                      POSIX_FDOPENDIR_RE
 import sys
 import re
 from os.path import normpath as np
@@ -54,6 +55,7 @@ class Event(object):
     posixOpenRe = re.compile(POSIX_OPEN_RE)
     posixFopenRe = re.compile(POSIX_FOPEN_RE)
     posixFDopenRe = re.compile(POSIX_FDOPEN_RE)
+    posixFDopendirRe = re.compile(POSIX_FDOPENDIR_RE)
     posixOpendirRe = re.compile(POSIX_OPENDIR_RE)
     posixUnlinkRe = re.compile(POSIX_UNLINK_RE)
     posixCloseRe = re.compile(POSIX_CLOSE_RE)
@@ -379,13 +381,50 @@ class Event(object):
         # Parse flags
         self._openFopenParseFlags(flags)
 
-    def parsePOSIXFDopen(self, syscall: str, content: str):
-        """Process a POSIX fdopen() or fdopendir() system call."""
+    def parsePOSIXFDopendir(self, syscall: str, content: str):
+        """Process a POSIX fdopendir() system call."""
+        # Process the event's content
+        content = content.strip()
+        res = Event.posixFDopendirRe.match(content)
+        try:
+            g = res.groups()
+        except(AttributeError) as e:
+            print("Error: POSIX fdopendir system call was not "
+                  "logged properly: %s" % content, file=sys.stderr)
+            self.evtype = EventType.invalid
+            return
+        else:
+            # Check the syscall was well formed and we have everything we need
+            if len(g) != 3:
+                print("Error: POSIX fdopendir system call was not "
+                      "logged properly: %s" % content, file=sys.stderr)
+                self.evtype = EventType.invalid
+                return
 
-        # FIXME DEBUG
-        if syscall in ('fdopendir',):
-            print("CHECK SYNTAX: ", syscall, content)   # TODO
-            sys.exit(1)
+            # Assign relevant variables
+            func = (int, int16, int)
+            (fdref, fd, error) = map(lambda f, d: f(d), func, g)
+
+        # Build path to be used by simulator, and save the corresponding File
+        path = ("@fdref:%d@appref:%s@" % (fdref, self.getActor().uid()))
+
+        # Opendir requires the directory to exist, and is a read access
+        flags = O_RDONLY
+
+        # Don't log failed syscalls, but inform the reader
+        if error < 0 or fd == -1:
+            self._rejectError(syscall, path, flags, error)
+            return
+
+        # Set paths once we know the call succeeded
+        self.setDataSyscallFile(path, 'inode/directory')
+        self.setDataSyscallFD(fd, path, FD_OPEN)
+
+        # Parse flags
+        self._openFopenParseFlags(flags)
+
+    def parsePOSIXFDopen(self, syscall: str, content: str):
+        """Process a POSIX fdopen() system call."""
 
         # Process the event's content
         content = content.strip()
@@ -393,14 +432,14 @@ class Event(object):
         try:
             g = res.groups()
         except(AttributeError) as e:
-            print("Error: POSIX fdopen/fdopendir system call was not "
+            print("Error: POSIX fdopen system call was not "
                   "logged properly: %s" % content, file=sys.stderr)
             self.evtype = EventType.invalid
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 4:
-                print("Error: POSIX fdopen/fdopendir system call was not "
+                print("Error: POSIX fdopen system call was not "
                       "logged properly: %s" % content, file=sys.stderr)
                 self.evtype = EventType.invalid
                 return
@@ -418,7 +457,7 @@ class Event(object):
             return
 
         # Now, save the File that will be processed by the simulator
-        if syscall in ('fdopendir') or flags & O_DIRECTORY:
+        if flags & O_DIRECTORY:
             self.setDataSyscallFile(path, 'inode/directory')
         else:
             self.setDataSyscallFile(path)
@@ -567,15 +606,16 @@ class Event(object):
             return
         else:
             # Check the syscall was well formed and we have everything we need
-            if len(g) != 5:
+            if len(g) != 6:
                 print("Error: POSIX rename system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
                 self.evtype = EventType.invalid
                 return
 
             # Assign relevant variables
-            func = (str, str, int, int, str)
-            (old, new, flags, error, cwd) = map(lambda f, d: f(d), func, g)
+            func = (str, str, str, int, int, str)
+            (old, ocwd, new, flags, error, ncwd) = map(
+                lambda f, d: f(d), func, g)
 
         # Don't log failed syscalls, but inform the reader
         if error < 0:
@@ -583,8 +623,8 @@ class Event(object):
             return
 
         # Build paths to be used by simulator, and save the corresponding File
-        oldpath = old if old.startswith('/') else np(cwd+'/'+old)
-        newpath = new if new.startswith('/') else np(cwd+'/'+new)
+        oldpath = old if old.startswith('/') else np(ocwd+'/'+old)
+        newpath = new if new.startswith('/') else np(ncwd+'/'+new)
 
         self.evtype = EventType.filecopy
         self.evflags |= EventFileFlags.copy
@@ -675,8 +715,11 @@ class Event(object):
         elif syscall in ('fopen', 'freopen'):
             self.parsePOSIXFopen(syscall, content)
         # Variants of the fdopen() system calls
-        elif syscall in ('fdopen', 'fdopendir'):
+        elif syscall in ('fdopen',):
             self.parsePOSIXFDopen(syscall, content)
+        # Variants of the fdopendir() system calls
+        elif syscall in ('fdopendir',):
+            self.parsePOSIXFDopendir(syscall, content)
         # folder opening
         elif syscall in ('opendir',):
             self.parsePOSIXOpendir(syscall, content)
