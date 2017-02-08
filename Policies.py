@@ -6,6 +6,7 @@ from PolicyEngine import Policy
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
                       OWNED_PATH_ACCESS
 import sys
+import math
 
 
 class OneLibraryPolicy(Policy):
@@ -465,11 +466,20 @@ class CompositionalPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        for policy in self.policies:
-            if policy.allowedByPolicy(f, app):
-                return (True, 0)
+        decision = False
+        minCost = math.inf
 
-        return (False, 0)
+        for policy in self.policies:
+            (d, e) = policy.allowedByPolicy(f, app)
+
+            if d:
+                if e == 0:
+                    return (True, 0)
+                else:
+                    minCost = min(minCost, e)
+                    decision = True
+
+        return (decision, minCost if decision else 0)
 
     def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on DESIGNATION_ACCESS."""
@@ -745,7 +755,7 @@ class FFFSbPolicy(CompositionalPolicy):
 
 
 class OneFFFSbPolicy(CompositionalPolicy):
-    """OneFolder v FutureAccessList v FileTypeAssoc."""
+    """OneFolder v FutureAccessList v FileTypeAssoc v StickyBitPolicy."""
 
     def __init__(self,
                  name: str='OneFFFSbPolicy'):
