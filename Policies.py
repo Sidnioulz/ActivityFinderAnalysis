@@ -173,7 +173,9 @@ class FileTypePolicy(Policy):
                 ext = f.getFileName()[dot+1:]
                 self.unsupportedExts.add(ext)
 
-        return (fileType in allowedTypes or allowedTypes[0] == "*", 0)
+        return (fileType and (fileType in allowedTypes or
+                              allowedTypes[0] == "*"),
+                0)
 
     def abortIfUnsupportedExtensions(self):
         if len(self.unsupportedExts):
