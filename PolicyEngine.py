@@ -190,36 +190,43 @@ class Policy(object):
         self.exclScoresInst = None
         self.exclScoresPerApp = None
 
+        self.scoreDir = None
+
     def getOutputDir(self, parent: str=None):
         if parent:
             return parent + "/Policy - %s" % self.name
         else:
             return "/tmp/Policy - %s" % self.name
 
-    def printScores(self,
-                    outputDir: str,
-                    printClusters: bool=False):
-        """Print general scores, scores per app, instance and file."""
+    def makeOutputDir(self,
+                      outputDir: str):
+        """Create the output directory for this policy to be printed."""
 
         # Make sure the score directory is built
         if outputDir:
-            scoreDir = self.getOutputDir(parent=outputDir)
+            self.scoreDir = self.getOutputDir(parent=outputDir)
 
             if not os.path.exists(outputDir):
                 raise FileNotFoundError("Output directory given to the "
                                         "PolicyEngine does not exist: %s" %
                                         outputDir)
-            os.makedirs(scoreDir, exist_ok=True)
+            os.makedirs(self.scoreDir, exist_ok=True)
         else:
-            scoreDir = None
+            self.scoreDir = None
+
+    def printScores(self,
+                    outputDir: str,
+                    printClusters: bool=False):
+        """Print general scores, scores per app, instance and file."""
 
         # Security scores first as they increment splittingCost in some apps.
         print("\nINFORMATION FLOW CLUSTERS")
-        self.printSecurityClusters(outputDir=scoreDir,
+        self.printSecurityClusters(outputDir=self.scoreDir,
                             printClusters=printClusters)
         print("-------------------")
 
         # Application scores.
+        print("\nOVERENTITLEMENTS AND USABILITY SCORES")
         totalOEDists = []
         totalOECount = 0
         systemS = PolicyScores()
@@ -236,7 +243,7 @@ class Policy(object):
             for app in sorted(apps, key=lambda a: a.uid()):
                 iScore = self.perInstanceScores.get(app.uid())
                 if iScore:
-                    r = iScore.printScores(outputDir=scoreDir,
+                    r = iScore.printScores(outputDir=self.scoreDir,
                                            filename="App - %s - Instance %s."
                                            "score" % (desktopid,
                                                       app.uid()),
@@ -272,7 +279,7 @@ class Policy(object):
 
             # And then save the app's score file with the extra statistics.
             score = self.perAppScores[desktopid]
-            score.printScores(outputDir=scoreDir,
+            score.printScores(outputDir=self.scoreDir,
                               filename="App - %s.score" % desktopid,
                               userHome=userHome,
                               extraText=extraText,
@@ -290,15 +297,15 @@ class Policy(object):
         # Score for each type of application.
         print("-------------------")
         print("\nALL SYSTEM APPS")
-        systemS.printScores(outputDir=scoreDir,
+        systemS.printScores(outputDir=self.scoreDir,
                             filename="SystemApps.score",
                             userHome=userHome)
         print("\nALL DESKTOP APPS")
-        desktopS.printScores(outputDir=scoreDir,
+        desktopS.printScores(outputDir=self.scoreDir,
                              filename="DesktopApps.score",
                              userHome=userHome)
         print("\nALL USER APPS")
-        userappS.printScores(outputDir=scoreDir,
+        userappS.printScores(outputDir=self.scoreDir,
                              filename="UserlandApps.score",
                              userHome=userHome)
         print("-------------------")
@@ -332,11 +339,11 @@ class Policy(object):
                 else:
                     systemF += score
         print("\nALL SYSTEM FILES")
-        systemF.printScores(outputDir=scoreDir,
+        systemF.printScores(outputDir=self.scoreDir,
                             filename="SystemFiles.score",
                             userHome=userHome)
         print("\nALL USER DOCUMENTS")
-        userDocF.printScores(outputDir=scoreDir,
+        userDocF.printScores(outputDir=self.scoreDir,
                              filename="UserDocFiles.score",
                              userHome=userHome)
         print("-------------------")
@@ -358,7 +365,7 @@ class Policy(object):
                         "policies where all non-designation accesses were " \
                         "denied."
 
-        self.s.printScores(outputDir=scoreDir,
+        self.s.printScores(outputDir=self.scoreDir,
                            filename="general.score",
                            userHome=userHome,
                            extraText=extraText)
@@ -1021,8 +1028,22 @@ class PolicyEngine(object):
             for acc in file.getAccesses():
                 accesses.add((acc, file))
 
+        total = len(accesses)
+        threshold = total / 100
+        currentPct = 0
+        currentCnt = 0
         # Then, calculate usability scores of each file access.
+        if not quiet:
+            print("Starting usability computations...")
+
         for (acc, file) in accesses:
+            currentCnt += 1
+            if currentCnt == threshold:
+                currentCnt = 0
+                currentPct += 1
+                if currentPct % 5:
+                    print("... (%d%% done)" % currentPct)
+
             ret = policy.accessFunc(self, file, acc)
             if ret == ILLEGAL_ACCESS and debugEnabled():
                 t = self.illegalAppStore.get(acc.actor.desktopid) or set()
@@ -1040,13 +1061,21 @@ class PolicyEngine(object):
             policy.configCostCarryover()
 
         # And security scores of each app
+        if not quiet:
+            print("Starting security computations...")
         policy.securityRun(self)
+
+        if not quiet:
+            print("Creating output directory...")
+            policy.makeOutputDir(outputDir)
 
         # Graph printing, if enabled.
         if graphEnabled():
+            if not quiet:
+                print("Starting graph computations...")
             from GraphEngine import GraphEngine
             engine = GraphEngine()
-            engine.runGraph(policy=policy)
+            engine.runGraph(policy=policy, outputDir=outputDir)
 
         if not quiet:
             policy.printScores(outputDir, printClusters=printClusters)
