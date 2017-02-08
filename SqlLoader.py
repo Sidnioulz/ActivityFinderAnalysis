@@ -180,10 +180,15 @@ class SqlLoader(object):
 
                 if evId != currentId:
                     currentId = evId
-                    currentApp = Application(desktopid=evId,
-                                             pid=int(pkey),
-                                             tstart=ev.timestamp,
-                                             tend=ev.timestamp)
+                    try:
+                        currentApp = Application(desktopid=evId,
+                                                 pid=int(pkey),
+                                                 tstart=ev.timestamp,
+                                                 tend=ev.timestamp)
+                    except(ValueError) as e:
+                        print("Error: could not create application from "
+                              "event id '%s'. Full event:" % evId, ev)
+                        sys.exit(1)
                     apps.append(currentApp)
                 else:
                     currentApp.setTimeOfStart(min(ev.timestamp,
