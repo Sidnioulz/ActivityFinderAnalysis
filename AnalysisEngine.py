@@ -352,7 +352,7 @@ class AnalysisEngine(object):
                     instCostDist[desktopid] = series
 
         boxPlot = pygal.Box(box_mode="tukey")  # , range=(0, 30))
-        boxPlot.title = "Distribution of costs per app instance, " \
+        boxPlot.title = "Distribution of costs across app instances, " \
                         "for each app - %s Policy." % polName
         boxPlotAvg = pygal.Box(box_mode="tukey")
         boxPlotAvg.title = "Distribution of average cost per access per app " \
