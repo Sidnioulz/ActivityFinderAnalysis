@@ -1,6 +1,7 @@
 # Data location constants
-DATAPATH = "../data/current/"
-USERCONFIGPATH = DATAPATH + "user.ini"
+DEFAULTDATAPATH = "../data/current/"
+NAMEDDATAPATHBASE = "../data/data/"
+USERCONFIGNAME = "user.ini"
 DATABASENAME = "activity.sqlite"
 
 # Path splitting regexp

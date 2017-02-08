@@ -13,20 +13,23 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
                      OneFolderPolicy, FutureAccessListPolicy, \
                      StickyBitPolicy, FilenamePolicy, ProtectedFolderPolicy, \
-                     Win8Policy, Win10Policy
-from constants import DATAPATH, DATABASENAME, USERCONFIGPATH
+                     Win8Policy, Win10Policy, FFFPolicy, OneFFFPolicy, \
+                     FFFSbPolicy, OneFFFSbPolicy
+from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
-                  __setPrintClusters, \
+                  __setPrintClusters, __setUser, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
-                  printClustersEnabled, initMimeTypes
+                  printClustersEnabled, initMimeTypes, getDataPath
 import getopt
 import sys
 
-USAGE_STRING = 'Usage: __main__.py [--check-missing --debug --help ' \
-               '--output-fs=<DIR> --inode=<INODE> --score\n --print-clusters' \
-               ' --graph-clusters]'
+USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-missing ' \
+               '--output-fs=<DIR> --debug --help --score\n --print-clusters' \
+               ' --graph-clusters]\n\tor\n' \
+               '__main__.py --inode=<INODE> [--user=<NAME>]\n\tor\n' \
+               '__main__.py --post-analysis --output-fs=<DIR>'
 
 
 # Main function
@@ -37,16 +40,17 @@ def main(argv):
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hacdf:srpgi:", ["help",
-                                                            "post-analysis",
-                                                            "check-missing",
-                                                            "debug",
-                                                            "inode",
-                                                            "related-files",
-                                                            "output-fs=",
-                                                            "score",
-                                                            "print-clusters",
-                                                            "graph-clusters"])
+        (opts, args) = getopt.getopt(argv, "hacdf:srpgi:u:", ["help",
+                                                             "post-analysis",
+                                                             "check-missing",
+                                                             "debug",
+                                                             "inode",
+                                                             "related-files",
+                                                             "output-fs=",
+                                                             "score",
+                                                             "user",
+                                                             "print-clusters",
+                                                             "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -97,6 +101,11 @@ def main(argv):
                     print(USAGE_STRING)
                     sys.exit(2)
                 __setOutputFs(arg[1:] if arg[0] == '=' else arg)
+            elif opt in ('-u', '--user'):
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                __setUser(arg[1:] if arg[0] == '=' else arg)
             elif opt in ('-i', '--inode'):
                 if not arg:
                     print(USAGE_STRING)
@@ -124,15 +133,16 @@ def main(argv):
     evStore = EventStore.get()
     fileStore = FileStore.get()
     initMimeTypes()
+    datapath = getDataPath()
 
     # Load up user-related variables
-    userConf = UserConfigLoader.get(path=USERCONFIGPATH)
+    userConf = UserConfigLoader.get(path=datapath+USERCONFIGNAME)
 
     # Load up and check the SQLite database
     sql = None
-    print("\nLoading the SQLite database: %s..." % (DATAPATH+DATABASENAME))
+    print("\nLoading the SQLite database: %s..." % (datapath+DATABASENAME))
     try:
-        sql = SqlLoader(DATAPATH+DATABASENAME)
+        sql = SqlLoader(datapath+DATABASENAME)
     except ValueError as e:
         print("Failed to parse SQL: %s" % e.args[0], file=sys.stderr)
         sys.exit(-1)
@@ -143,8 +153,8 @@ def main(argv):
     print("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
-    print("\nLoading the PreloadLogger logs in folder: %s..." % DATAPATH)
-    pll = PreloadLoggerLoader(DATAPATH)
+    print("\nLoading the PreloadLogger logs in folder: %s..." % datapath)
+    pll = PreloadLoggerLoader(datapath)
     if checkMissingEnabled():
         print("Checking for missing application identities...")
         pll.listMissingActors()
@@ -215,9 +225,7 @@ def main(argv):
         polArgs = [None, None, None,
                    None, None, None,
                    None, None, None]
-                   # dict(folders=["~/Downloads", "/tmp"]),  # FIXME
-
-        policies = [Win10Policy]  # FIXME
+                   # dict(folders=["~/Downloads", "/tmp"])
 
         for (polIdx, polName) in enumerate(policies):
             if polArgs[polIdx]:

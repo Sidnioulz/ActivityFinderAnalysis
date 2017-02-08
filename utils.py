@@ -3,9 +3,12 @@ import os
 from urllib.parse import urlparse, unquote
 import re
 import mimetypes
+import random
+import string
 from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, PERLRE, PERLNAMER, \
-                      MONORE, MONONAMER, MONOPROCNAME
+                      MONORE, MONONAMER, MONOPROCNAME, DEFAULTDATAPATH, \
+                      NAMEDDATAPATHBASE
 
 __opt_check = False
 __opt_debug = False
@@ -14,6 +17,7 @@ __opt_related_files = False
 __opt_score = False
 __opt_graph = False
 __opt_clusters = False
+__opt_user = None
 
 
 def __setCheckMissing(opt):
@@ -58,6 +62,12 @@ def __setPrintClusters(opt):
     __opt_clusters = opt
 
 
+def __setUser(opt):
+    """Set the return value of :userEnabled():."""
+    global __opt_user
+    __opt_user = opt
+
+
 def checkMissingEnabled():
     """Return True if the --check-missing flag was passed, False otherwise."""
     global __opt_check
@@ -98,6 +108,25 @@ def printClustersEnabled():
     """Return True if --print-clusters was passed, False otherwise."""
     global __opt_clusters
     return __opt_clusters
+
+
+def userEnabled():
+    """Return the value of the --user flag, if any."""
+    global __opt_user
+    return __opt_user
+
+
+def getDataPath():
+    """Return the folder from which data is to be read."""
+    if not userEnabled():
+        return DEFAULTDATAPATH
+    else:
+        return NAMEDDATAPATHBASE + __opt_user + "/"
+
+
+def genRandStr(count: int=10, chars=string.ascii_uppercase + string.digits):
+    """Generate a random string."""
+    return ''.join(random.choice(chars) for _ in range(count))
 
 
 def time2Str(timestamp):
