@@ -341,7 +341,7 @@ class PreloadLoggerLoader(object):
                         hasErrors = True
 
                     # Insert into the ApplicationStore if one is available
-                    if store:
+                    if store is not None:
                         store.insert(app)
                         instanceCount += 1
 

@@ -26,7 +26,7 @@ class FileFactory(object):
     def __init__(self, fileStore: FileStore, appStore: ApplicationStore):
         """Construct a FileFactory."""
         super(FileFactory, self).__init__()
-        if not fileStore:
+        if fileStore is None:
             raise ValueError("A FileFactory must have a valid FileStore.")
         self.fileStore = fileStore
         self.appStore = appStore
@@ -88,7 +88,7 @@ class FileFactory(object):
             return f
 
     def resolveFDRef(self, name: str, time: int):
-        if not self.appStore:
+        if self.appStore is None:
             return None
 
         try:

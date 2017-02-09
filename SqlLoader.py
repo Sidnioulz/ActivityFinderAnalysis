@@ -205,7 +205,7 @@ class SqlLoader(object):
 
             # Insert into the ApplicationStore if one was given to us
             instanceCount += len(apps)
-            if store:
+            if store is not None:
                 for app in apps:
                     # Ignore study artefacts!
                     if not app.isStudyApp():
