@@ -25,10 +25,10 @@ class FileStore(object):
         """Construct a FileStore."""
         super(FileStore, self).__init__()
         self.clear()
-    #
-    # def __len__(self):
-    #     """Return the number of Files in the FileStore."""
-    #     return len(self.inodeStore)
+    
+    def __len__(self):
+        """Return the number of Files in the FileStore."""
+        return len(self.inodeStore)
 
     def __iter__(self):
         """Iterate over all Files."""
@@ -135,7 +135,7 @@ class FileStore(object):
             files = self.nameStore[key]
             lastCnt = 0
             for last in reversed(files):
-                if outputDir.endsWith("/") or last.getName().startswith("/"):
+                if outputDir.endswith("/") or last.getName().startswith("/"):
                     outpath = outputDir + last.getName()
                 else:
                     outpath = outputDir + "/" + last.getName()
@@ -157,17 +157,19 @@ class FileStore(object):
                         continue
 
                 # Ensure all parent folders exist
-                if last.getParentName():
-                    parentPath = outputDir + '/' + last.getParentName()
+                parentFileName = last.getParentName()
+                if parentFileName:
+                    parentPath = outputDir + '/' + parentFileName
                     try:
                         os.makedirs(parentPath, exist_ok=True)
                     except(FileExistsError) as e:
                         print("Warning: file '%s' aready exists, but is a "
                               "parent folder for file '%s'. Attempting to "
                               "delete the file and create a folder "
-                              " instead..." % (parentPath, last.getName()),
+                              " instead..." % (parentFileName,
+                                               last.getName()),
                               file=sys.stderr)
-                        parentFiles = self.getFilesForName(parentPath)
+                        parentFiles = self.getFilesForName(parentFileName)
                         for parentFile in parentFiles:
                             if parentFile.getType():
                                 raise e
@@ -177,7 +179,7 @@ class FileStore(object):
                         os.remove(parentPath)
                         os.makedirs(parentPath, exist_ok=True)
                         print("Info: updated %d files with name '%s'." % (
-                               len(parentFiles), parentPath),
+                               len(parentFiles), last.getName()),
                                file=sys.stderr)
 
                 if not last.getTimeOfEnd() or showDeleted:
