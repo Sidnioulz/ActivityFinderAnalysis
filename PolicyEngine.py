@@ -948,17 +948,12 @@ class Policy(object):
         """Calculate over-entitlements for each app."""
 
         total = len(engine.appStore) + len(engine.fileStore)
-        print(total, len(engine.appStore), len(engine.fileStore), "\n\n\n\n")
-        import time as tt
-        tt.sleep(30)
-        total = -1000  # FIXME DEBUG
         threshold = int(total / 100)
         currentPct = 0
         currentCnt = 0
 
         for app in engine.appStore:
             for f in engine.fileStore:
-                print(app, f)
                 currentCnt += 1
                 if currentCnt == threshold:
                     currentCnt = 0
