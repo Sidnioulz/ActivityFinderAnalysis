@@ -26,7 +26,7 @@ import getopt
 import sys
 
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-missing ' \
-               '--output-fs=<DIR> --debug --help --score\n --print-clusters' \
+               '--output-fs=<DIR> --debug --help --score\n --clusters' \
                ' --graph-clusters]\n\tor\n' \
                '__main__.py --inode=<INODE> [--user=<NAME>]\n\tor\n' \
                '__main__.py --post-analysis --output-fs=<DIR>'
@@ -49,7 +49,7 @@ def main(argv):
                                                              "output-fs=",
                                                              "score",
                                                              "user",
-                                                             "print-clusters",
+                                                             "clusters",
                                                              "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
@@ -77,12 +77,12 @@ def main(argv):
                       "scores of a number of file access\n\tcontrol policies"
                       ", replayed over the simulated accesses. Prints results"
                       "\n\tand saves them to the output directory.\n")
-                print("--print-clusters:\n\tPrints clusters of files with "
+                print("--clusters:\n\tPrints clusters of files with "
                       "information flows to one another.\n\tRequires the "
                       "--score option.\n")
                 print("--graph-clusters:\n\tFind communities in file/app "
                       "accesses using graph theory methods.\n\tRequires the "
-                      "--score option for per-policy graphs.\n")
+                      "--score and --cluster options for per-policy graphs.\n")
                 sys.exit()
             elif opt in ('c', '--check-missing'):
                 __setCheckMissing(True)
@@ -174,7 +174,8 @@ def main(argv):
     print("\nInserting and sorting all events...")
     store.sendEventsToStore()
     evStore.sort()
-    print("Sorted all %d events in the event store." % evStore.getEventCount())
+    print("Sorted all %d events in the event store. %d files in the FileStore."
+              % (evStore.getEventCount(), len(fileStore.inodeStore)))
 
     # Simulate the events to build a file model
     print("\nSimulating all events to build a file model...")
@@ -205,7 +206,7 @@ def main(argv):
               outputFsEnabled())
         fileStore.makeFiles(outputDir=outputFsEnabled(),
                             showDeleted=True,
-                            showDocumentsOnly=True,
+                            showDocumentsOnly=False,
                             userHome=userConf.getSetting("HomeDir"),
                             showDesignatedOnly=False)
 
@@ -221,6 +222,8 @@ def main(argv):
         policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
                     DesignationPolicy, FileTypePolicy, FolderPolicy,
                     OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy]
+
+        policies = [FFFPolicy, FFFSbPolicy, OneFFFPolicy, OneFFFSbPolicy]
 
         polArgs = [None, None, None,
                    None, None, None,
