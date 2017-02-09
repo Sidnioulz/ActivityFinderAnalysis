@@ -6,7 +6,8 @@ from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
                       ILLEGAL_ACCESS
-from utils import debugEnabled, graphEnabled, hasIntersection, pyre
+from utils import debugEnabled, graphEnabled, hasIntersection, pyre, \
+                  printClustersEnabled
 from blist import sortedlist
 import os
 import statistics
@@ -220,10 +221,11 @@ class Policy(object):
         """Print general scores, scores per app, instance and file."""
 
         # Security scores first as they increment splittingCost in some apps.
-        print("\nINFORMATION FLOW CLUSTERS")
-        self.printSecurityClusters(outputDir=self.scoreDir,
-                            printClusters=printClusters)
-        print("-------------------")
+        if printClustersEnabled():
+            print("\nINFORMATION FLOW CLUSTERS")
+            self.printSecurityClusters(outputDir=self.scoreDir,
+                                printClusters=printClusters)
+            print("-------------------")
 
         # Application scores.
         print("\nOVERENTITLEMENTS AND USABILITY SCORES")
@@ -876,9 +878,12 @@ class Policy(object):
 
     def buildSecurityClusters(self,
                               engine: 'PolicyEngine',
-                              userDocumentsOnly: bool=False):
+                              userDocumentsOnly: bool=False,
+                              quiet: bool=False):
         """Build clusters of files with information flows to one another."""
         # First, build clusters of files co-accessed by every single app.
+        if not quiet:
+            print("\t\tBuilding lists of co-accessed files per application...")
         accessListsApp = dict()
         accessListsInst = dict()
         userHome = self.userConf.getHomeDir()
@@ -931,15 +936,36 @@ class Policy(object):
             return clusters
 
         # Return our final list of clusters.
+        if not quiet:
+            print("\t\tMerging lists into clusters...")
         return (_clusters(accessListsApp),
                 _clusters(accessListsInst),
                 accessListsInst)
 
-    def calculateOverentitlements(self, engine: 'PolicyEngine'):
+    def calculateOverentitlements(self,
+                                  engine: 'PolicyEngine',
+                                  quiet: bool=False):
         """Calculate over-entitlements for each app."""
+
+        total = len(engine.appStore) + len(engine.fileStore)
+        print(total, len(engine.appStore), len(engine.fileStore), "\n\n\n\n")
+        import time as tt
+        tt.sleep(30)
+        total = -1000  # FIXME DEBUG
+        threshold = int(total / 100)
+        currentPct = 0
+        currentCnt = 0
 
         for app in engine.appStore:
             for f in engine.fileStore:
+                print(app, f)
+                currentCnt += 1
+                if currentCnt == threshold:
+                    currentCnt = 0
+                    currentPct += 1
+                    if not (currentPct % 5) and not quiet:
+                        print("\t\t... (%d%% done)" % currentPct)
+
                 # Ignore folders without accesses (auto-created by factory).
                 if f.isFolder() and not f.hasAccesses():
                     continue
@@ -957,19 +983,25 @@ class Policy(object):
                             self.incrementOverEntitlement(f, app, True)
                             break
 
-    def securityRun(self, engine: 'PolicyEngine'):
+    def securityRun(self, engine: 'PolicyEngine', quiet: bool=False):
         """Assess the quality of the security provided by a Policy."""
 
         # Build clusters of files with information flows to one another.
-        # (self.clusters, self.accessLists) = \
-        #     self.buildSecurityClusters(engine)
+        if not quiet:
+            print("\tBuilding security clusters...")
         (self.clusters, self.clustersInst, self.accessLists) = \
-            self.buildSecurityClusters(engine, userDocumentsOnly=True)
+            self.buildSecurityClusters(engine,
+                                       userDocumentsOnly=True,
+                                       quiet=quiet)
 
         # Calculate exclusion list violations in clusters and apps.
+        if not quiet:
+            print("\tCalculating exclusion list violations...")
         self.calculateExclViolations()
 
         # Calculate over-entitlements for each app.
+        if not quiet:
+            print("\tCalculating over-entitlements...")
         self.calculateOverentitlements(engine)
 
     def appWideRecords(self):
@@ -1029,7 +1061,7 @@ class PolicyEngine(object):
                 accesses.add((acc, file))
 
         total = len(accesses)
-        threshold = total / 100
+        threshold = int(total / 100)
         currentPct = 0
         currentCnt = 0
         # Then, calculate usability scores of each file access.
@@ -1041,8 +1073,8 @@ class PolicyEngine(object):
             if currentCnt == threshold:
                 currentCnt = 0
                 currentPct += 1
-                if currentPct % 5:
-                    print("... (%d%% done)" % currentPct)
+                if not (currentPct % 5) and not quiet:
+                    print("\t... (%d%% done)" % currentPct)
 
             ret = policy.accessFunc(self, file, acc)
             if ret == ILLEGAL_ACCESS and debugEnabled():
@@ -1057,13 +1089,15 @@ class PolicyEngine(object):
         del accesses
 
         # If there is a global config cost, ensure all sub-scores remember it.
+        if not quiet:
+            print("Carrying config costs over to app instances...")
         if policy.globalConfigCost():
             policy.configCostCarryover()
 
         # And security scores of each app
         if not quiet:
             print("Starting security computations...")
-        policy.securityRun(self)
+        policy.securityRun(self, quiet=quiet)
 
         if not quiet:
             print("Creating output directory...")
