@@ -1006,7 +1006,7 @@ class TestPolicies(unittest.TestCase):
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
 
-        f009 = self.fileFactory.getFile(name=self.p009, time=20)
+        f009 = self.fileFactory.getFile(name=self.p009, time=3010)
         accs = f009.getAccesses()
         self.cumulGrantingCost += 1
         pol.accessFunc(None, f009, accs[0])
@@ -1086,7 +1086,7 @@ class TestPolicies(unittest.TestCase):
         self._assertCosts(pol)
 
         # f003 made f003b legal which made this call legal.
-        f009 = self.fileFactory.getFile(name=self.p009, time=20)
+        f009 = self.fileFactory.getFile(name=self.p009, time=3010)
         accs = f009.getAccesses()
         pol.accessFunc(None, f009, accs[0])
 
