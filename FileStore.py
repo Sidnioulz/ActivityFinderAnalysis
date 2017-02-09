@@ -13,7 +13,7 @@ class FileStore(object):
     @staticmethod
     def get():
         """Return the FileStore for the entire application."""
-        if not FileStore.__file_store:
+        if FileStore.__file_store is None:
             FileStore.__file_store = FileStore()
         return FileStore.__file_store
 
@@ -25,8 +25,13 @@ class FileStore(object):
         """Construct a FileStore."""
         super(FileStore, self).__init__()
         self.clear()
+    #
+    # def __len__(self):
+    #     """Return the number of Files in the FileStore."""
+    #     return len(self.inodeStore)
 
     def __iter__(self):
+        """Iterate over all Files."""
         for name in sorted(self.nameStore):
             for f in self.nameStore[name]:
                 yield f
