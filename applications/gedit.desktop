@@ -20,6 +20,7 @@ Keywords=Text;Editor;Plaintext;Write;
 X-Ubuntu-Gettext-Domain=gedit
 LibraryCaps=documents;
 ROPaths=^/usr/include/gedit\-3\.14;
+MimeType=text/plain;
 
 X-AppStream-Ignore=true
 

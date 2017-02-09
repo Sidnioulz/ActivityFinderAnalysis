@@ -136,4 +136,4 @@ GenericName[uk]=Світовий час
 GenericName[vi]=Globaltime
 GenericName[zh_CN]=全球时间
 GenericName[zh_TW]=全球時間
-RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;
+RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;
