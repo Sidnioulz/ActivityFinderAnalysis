@@ -3,6 +3,7 @@ from File import File, EventFileFlags
 from utils import time2Str, debugEnabled
 import os
 import shutil
+import sys
 
 
 class FileStore(object):
@@ -129,7 +130,10 @@ class FileStore(object):
             files = self.nameStore[key]
             lastCnt = 0
             for last in reversed(files):
-                outpath = outputDir + last.getName()
+                if outputDir.endsWith("/") or last.getName().startswith("/"):
+                    outpath = outputDir + last.getName()
+                else:
+                    outpath = outputDir + "/" + last.getName()
 
                 # Deal with previous versions
                 if lastCnt:
@@ -148,13 +152,34 @@ class FileStore(object):
                         continue
 
                 # Ensure all parent folders exist
-                os.makedirs(outputDir + '/' +
-                            last.getParentName(),
-                            exist_ok=True)
+                if last.getParentName():
+                    parentPath = outputDir + '/' + last.getParentName()
+                    try:
+                        os.makedirs(parentPath, exist_ok=True)
+                    except(FileExistsError) as e:
+                        print("Warning: file '%s' aready exists, but is a "
+                              "parent folder for file '%s'. Attempting to "
+                              "delete the file and create a folder "
+                              " instead..." % (parentPath, last.getName()),
+                              file=sys.stderr)
+                        parentFiles = self.getFilesForName(parentPath)
+                        for parentFile in parentFiles:
+                            if parentFile.getType():
+                                raise e
+                            else:
+                                parentFile.setType('inode/directory')
+                                self.updateFile(parentFile)
+                        os.remove(parentPath)
+                        os.makedirs(parentPath, exist_ok=True)
+                        print("Info: updated %d files with name '%s'." % (
+                               len(parentFiles), parentPath),
+                               file=sys.stderr)
 
                 if not last.getTimeOfEnd() or showDeleted:
                     if last.isFolder():
-                        os.makedirs(outpath)
+                        # Make the folder. If there's a file with the same
+                        # name, that file was a folder and must be corrected.
+                        os.makedirs(outpath, exist_ok=True)
                         with open(outpath+"/.ucl-metadata", 'a') as f:
                             os.utime(outpath+"/.ucl-metadata", None)
                             last.writeStatistics(f)
@@ -172,8 +197,6 @@ class FileStore(object):
 
     def getFile(self, inode: int):
         """Return the File identified by an inode."""
-        print(inode)
-        print("|\n\n\n")
         try:
             return self.inodeStore[inode]
         except(KeyError) as e:
@@ -191,6 +214,7 @@ class FileStore(object):
                 else:
                     del filesWithName[index]
                     self.addFile(file)
+                    break
         else:
             raise ArithmeticError("Attempted to update file '%s' (made on %s)"
                                   ", but it has not yet been added to the "
