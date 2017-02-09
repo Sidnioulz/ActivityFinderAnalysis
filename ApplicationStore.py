@@ -19,7 +19,7 @@ class ApplicationStore(object):
     @staticmethod
     def get():
         """Return the ApplicationStore for the entire application."""
-        if not ApplicationStore.__app_store:
+        if ApplicationStore.__app_store is None:
             ApplicationStore.__app_store = ApplicationStore()
         return ApplicationStore.__app_store
 
@@ -32,7 +32,15 @@ class ApplicationStore(object):
         super(ApplicationStore, self).__init__()
         self.clear()
 
+    def __len__(self):
+        """Return the number of Applications in the ApplicationStore."""
+        if not self.nameStoreClean:
+            self._regenNameStore()
+
+        return self._len
+
     def __iter__(self):
+        """Iterate over all Applications."""
         for pid in sorted(self.pidStore):
             for app in self.pidStore[pid]:
                 yield app
@@ -42,6 +50,7 @@ class ApplicationStore(object):
         self.pidStore = dict()   # type: dict
         self.nameStore = dict()  # type: dict
         self.nameStoreClean = True
+        self._len = 0
 
     def _mergePidList(self, pids: list):
         """Ensure a time-sorted PID list has its similar neighbours merged."""
@@ -338,13 +347,16 @@ class ApplicationStore(object):
     def _regenNameStore(self):
         """Regenerate the desktopid index of this ApplicationStore."""
         self.nameStore = dict()
+        summedLen = 0
 
         for (pid, apps) in self.pidStore.items():
+            summedLen += len(apps)
             for app in apps:
                 desktopList = self.nameStore.get(app.desktopid) or []
                 desktopList.append(app)
                 self.nameStore[app.desktopid] = desktopList
 
+        self._len = summedLen
         self.nameStoreClean = True
 
     def getAppLaunchEvents(self):
