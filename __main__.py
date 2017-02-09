@@ -174,13 +174,13 @@ def main(argv):
     print("\nInserting and sorting all events...")
     store.sendEventsToStore()
     evStore.sort()
-    print("Sorted all %d events in the event store. %d files in the FileStore."
-              % (evStore.getEventCount(), len(fileStore.inodeStore)))
+    print("Sorted all %d events in the event store." % evStore.getEventCount())
 
     # Simulate the events to build a file model
     print("\nSimulating all events to build a file model...")
     evStore.simulateAllEvents()
-    print("Simulated all events.")
+    evStore.sort()
+    print("Simulated all events. %d files initialised." % len(fileStore))
 
     # Manage --inode queries
     if __opt_inode_query:
