@@ -6,7 +6,7 @@ from ApplicationStore import ApplicationStore
 from Event import Event
 from utils import space, pyre, pynamer, pyprocname, javare, javanamer, \
                   javaprocname, perlre, perlnamer, monore, mononamer, \
-                  monoprocname
+                  monoprocname, debugEnabled
 
 
 class PreloadLoggerLoader(object):
@@ -164,6 +164,7 @@ class PreloadLoggerLoader(object):
         nosyscallactors = set()  # Apps that logged zero syscalls
         instanceCount = 0      # Count of distinct app instances in the dataset
         hasErrors = False      # Whether some uninitialised apps were found
+        invalidApps = set()    # List of desktop IDs that could not be init'd
 
         # List all log files that match the PreloadLogger syntax
         for file in os.listdir(self.path):
@@ -238,7 +239,6 @@ class PreloadLoggerLoader(object):
                         interpreterid = g[0]
                         g = self.parseJava(g, items)
                         # print("JAVA APP: %s" % g[2])
-
                     # Perl
                     if (perlre.match(g[0])):
                         interpreterid = g[0]
@@ -257,9 +257,28 @@ class PreloadLoggerLoader(object):
                     prevTimestamp = 0
                     timeDelta = 0
                     syscalls = []
-                    for binary in content:
+                    skip = 0
+                    for (lineIdx, binary) in enumerate(content):
+                        if skip:
+                            skip -= 1
+                            continue
+
                         try:
                             line = binary.decode('utf-8')
+                        except(UnicodeDecodeError) as e:
+                            print("Error: %s has a non utf-8 line: %s " % (
+                                   file,
+                                   str(e)),
+                                  file=sys.stderr)
+                            continue
+
+                        # Line continues...
+                        try:
+                            while line.endswith('\\\n'):
+                                skip += 1
+                                nextBinary = content[lineIdx+skip]
+                                nextLine = nextBinary.decode('utf-8')
+                                line += nextLine
                         except(UnicodeDecodeError) as e:
                             print("Error: %s has a non utf-8 line: %s " % (
                                    file,
@@ -271,20 +290,20 @@ class PreloadLoggerLoader(object):
                         if line.startswith(' '):
                             if len(syscalls):
                                 syscalls[-1][1] = syscalls[-1][1] + '\n' + line
-                            else:
-                                print("%s has a corrupted line: %s" % (
-                                       file,
-                                       line),
+                            elif debugEnabled():
+                                print("%s has a corrupted line (no call): %s" %
+                                      (file, line),
                                       file=sys.stderr)
                             continue
 
                         # Check that line is a syntactically valid system call
                         result = PreloadLoggerLoader.syscall.match(line)
                         if result is None:
-                            print("%s has a corrupted line: %s" % (
-                                   file,
-                                   line),
-                                  file=sys.stderr)
+                            if debugEnabled():
+                                print("%s has a corrupted line (match): %s" % (
+                                       file,
+                                       line),
+                                      file=sys.stderr)
                             continue
 
                         # Update the timestamp (convert to ZG millisec format)
@@ -318,12 +337,19 @@ class PreloadLoggerLoader(object):
                     # TODO: process deletions and remove corresponding files
 
                     # Make the application
-                    app = Application(desktopid=g[0],
-                                      pid=int(g[1]),
-                                      tstart=tstart,
-                                      tend=tend,
-                                      interpreterid=interpreterid)
-                    app.setCommandLine(g[2])
+                    try:
+                        app = Application(desktopid=g[0],
+                                          pid=int(g[1]),
+                                          tstart=tstart,
+                                          tend=tend,
+                                          interpreterid=interpreterid)
+                        app.setCommandLine(g[2])
+                    except(ValueError) as e:
+                        print("MISSING: %s" % g[0],
+                              file=sys.stderr)
+                        hasErrors = True
+                        invalidApps.add(g[0])
+                        continue
 
                     # Ignore study artefacts!
                     if app.isStudyApp():
@@ -355,6 +381,12 @@ class PreloadLoggerLoader(object):
                         instanceCount += 1
 
         if checkInitialised and hasErrors:
+            sys.exit(-1)
+
+        if invalidApps and hasErrors:
+            print("Invalid apps:", file=sys.stderr)
+            for a in sorted(invalidApps):
+                print("\t%s" % a, file=sys.stderr)
             sys.exit(-1)
 
         # print("Apps that logged valid files:")
