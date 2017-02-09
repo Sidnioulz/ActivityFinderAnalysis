@@ -34,8 +34,17 @@ class PreloadLoggerLoader(object):
             items = space.split(g[2])
 
         # Return if there are no parameters, the interpreter is the app
-        if len(items) == 1:
+        if len(items) <= 1:
             return g
+
+        # Return if a command was passed, as it's actually Python running.
+        if items[1] == "-c":
+            return g
+
+        # Ignore "python -O /tmp/..."
+        if items[1] == "-O":
+            if len(items) > 2 and items[2].startswith("/tmp/"):
+                return g
 
         res = pynamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
