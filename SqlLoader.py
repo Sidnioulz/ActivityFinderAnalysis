@@ -85,14 +85,20 @@ class SqlLoader(object):
         hasErrors = False
 
         data = self.cur.fetchall()
+        invalidApps = set()
         for listing in data:
-            app = Application(desktopid=listing[1])
-            if not app.isInitialised():
+            try:
+                app = Application(desktopid=listing[1])
+            except(ValueError) as e:
                 print("MISSING: %s" % listing[1],
                       file=sys.stderr)
+                invalidApps.add(listing[1])
                 hasErrors = True
 
-        if hasErrors is True:
+        if invalidApps and hasErrors:
+            print("Invalid apps:", file=sys.stderr)
+            for a in sorted(invalidApps):
+                print("\t%s" % a, file=sys.stderr)
             sys.exit(-1)
 
     def loadDb(self, store: ApplicationStore = None):
@@ -180,15 +186,10 @@ class SqlLoader(object):
 
                 if evId != currentId:
                     currentId = evId
-                    try:
-                        currentApp = Application(desktopid=evId,
-                                                 pid=int(pkey),
-                                                 tstart=ev.timestamp,
-                                                 tend=ev.timestamp)
-                    except(ValueError) as e:
-                        print("Error: could not create application from "
-                              "event id '%s'. Full event:" % evId, ev)
-                        sys.exit(1)
+                    currentApp = Application(desktopid=evId,
+                                             pid=int(pkey),
+                                             tstart=ev.timestamp,
+                                             tend=ev.timestamp)
                     apps.append(currentApp)
                 else:
                     currentApp.setTimeOfStart(min(ev.timestamp,
