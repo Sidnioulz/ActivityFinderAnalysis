@@ -47,7 +47,7 @@ class PolicyScores(object):
         # app ratio is relevant to overentitlement in general, the per-instance
         # ratio is useful for discussing the potential immediate consequences
         # of a benign app being exploited (notwithstanding app statefulness).
-        self.overEntitlements = [set(), set()]
+        self.overEntitlements = [0, 0, 0, 0]
 
     def __eq__(self, other):
         """Compare this PolicyScores to :other:."""
@@ -69,7 +69,9 @@ class PolicyScores(object):
             self.graphIsolationCost == other.graphIsolationCost and \
             self.graphSplittingCost == other.graphSplittingCost and \
             self.overEntitlements[0] == other.overEntitlements[0] and \
-            self.overEntitlements[1] == other.overEntitlements[1]
+            self.overEntitlements[1] == other.overEntitlements[1] and \
+            self.overEntitlements[2] == other.overEntitlements[2] and \
+            self.overEntitlements[3] == other.overEntitlements[3]
 
     def __iadd__(self, other):
         """Add the scores from :other: to this PolicyScores."""
@@ -90,10 +92,12 @@ class PolicyScores(object):
         self.graphIsolationCost += other.graphIsolationCost
         self.graphSplittingCost += other.graphSplittingCost
 
-        self.overEntitlements[0] = \
-            self.overEntitlements[0].union(list(other.overEntitlements[0]))
-        self.overEntitlements[1] = \
-            self.overEntitlements[1].union(list(other.overEntitlements[1]))
+        # Warning: It makes no sense to sum over-entitlements now they're just
+        # counters. There will be files counted twice for sure.
+        self.overEntitlements[0] += other.overEntitlements[0]
+        self.overEntitlements[1] += other.overEntitlements[1]
+        self.overEntitlements[2] += other.overEntitlements[2]
+        self.overEntitlements[3] += other.overEntitlements[3]
 
         return self
 
@@ -125,23 +129,12 @@ class PolicyScores(object):
 
         msg += ("\nSecurity over-entitlements:\n")
         msg += ("\t* %d files used / %d reachable\n" % (
-                (len(self.overEntitlements[0]),
-                 len(self.overEntitlements[1]))))
-
-        sysFiles = [set(), set()]
-        userFiles = [set(), set()]
-        for i in (0, 1):
-            for file in self.overEntitlements[i]:
-                if file.isUserDocument(userHome, allowHiddenFiles=True):
-                    userFiles[i].add(file)
-                else:
-                    sysFiles[i].add(file)
+                (self.overEntitlements[0],
+                 self.overEntitlements[1])))
 
         msg += ("\t* %d user documents used / %d reachable\n" % (
-                (len(userFiles[0]), len(userFiles[1]))))
-
-        msg += ("\t* %d system files used / %d reachable\n" % (
-                (len(sysFiles[0]), len(sysFiles[1]))))
+                (self.overEntitlements[2],
+                 self.overEntitlements[3])))
 
         if extraText:
             msg += extraText
@@ -156,7 +149,7 @@ class PolicyScores(object):
             with open(filename, "a") as f:
                 print(msg, file=f)
 
-        return [len(userFiles[0]), len(userFiles[1])]
+        return [self.overEntitlements[2], self.overEntitlements[3]]
 
 
 class Policy(object):
@@ -264,7 +257,8 @@ class Policy(object):
                 totalOEDists += dists
                 totalOECount += count
 
-                extraText = "\nAPP INSTANCE STATS SORTED BY UID\n" \
+                extraText = "\n(reminder: no OE scores for apps.\n\n)\n" \
+                            "\nAPP INSTANCE STATS SORTED BY UID\n" \
                             "Distribution of over-entitlements: %s\n" \
                             "Over-entitlement proportions: %s\n" \
                             "Min: %f\n" \
@@ -405,12 +399,12 @@ class Policy(object):
             iScore.__setattr__(score, attr)
             self.perInstanceScores[actor.uid()] = iScore
 
-            aScore = self.perAppScores.get(actor.getDesktopId()) or \
+            aScore = self.perAppScores.get(actor.desktopid) or \
                 PolicyScores()
             attr = aScore.__getattribute__(score)
             attr += increment
             aScore.__setattr__(score, attr)
-            self.perAppScores[actor.getDesktopId()] = aScore
+            self.perAppScores[actor.desktopid] = aScore
 
         # File score
         if file:
@@ -423,37 +417,23 @@ class Policy(object):
     def incrementOverEntitlement(self,
                                  file: File,
                                  actor: Application,
-                                 accessed: bool):
+                                 accessed: bool,
+                                 isUserDoc: bool):
         """Increment an overentitlement score for a File and Application."""
-        if file and not isinstance(file, File):
-            raise TypeError("Policy.incrementOverEntitlement needs a File "
-                            "parameter, received a %s." %
-                            file.__class__.__name__)
-        if actor and not isinstance(actor, Application):
-            raise TypeError("Policy.incrementOverEntitlement needs an "
-                            "Application parameter, received a %s." %
-                            actor.__class__.__name__)
-        if not file:
-            raise AttributeError("Policy.incrementOverEntitlement needs a "
-                                 "file parameter.")
-        if not actor:
-            raise AttributeError("Policy.incrementOverEntitlement needs an "
-                                 "actor parameter.")
-
         # Global score
-        self.s.overEntitlements[0 if accessed else 1].add(file)
+        if not actor:
+            self.s.overEntitlements[0 if accessed else 1] += 1
+            if isUserDoc:
+                self.s.overEntitlements[2 if accessed else 3] += 1
 
         # Per instance score
-        iScore = self.perInstanceScores.get(actor.uid()) or \
-            PolicyScores()
-        iScore.overEntitlements[0 if accessed else 1].add(file)
-        self.perInstanceScores[actor.uid()] = iScore
-
-        # Per app score
-        aScore = self.perAppScores.get(actor.getDesktopId()) or \
-            PolicyScores()
-        aScore.overEntitlements[0 if accessed else 1].add(file)
-        self.perAppScores[actor.getDesktopId()] = aScore
+        else:
+            iScore = self.perInstanceScores.get(actor.uid()) or \
+                PolicyScores()
+            iScore.overEntitlements[0 if accessed else 1] += 1
+            if isUserDoc:
+                iScore.overEntitlements[2 if accessed else 3] += 1
+            self.perInstanceScores[actor.uid()] = iScore
 
     def generateOwnedPaths(self, actor: Application):
         """Return the paths where an Application can fully write Files."""
@@ -538,7 +518,7 @@ class Policy(object):
             # Interpretor-specific files
             if ((actor.getInterpreterId() and
                  pyre.match(actor.getInterpreterId())) or
-                    pyre.match(actor.getDesktopId())):
+                    pyre.match(actor.desktopid)):
                 paths.append((re.compile('^/usr/lib/python2\.7/.*\.pyc'), rwf))
             # If I ever support Vala: /usr/share/(vala|vala-0.32)/vapi/%s*
 
@@ -576,8 +556,7 @@ class Policy(object):
                           composed: bool,
                           data):
         """Calculate condition for POLICY_ACCESS to be returned."""
-        (allowed, __) = self.allowedByPolicy(f, acc.actor)
-        return allowed
+        return self.allowedByPolicy(f, acc.actor)
 
     def _accFunSimilarAccessCond(self,
                                  f: File,
@@ -901,10 +880,10 @@ class Policy(object):
                 if not acc.actor.isUserlandApp():
                     continue
 
-                (policyAllowed, __) = self.allowedByPolicy(f, acc.actor)
+                policyAllowed = self.allowedByPolicy(f, acc.actor)
                 if policyAllowed or acc.isByDesignation():
                     instanceLabel = "App - %s - Instance %s.score" % (
-                                     acc.actor.getDesktopId(),
+                                     acc.actor.desktopid,
                                      acc.actor.uid())
                     l = accessListsApp.get(acc.actor.desktopid) or set()
                     l.add(f)
@@ -942,18 +921,29 @@ class Policy(object):
                 _clusters(accessListsInst),
                 accessListsInst)
 
+    # @profile
     def calculateOverentitlements(self,
                                   engine: 'PolicyEngine',
                                   quiet: bool=False):
         """Calculate over-entitlements for each app."""
 
-        total = len(engine.appStore) + len(engine.fileStore)
+        userHome = self.userConf.getHomeDir()
+        total = len(engine.appStore) * len(engine.fileStore)
         threshold = int(total / 100)
         currentPct = 0
         currentCnt = 0
 
-        for app in engine.appStore:
-            for f in engine.fileStore:
+        for f in engine.fileStore:
+            # Ignore folders without accesses (auto-created by factory).
+            if f.isFolder() and not f.hasAccesses():
+                continue
+
+            wasAllowed = False
+            wasAccessed = False
+
+            uDoc = f.isUserDocument(userHome, allowHiddenFiles=True)
+            allowedApps = []
+            for app in engine.appStore:
                 currentCnt += 1
                 if currentCnt == threshold:
                     currentCnt = 0
@@ -961,22 +951,25 @@ class Policy(object):
                     if not (currentPct % 5) and not quiet:
                         print("\t\t... (%d%% done)" % currentPct)
 
-                # Ignore folders without accesses (auto-created by factory).
-                if f.isFolder() and not f.hasAccesses():
-                    continue
-
-                (policyAllowed, __) = self.allowedByPolicy(f, app)
+                policyAllowed = self.allowedByPolicy(f, app)
 
                 # File allowed by the policy
                 if policyAllowed:
-                    self.incrementOverEntitlement(f, app, False)
+                    wasAllowed = True
+                    allowedApps.append(app)
+                    self.incrementOverEntitlement(f, app, False, uDoc)
 
-                    # File accessed by the app
-                    accesses = f.getAccesses()
-                    for acc in accesses:
-                        if acc.actor == app:
-                            self.incrementOverEntitlement(f, app, True)
-                            break
+            # File accessed by the app
+            for acc in f.getAccesses():
+                if acc.actor in allowedApps:
+                    wasAccessed = True
+                    self.incrementOverEntitlement(f, acc.actor, True, uDoc)
+                    break
+
+            if wasAllowed:
+                self.incrementOverEntitlement(f, None, False, uDoc)
+            if wasAccessed:
+                self.incrementOverEntitlement(f, None, True, uDoc)
 
     def securityRun(self, engine: 'PolicyEngine', quiet: bool=False):
         """Assess the quality of the security provided by a Policy."""

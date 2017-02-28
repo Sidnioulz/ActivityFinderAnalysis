@@ -66,7 +66,7 @@ class OneLibraryPolicy(Policy):
                     if(file.getName().startswith(path)):
                         return (True, cost)
 
-        return (False, 0)
+        return False
 
 
 class CompoundLibraryPolicy(OneLibraryPolicy):
@@ -165,7 +165,7 @@ class FileTypePolicy(Policy):
                       " '%s' does not handle any MIME types. This is an "
                       "omissin from the writers of the app's .desktop file." %
                       (app.desktopid, libCaps))
-            return (False, 0)
+            return False
 
         fileType = f.getType()
         if not fileType:
@@ -198,7 +198,7 @@ class DesignationPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        return (False, 0)
+        return False
 
 
 class FolderPolicy(Policy):
@@ -271,9 +271,9 @@ class FolderPolicy(Policy):
         """Tell if a File can be accessed by an Application."""
         folder = f.getParentName()
         if self.dataInCache(self.desigCache, folder, app):
-            return (True, 0)
+            return True
         else:
-            return (False, 0)
+            return False
 
 
 class OneFolderPolicy(FolderPolicy):
@@ -334,9 +334,9 @@ class FutureAccessListPolicy(FolderPolicy):
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         if self.dataInCache(self.desigCache, f.inode, app):
-            return (True, 0)
+            return True
         else:
-            return (False, 0)
+            return False
 
 
 class UnsecurePolicy(Policy):
@@ -349,7 +349,7 @@ class UnsecurePolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        return (True, 0)
+        return True
 
 
 class CompositionalPolicy(Policy):
@@ -466,20 +466,11 @@ class CompositionalPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        decision = False
-        minCost = math.inf
-
         for policy in self.policies:
-            (d, e) = policy.allowedByPolicy(f, app)
+            if policy.allowedByPolicy(f, app):
+                return True
 
-            if d:
-                if e == 0:
-                    return (True, 0)
-                else:
-                    minCost = min(minCost, e)
-                    decision = True
-
-        return (decision, minCost if decision else 0)
+        return False
 
     def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on DESIGNATION_ACCESS."""
@@ -530,9 +521,9 @@ class StrictCompositionalPolicy(CompositionalPolicy):
         """Tell if a File can be accessed by an Application."""
         for policy in self.policies:
             if not policy.allowedByPolicy(f, app):
-                return (False, 0)
+                return False
 
-        return (True, 0)
+        return True
 
 
 class StickyBitPolicy(Policy):
@@ -669,9 +660,9 @@ class FilenamePolicy(FolderPolicy):
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         if self.dataInCache(self.desigCache, f.getNameWithoutExtension(), app):
-            return (True, 0)
+            return True
         else:
-            return (False, 0)
+            return False
 
 
 class DocumentsFileTypePolicy(StrictCompositionalPolicy):
