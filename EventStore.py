@@ -1,6 +1,6 @@
 """A store for Event objects."""
 from DesignationCache import DesignationCache
-from Event import Event, EventFileFlags, EventSource
+from Event import Event, EventFileFlags, EventSource, EventType
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
@@ -236,6 +236,10 @@ class EventStore(object):
             old = subj[0]
             new = subj[1]
 
+            # Not legal anyway.
+            if old.path == new.path:
+                continue
+
             if debugEnabled():
                 print("Info: copying '%s' to '%s' at time %s, by actor %s." % (
                     old.getName(), new.getName(), time2Str(event.getTime()),
@@ -248,9 +252,11 @@ class EventStore(object):
                 # FIXME: attn, for syscalls, a cp to a folder doesn't cause
                 # deletion of the folder, but only of the overridden children!
 
+
                 if newFile.isFolder():
                     print("Warning: user copied to a folder. Must support "
-                          "in-depth copy! Folder is: %s" % newFile.getName(),
+                          "in-depth copy! Source is: %s. Folder is: %s" %
+                           (old.getName(), newFile.getName()),
                           file=sys.stderr)
                     sys.exit(0)
                 baseFlags = event.evflags
@@ -318,6 +324,9 @@ class EventStore(object):
         if debugEnabled():
             print("Instantiating Zeitgeist acts of designation...")
         for event in self.store:
+            if event.evtype == EventType.invalid:
+                continue
+
             if event.getSource() == EventSource.zeitgeist:
                 # The event grants 5 minutes of designation both ways.
                 self.desigcache.addItem(event,
@@ -332,6 +341,9 @@ class EventStore(object):
             print("Done. Starting simulation...")
         # Then, dispatch each event to the appropriate handler
         for event in self.store:
+            if event.evtype == EventType.invalid:
+                continue
+
             # Designation events are already processed.
             if event.getFileFlags() & EventFileFlags.designationcache:
                 continue
