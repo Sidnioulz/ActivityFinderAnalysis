@@ -1,8 +1,8 @@
-python-xdg
+pyxdg
 py-flags
-python-urllib3
-python-blist
-python-orange
+urllib3
+blist
+orange3
 Orange3-Associate
-python-igraph
-python-pygal
+igraph
+pygal
