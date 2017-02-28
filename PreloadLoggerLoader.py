@@ -6,7 +6,7 @@ from ApplicationStore import ApplicationStore
 from Event import Event
 from utils import space, pyre, pynamer, pyprocname, javare, javanamer, \
                   javaprocname, perlre, perlnamer, monore, mononamer, \
-                  monoprocname, debugEnabled
+                  monoprocname, phpre, phpnamer, phpprocname, debugEnabled
 
 
 class PreloadLoggerLoader(object):
@@ -37,22 +37,34 @@ class PreloadLoggerLoader(object):
         if len(items) <= 1:
             return g
 
-        # Return if a command was passed, as it's actually Python running.
-        if items[1] == "-c":
-            return g
+        while len(items):
+            del items[0]
 
-        # Ignore "python -O /tmp/..."
-        if items[1] == "-O":
-            if len(items) > 2 and items[2].startswith("/tmp/"):
+            # Remove -Es if present.
+            if items[0] == "-Es":
+                continue
+
+            # Return if a command was passed, as it's actually Python running.
+            if items[0] == "-c":
                 return g
 
-        res = pynamer.match(items[1])
+            # Ignore "python -O /tmp/..."
+            if items[0] == "-O":
+                if len(items) > 1 and items[1].startswith("/tmp/"):
+                    return g
+
+            # # Return if an unknown parameter was passed.
+            # if items[0].startswith('-'):
+            #     continue
+            break
+
+        res = pynamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
 
         if name:
             procres = pyprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
-            newcmd = ' '.join(items[1:])
+            newcmd = ' '.join(items[0:])
             return (newproc, g[1], newcmd)
         else:
             return g
@@ -68,21 +80,47 @@ class PreloadLoggerLoader(object):
         if not items:
             items = space.split(g[2])
 
-        # Remove -jar if present
-        if len(items) > 1 and items[1] == "-jar":
-            del items[1]
-
         # Return if there are no parameters, the interpreter is the app
-        if len(items) == 1:
+        if len(items) <= 1:
             return g
 
-        res = javanamer.match(items[1])
+        while len(items):
+            del items[0]
+
+            # Remove -jar if present.
+            if items[0] == "-jar":
+                continue
+
+            # Return if -version was passed, as it's actually Java running.
+            if items[0] == "-version":
+                return g
+
+            # Skip the classpath if passed, and delete the next argument (the
+            # value of the classpath parameter).
+            if items[0] == "-classpath":
+                if len(items) > 1:
+                    del items[0]
+                    continue
+                # Not enough parameters, incorrect call, return java.
+                else:
+                    return g
+
+            # Remove -D/-X definitions.
+            if items[0].startswith("-D") or items[0].startswith("-X"):
+                continue
+
+            # # Return if an unknown parameter was passed.
+            # if items[0].startswith('-'):
+            #     continue
+            break
+
+        res = javanamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
 
         if name:
             procres = javaprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
-            newcmd = ' '.join(items[1:])
+            newcmd = ' '.join(items[0:])
             return (newproc, g[1], newcmd)
         else:
             return g
@@ -98,13 +136,13 @@ class PreloadLoggerLoader(object):
         if not items:
             items = space.split(g[2])
 
-        # Remove -w if present
-        if len(items) > 1 and items[1] == "-w":
-            del items[1]
-
         # Return if there are no parameters, the interpreter is the app
-        if len(items) == 1:
+        if len(items) <= 1:
             return g
+
+        # Remove -w if present
+        if items[1] == "-w":
+            del items[1]
 
         res = perlnamer.match(items[1])
         name = res.groups()[0] if res.groups() else None
@@ -127,7 +165,7 @@ class PreloadLoggerLoader(object):
             items = space.split(g[2])
 
         # Return if there are no parameters, the interpreter is the app
-        if len(items) == 1:
+        if len(items) <= 1:
             return g
 
         # Mono apps in our logs seem to log the command-line properly, e.g. our
@@ -143,18 +181,53 @@ class PreloadLoggerLoader(object):
         else:
             return g
 
-    """ Go through the logs and print the list of .desktop files that are
-        missing on the system used for analysis. Exits if some apps are
-        missing. """
+    """ Get the proper app identity out of a PHP execution, by parsing the
+    PHP command line. """
+    def parsePHP(self, g: tuple, items: list=None):
+        if not hasattr(g, '__len__'):
+            return g
+        if len(g) is not 3:
+            return g
+
+        if not items:
+            items = space.split(g[2])
+
+        print(g, items)
+
+        # Return if there are no parameters, the interpreter is the app
+        if len(items) <= 1:
+            return g
+
+        res = phpnamer.match(items[0])
+        name = res.groups()[0] if res.groups() else None
+
+        if name:
+            procres = phpprocname.match(name)
+            newproc = procres.groups()[0] if procres.groups() else name
+
+            print(name, procres, newproc)
+            return (newproc, g[1], g[2])
+        else:
+            return g
+
     def listMissingActors(self):
+        """List missing applications' desktop files.
+
+        Go through the logs and print the list of .desktop files that are
+        missing on the system used for analysis. Exits if some apps are
+        missing.
+        """
         self.loadDb(store=None, checkInitialised=True)
 
-    """ Go through the directory and create all the relevant app instances
-    and events. Can be made to insert all found apps into an ApplicationStore,
-    or to exit if some Application instances are not properly initialised. """
     def loadDb(self,
                store: ApplicationStore = None,
                checkInitialised: bool = False):
+        """Load the PreloadLogger database.
+
+        Go through the directory and create all the relevant app instances and
+        events. Can be made to insert all found apps into an ApplicationStore,
+        or to exit if some Application instances are not properly initialised.
+        """
 
         count = 0              # Counter of fetched files, for stats
         actors = set()         # Apps that logged anything at all
@@ -185,6 +258,10 @@ class PreloadLoggerLoader(object):
             else:
                 with f:
                     content = f.readlines()  # type: list
+
+                    if len(content) == 0:
+                        print("Info: file '%s' is empty. Skipping." % file)
+                        continue
 
                     # Parse the first line to get the identity of the app,
                     # but sometimes the header ends up on the second line
@@ -250,6 +327,12 @@ class PreloadLoggerLoader(object):
                         interpreterid = g[0]
                         g = self.parseMono(g, items)
                         # print("MONO APP: %s" % g[2])
+
+                    # PHP
+                    if (phpre.match(g[0])):
+                        interpreterid = g[0]
+                        g = self.parsePHP(g, items)
+                        # print("PHP APP: %s" % g[2])
 
                     # Parse file content to calculate the timestamps
                     tstart = float("inf")
@@ -368,7 +451,7 @@ class PreloadLoggerLoader(object):
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
-                    actors.add(app.getDesktopId())
+                    actors.add(app.desktopid)
 
                     if checkInitialised and not app.isInitialised():
                         print("MISSING: %s" % g[0],
@@ -381,12 +464,10 @@ class PreloadLoggerLoader(object):
                         instanceCount += 1
 
         if checkInitialised and hasErrors:
-            sys.exit(-1)
-
-        if invalidApps and hasErrors:
-            print("Invalid apps:", file=sys.stderr)
-            for a in sorted(invalidApps):
-                print("\t%s" % a, file=sys.stderr)
+            if invalidApps:
+                print("Invalid apps:", file=sys.stderr)
+                for a in sorted(invalidApps):
+                    print("\t%s" % a, file=sys.stderr)
             sys.exit(-1)
 
         # print("Apps that logged valid files:")
@@ -397,7 +478,7 @@ class PreloadLoggerLoader(object):
         # for act in sorted(nosyscallactors):
         #     print(act)
 
-        print("\nFinished loading DB.\n%d files seen, %d valid from %d apps, "
+        print("Finished loading DB.\n%d files seen, %d valid from %d apps, "
               "%d empty files, "
               "%d logs with 0 syscalls from %d apps, "
               "%d invalid.\nIn "
