@@ -25,7 +25,7 @@ class FileStore(object):
         """Construct a FileStore."""
         super(FileStore, self).__init__()
         self.clear()
-    
+
     def __len__(self):
         """Return the number of Files in the FileStore."""
         return len(self.inodeStore)
@@ -171,16 +171,17 @@ class FileStore(object):
                               file=sys.stderr)
                         parentFiles = self.getFilesForName(parentFileName)
                         for parentFile in parentFiles:
-                            if parentFile.getType():
+                            if parentFile.getType() and not \
+                                    parentFile.isFolder():
                                 raise e
                             else:
                                 parentFile.setType('inode/directory')
                                 self.updateFile(parentFile)
                         os.remove(parentPath)
-                        os.makedirs(parentPath, exist_ok=True)
+                        os.makedirs(parentPath, exist_ok=False)
                         print("Info: updated %d files with name '%s'." % (
                                len(parentFiles), last.getName()),
-                               file=sys.stderr)
+                              file=sys.stderr)
 
                 if not last.getTimeOfEnd() or showDeleted:
                     if last.isFolder():
@@ -191,9 +192,17 @@ class FileStore(object):
                             os.utime(outpath+"/.ucl-metadata", None)
                             last.writeStatistics(f)
                     else:
-                        with open(outpath, 'a') as f:
-                            os.utime(outpath, None)
-                            last.writeStatistics(f)
+                        try:
+                            with open(outpath, 'a') as f:
+                                os.utime(outpath, None)
+                                last.writeStatistics(f)
+                        # Seems to happen sometimes when a file was updated
+                        # above.
+                        except(IsADirectoryError) as e:
+                            os.makedirs(outpath, exist_ok=True)
+                            with open(outpath+"/.ucl-metadata", 'a') as f:
+                                os.utime(outpath+"/.ucl-metadata", None)
+                                last.writeStatistics(f)
 
     def getFilesForName(self, name: str):
         """Return all Files that have the given name as a path."""
