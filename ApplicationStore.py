@@ -218,10 +218,10 @@ class ApplicationStore(object):
     def insert(self, app: Application):
         """Insert an Application in the store."""
 
-        if app.getPid() == 0:
+        if app.pid == 0:
             raise ValueError("Applications must have a valid PID.")
 
-        if not app.getDesktopId():
+        if not app.desktopid:
             raise ValueError("Applications must have a Desktop identifier.")
 
         tstart = app.getTimeOfStart()
@@ -231,7 +231,7 @@ class ApplicationStore(object):
                              "end.")
 
         # Get the list of instances for this PID, and find this app's place.
-        pids = self.pidStore.get(app.getPid(), list())  # type: list
+        pids = self.pidStore.get(app.pid, list())  # type: list
 
         neighbourCheckupIndex = -1
         for (index, bpp) in enumerate(pids):
@@ -259,8 +259,8 @@ class ApplicationStore(object):
                     # overlapping. We now determine their respective orders to
                     # dispatch them to the appropriate app splitting algorithm.
                     print("Warning: Applications %s and %s overlap on PID %d" %
-                          (app.getDesktopId(), bpp.getDesktopId(),
-                           app.getPid()),
+                          (app.desktopid, bpp.desktopid,
+                           app.pid),
                           file=sys.stderr)
 
                     pids = self.dispatchSplit(pids, index, app, bpp)
@@ -279,9 +279,9 @@ class ApplicationStore(object):
                     #                  "\t%s \t %s\n\t%s \t %s\nbut they have "
                     #                  "different identities. This is a bug "
                     #                  "in the collected data." % (
-                    #                    app.getDesktopId(),
-                    #                    bpp.getDesktopId(),
-                    #                    app.getPid(),
+                    #                    app.desktopid,
+                    #                    bpp.desktopid,
+                    #                    app.pid,
                     #                    time2Str(app.getTimeOfStart()),
                     #                    time2Str(app.getTimeOfEnd()),
                     #                    time2Str(bpp.getTimeOfStart()),
