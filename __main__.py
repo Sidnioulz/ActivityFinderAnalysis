@@ -92,7 +92,7 @@ def main(argv):
                       "accesses using graph theory methods.\n\tRequires the "
                       "--score and --cluster options for per-policy graphs.\n")
                 sys.exit()
-            elif opt in ('c', '--check-missing'):
+            elif opt in ('-c', '--check-missing'):
                 __setCheckMissing(True)
             elif opt in ('-e', '--check-excluded-files'):
                 __setCheckExcludedFiles(True)
@@ -104,7 +104,7 @@ def main(argv):
                 __setScore(True)
             elif opt in ('-p', '--print-clusters'):
                 __setPrintClusters(True)
-            elif opt in ('-p', '--graph-clusters'):
+            elif opt in ('-g', '--graph-clusters'):
                 __setGraph(True)
             elif opt in ('-f', '--output-fs'):
                 if not arg:
