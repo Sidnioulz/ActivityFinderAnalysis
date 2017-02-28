@@ -58,9 +58,6 @@ class EventFileFlags(Flags):
 
 class FileAccess(object):
     """Something to hold info on who accessed a File."""
-    actor = None    # type: Application
-    time = 0        # type: int
-    evflags = None  # type: EventFileFlags
 
     def __init__(self,
                  actor: Application,
@@ -112,26 +109,27 @@ class FileAccess(object):
 
         # Filters with only the create flag represent the UNIX sticky bit
         elif filter == EventFileFlags.create:
-            accs = f.getAccesses(filter)
+            try:
+                accs = f.getAccesses(filter)
+                firstAccess = next(accs)
+                if firstAccess.actor == self.actor:
+                    return True
+            except(StopIteration):
+                pass
+
             # The file was created by the same actor, the sticky bit is valid
-            if accs and accs[0].actor == self.actor:
-                return True
-            else:
-                from FileFactory import FileFactory
-                fileFactory = FileFactory.get()
-                parentPath = f.getParentName()
-                if parentPath:
-                    parent = fileFactory.getFileIfExists(parentPath, self.time)
-                    if parent:
-                        return self.allowedByFlagFilter(filter, parent)
+            from FileFactory import FileFactory
+            fileFactory = FileFactory.get()
+            parentPath = f.getParentName()
+            if parentPath:
+                parent = fileFactory.getFileIfExists(parentPath, self.time)
+                if parent:
+                    return self.allowedByFlagFilter(filter, parent)
         return False
 
 
 class FileCopy(object):
     """Something to hold info on a File's previous or next version."""
-    path = ''
-    time = 0
-    copytype = None
 
     def __init__(self,
                  inode: int,
@@ -217,6 +215,8 @@ class File(object):
         self.accesses = []
         self.accessCosts = dict()
         self._isFolder = None
+        self._isHidden = None
+        self._inHiddenFolder = None
 
     def guessType(self):
         """Guess the type of the File, and set it automatically."""
@@ -345,22 +345,44 @@ class File(object):
             return False
 
         if not self.path.startswith("/media") and \
-           not self.path.startswith(userHome):
+                not self.path.startswith("/mnt") and \
+                not self.path.startswith(userHome):
             return False
 
         return True
 
     def isInHiddenFolder(self):
         """Return True if the file is in a hidden parent folder."""
-        hasParent = True
-        hidden = False
-        path = self.path
+        if self._inHiddenFolder is None:
+            hasParent = True
+            hidden = False
+            path = self.path
 
-        while hasParent and not hidden:
-            path = File.getParentNameFromName(path)
-            hasParent = True if path else False
+            while hasParent and not hidden:
+                path = File.getParentNameFromName(path)
+                hasParent = True if path else False
 
-            if hasParent:
+                if hasParent:
+                    lastDir = path.rfind('/')
+
+                    if lastDir >= 0:
+                        hidden = len(path) > lastDir+1 and \
+                            path[lastDir+1] == '.'
+                    else:
+                        hidden = path[0] == '.'
+
+            self._inHiddenFolder = hidden
+
+        return self._inHiddenFolder
+
+    def isHidden(self):
+        """Return True if the file is hidden (name starts with a dot)."""
+        if self._isHidden is None:
+            hasParent = True
+            hidden = False
+            path = self.path
+
+            while hasParent and not hidden:
                 lastDir = path.rfind('/')
 
                 if lastDir >= 0:
@@ -368,25 +390,11 @@ class File(object):
                 else:
                     hidden = path[0] == '.'
 
-        return hidden
+                path = File.getParentNameFromName(path)
+                hasParent = True if path else False
+            self._isHidden = hidden
 
-    def isHidden(self):
-        """Return True if the file is hidden (name starts with a dot)."""
-        hasParent = True
-        hidden = False
-        path = self.path
-
-        while hasParent and not hidden:
-            lastDir = path.rfind('/')
-
-            if lastDir >= 0:
-                hidden = len(path) > lastDir+1 and path[lastDir+1] == '.'
-            else:
-                hidden = path[0] == '.'
-
-            path = File.getParentNameFromName(path)
-            hasParent = True if path else False
-        return hidden
+        return self._isHidden
 
     def isFolder(self):
         """Return True if the file is a folder."""
@@ -410,15 +418,20 @@ class File(object):
 
     def getAccesses(self, flags: EventFileFlags=None):
         """Get the acts of access on this File."""
-        if not flags:
-            return self.accesses
-        else:
-            ret = []
-            for access in self.accesses:
-                if access.evflags & flags:
-                    ret.append(access)
+        for access in self.accesses:
+            if (not flags) or (access.evflags & flags):
+                yield access
 
-            return ret
+    def getAccessCount(self, flags: EventFileFlags=None):
+        """Get the number of acts of access on this File."""
+        if not flags:
+            return len(self.accesses)
+
+        cnt = 0
+        for access in self.accesses:
+            if access.evflags & flags:
+                cnt += 1
+        return cnt
 
     def clearAccessCosts(self):
         """Remove any past access costs that were recorded."""

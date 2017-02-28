@@ -44,9 +44,9 @@ class TestEventFlags(unittest.TestCase):
         ef3 |= EventFileFlags.read
 
         file = self.fileFactory.getFile("/home/user/.kde/file", 20)
-        acc = file.getAccesses()
-        self.assertEqual(len(acc), 1)
-        self.assertEqual(acc[0].evflags, ef3)
+        accs = file.getAccesses()
+        self.assertEqual(file.getAccessCount(), 1)
+        self.assertEqual(next(accs).evflags, ef3)
 
     def tearDown(self):
         EventStore.reset()

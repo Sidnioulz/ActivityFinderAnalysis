@@ -47,16 +47,16 @@ class TestOneLibraryPolicy(unittest.TestCase):
 
         file = self.fileFactory.getFile(name=path, time=20)
         accs = file.getAccesses()
-        self.assertEqual(len(accs), 2)
+        self.assertEqual(file.getAccessCount(), 2)
 
         lp = OneLibraryPolicy()
 
-        lp.accessFunc(None, file, accs[0])
+        lp.accessFunc(None, file, next(accs))
         self.assertEqual(lp.s.illegalAccess, 1)
         self.assertEqual(lp.s.grantingCost, 1)
         self.assertEqual(lp.s.cumulGrantingCost, 1)
 
-        lp.accessFunc(None, file, accs[1])
+        lp.accessFunc(None, file, next(accs))
         self.assertEqual(lp.s.illegalAccess, 2)
         self.assertEqual(lp.s.grantingCost, 1)
         self.assertEqual(lp.s.cumulGrantingCost, 2)
@@ -74,12 +74,12 @@ class TestOneLibraryPolicy(unittest.TestCase):
         self.eventStore.simulateAllEvents()
 
         file = self.fileFactory.getFile(name=path, time=20)
-        accs = file.getAccesses()
-        self.assertEqual(len(accs), 1)
+        accs = iter(file.getAccesses())
+        self.assertEqual(file.getAccessCount(), 1)
 
         lp = OneLibraryPolicy()
 
-        lp.accessFunc(None, file, accs[0])
+        lp.accessFunc(None, file, next(accs))
         self.assertEqual(lp.s.ownedPathAccess, 1)
         FileFactory.reset()
 
@@ -216,43 +216,44 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=21)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.policy += 1
         self._assert(pol)
 
@@ -261,49 +262,51 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f001, next(accs))
         self.owned += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -312,59 +315,60 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
-        pol.accessFunc(None, f002, accs[1])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
         self.assertEqual(pol.s.configCost, 1)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.policy += 1
         self._assert(pol)
 
@@ -373,55 +377,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -430,55 +435,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -487,55 +493,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.policy += 1
         self._assert(pol)
 
@@ -545,55 +552,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.policy += 1
         self._assert(pol)
 
@@ -604,55 +612,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -664,55 +673,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.policy += 1
         self._assert(pol)
 
@@ -723,55 +733,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -780,55 +791,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -839,55 +851,56 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
@@ -896,112 +909,114 @@ class TestPolicies(unittest.TestCase):
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.illegal += 1
         self._assert(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self.desig += 1
         self._assert(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self.policy += 1
         self._assert(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
 
     def _test_folder_costs(self, pol):
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self._assertCosts(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self._assertCosts(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
-        pol.accessFunc(None, f005, accs[1])
+        pol.accessFunc(None, f005, next(accs))
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self._assertCosts(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self._assertCosts(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
@@ -1009,18 +1024,18 @@ class TestPolicies(unittest.TestCase):
         f009 = self.fileFactory.getFile(name=self.p009, time=3010)
         accs = f009.getAccesses()
         self.cumulGrantingCost += 1
-        pol.accessFunc(None, f009, accs[0])
+        pol.accessFunc(None, f009, next(accs))
         self._assertCosts(pol)
 
         f010 = self.fileFactory.getFile(name=self.p010, time=20)
         accs = f010.getAccesses()
-        pol.accessFunc(None, f010, accs[0])
+        pol.accessFunc(None, f010, next(accs))
         self.cumulGrantingCost += 1  # f003b authorised folder
         self._assertCosts(pol)
 
         f011 = self.fileFactory.getFile(name=self.p011, time=20)
         accs = f011.getAccesses()
-        pol.accessFunc(None, f011, accs[0])
+        pol.accessFunc(None, f011, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1  # f003b authorised folder
         self._assertCosts(pol)
@@ -1038,66 +1053,67 @@ class TestPolicies(unittest.TestCase):
         pol = FFFPolicy()
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
-        pol.accessFunc(None, f001, accs[0])
+        pol.accessFunc(None, f001, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1
         self._assertCosts(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
-        pol.accessFunc(None, f002, accs[0])
+        pol.accessFunc(None, f002, next(accs))
         self._assertCosts(pol)
 
         f003 = self.fileFactory.getFile(name=self.p003, time=20)
         accs = f003.getAccesses()
-        pol.accessFunc(None, f003, accs[0])
+        pol.accessFunc(None, f003, next(accs))
         self._assertCosts(pol)
 
         f004 = self.fileFactory.getFile(name=self.p004, time=20)
         accs = f004.getAccesses()
-        pol.accessFunc(None, f004, accs[0])
+        pol.accessFunc(None, f004, next(accs))
         self._assertCosts(pol)
 
         f005 = self.fileFactory.getFile(name=self.p005, time=20)
         accs = f005.getAccesses()
-        pol.accessFunc(None, f005, accs[0])
+        pol.accessFunc(None, f005, next(accs))
         self._assertCosts(pol)
-        pol.accessFunc(None, f005, accs[1])
+        pol.accessFunc(None, f005, next(accs))
         self._assertCosts(pol)
 
         f006 = self.fileFactory.getFile(name=self.p006, time=20)
         accs = f006.getAccesses()
-        pol.accessFunc(None, f006, accs[0])
+        pol.accessFunc(None, f006, next(accs))
         self._assertCosts(pol)
 
         f007 = self.fileFactory.getFile(name=self.p007, time=20)
         accs = f007.getAccesses()
-        pol.accessFunc(None, f007, accs[0])
+        pol.accessFunc(None, f007, next(accs))
         self._assertCosts(pol)
 
         f008 = self.fileFactory.getFile(name=self.p008, time=20)
         accs = f008.getAccesses()
-        pol.accessFunc(None, f008, accs[0])
+        pol.accessFunc(None, f008, next(accs))
         self._assertCosts(pol)
 
         f003b = self.fileFactory.getFile(name=self.p003, time=3000)
         accs = f003b.getAccesses()
-        pol.accessFunc(None, f003b, accs[1])
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
         self._assertCosts(pol)
 
         # f003 made f003b legal which made this call legal.
         f009 = self.fileFactory.getFile(name=self.p009, time=3010)
         accs = f009.getAccesses()
-        pol.accessFunc(None, f009, accs[0])
+        pol.accessFunc(None, f009, next(accs))
 
         f010 = self.fileFactory.getFile(name=self.p010, time=20)
         accs = f010.getAccesses()
-        pol.accessFunc(None, f010, accs[0])
+        pol.accessFunc(None, f010, next(accs))
         self._assertCosts(pol)
 
         f011 = self.fileFactory.getFile(name=self.p011, time=20)
         accs = f011.getAccesses()
-        pol.accessFunc(None, f011, accs[0])
+        pol.accessFunc(None, f011, next(accs))
         self.grantingCost += 1
         self.cumulGrantingCost += 1  # f003b authorised folder
         self._assertCosts(pol)
