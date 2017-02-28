@@ -5,8 +5,9 @@
 
 cd ./applications/
 
+# Can be -f 11 instead of -f 12 on old systems, adjust accordingly
 for i in `find . -type l -ls | tr -s " " | cut -d" " -f 12`; do
-  dest=`ls $i -la`
+  dest=`ls "$i" -la`
   if [ "x`echo $dest | grep $PWD`" = "x" ]; then
     name="`echo $dest | cut -d" " -f9`"
     target="`echo $dest | cut -d" " -f11`"
@@ -14,7 +15,7 @@ for i in `find . -type l -ls | tr -s " " | cut -d" " -f 12`; do
 #    echo $name
 #    echo "$PWD/$target"
     rm $name
-    ln -s "$PWD/$target" $name
+    ln -s "$PWD/$(basename $target)" $name
   fi
 done
 
