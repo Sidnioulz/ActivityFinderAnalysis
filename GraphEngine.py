@@ -97,7 +97,7 @@ class CommonGraph(object):
                       "as there is a file move/copy event between those." % (
                        source, dest))
                 self.edges.add((source, dest))
-                self.weights[(source, dest)] = 9999
+                self.weights[(source, dest)] = 999999999
 
         self._construct()
 
@@ -114,9 +114,14 @@ class CommonGraph(object):
 
         edgelist = [(idgen[s], idgen[d]) for s, d in self.edges]
         self.g = Graph(edgelist)
+        del edgelist
         self.g.es["weight"] = list((self.weights[e] for e in self.edges))
+        del self.edges
+        del self.weights
         self.g.vs["name"] = idgen.values()
+        del idgen
         self.g.vs["type"] = list((self.vertices[n] for n in self.g.vs["name"]))
+        del self.vertices
 
     def computeClusters(self):
         """Compute the clusters for this graph."""
@@ -133,7 +138,7 @@ class CommonGraph(object):
         vs["vertex_shape"] = [CommonGraph.sd[t] for t in self.g.vs["type"]]
         labels = list(self.g.vs["name"])
         for (idx, label) in enumerate(labels):
-            if self.vertices[label] not in ("file", "appstate"):
+            if self.g.vs["type"][idx] not in ("file", "appstate"):
                 labels[idx] = None
         vs["vertex_label"] = labels
         vs["edge_width"] = [.5 * (1+int(c)) for c in self.g.es["weight"]]
@@ -169,7 +174,7 @@ class CommonGraph(object):
         # Only keep labels for community-bridging vertices.
         minimal_labels = list(self.g.vs["name"])
         for (idx, label) in enumerate(minimal_labels):
-            if self.vertices[label] not in ("file", "appstate") and not \
+            if self.g.vs["type"][idx] not in ("file", "appstate") and not \
                     self.printClusterInstances:
                 minimal_labels[idx] = None
                 continue
@@ -225,30 +230,38 @@ class CommonGraph(object):
             # Case where a file-file node was removed. Should normally not
             # happen so we will not write support for it yet.
             if sourceType == "file":
-                # Check if an app co-accessed the files. If so, increase the
-                # cost of splitting that app instance into two.
-                sAccessors = []
-                for n in source.neighbors():
-                    if n.attributes()['type'] == 'app':
-                        sAccessors.append(n)
-                tAccessors = []
-                for n in target.neighbors():
-                    if n.attributes()['type'] == 'app':
-                        tAccessors.append(n)
-
-                inter = intersection(sAccessors, tAccessors)
-
-                for i in inter:
-                    splittingCost += 1
+                if targetType == "app":
+                    grantingCost += 1
                     if policy:
-                        app = appStore.lookupUid(sourceName)
-                        policy.incrementScore('graphSplittingCost',
+                        app = appStore.lookupUid(targetName)
+                        policy.incrementScore('graphGrantingCost',
                                               None, app)
-                if not inter:
-                    print("Warning: file-file node removed by graph "
-                          "community finding algorithm. Not supported.",
-                          file=sys.stderr)
-                    raise NotImplementedError
+                else:
+                    # Check if an app co-accessed the files. If so, increase the
+                    # cost of splitting that app instance into two.
+                    sAccessors = []
+                    for n in source.neighbors():
+                        if n.attributes()['type'] == 'app':
+                            sAccessors.append(n)
+                    tAccessors = []
+                    for n in target.neighbors():
+                        if n.attributes()['type'] == 'app':
+                            tAccessors.append(n)
+
+                    inter = intersection(sAccessors, tAccessors)
+
+                    for i in inter:
+                        splittingCost += 1
+                        if policy:
+                            app = appStore.lookupUid(sourceName)
+                            policy.incrementScore('graphSplittingCost',
+                                                  None, app)
+                    if not inter:
+                        print("Warning: file-file node removed by graph "
+                              "community finding algorithm. Not supported.",
+                              file=sys.stderr)
+                        print(source, target)
+                        raise NotImplementedError
             elif targetType == "file":  # sourceType in "app", "appstate"
                 grantingCost += 1
                 if sourceType == "app" and policy:
@@ -294,11 +307,11 @@ class CommonGraph(object):
 
     def calculateReachability(self, output: str=None, quiet: bool=False):
         """Model the reachability improvement of community finding."""
-        if not self.clusters:
+        if self.clusters is None:
             raise ValueError("Clusters for a graph must be computed "
                              "before modelling how community isolation "
                              "decreases its average reachability.")
-        if not self.editCount:
+        if self.editCount is None:
             raise ValueError("Costs for a graph must be calculated "
                              "before modelling how community isolation "
                              "decreases its average reachability.")
@@ -307,6 +320,11 @@ class CommonGraph(object):
 
         def _print(clusters, header, tag):
             msg = "\nGraph statistics %s:\n" % header
+
+            if len(clusters) == 0:
+                msg += "no clusters for this graph."
+                return (msg, 0, 1)
+
             sizes = [x for x in sorted(list((len(x) for x in clusters)))
                      if x != 0]
             msg += ("* %s-size distribution: %s\n" % (tag,
@@ -337,17 +355,23 @@ class CommonGraph(object):
                                                 postTag)
             msg += _m
 
-            deltaSize = 1 - (avgPostSize / avgPreSize)
-            sizeEfficiency = deltaSize / editCount
-            msg += "\nEvol. of avg. cluster size: {:.2%}\n".format(deltaSize)
-            msg += ("Efficiency of edits wrt. average size: %f\n" %
-                    sizeEfficiency)
+            if avgPreSize:
+                deltaSize = 1 - (avgPostSize / avgPreSize)
+                sizeEfficiency = deltaSize / editCount if editCount else 1
+                msg += "\nEvol. of avg. cluster size: {:.2%}\n".format(deltaSize)
+                msg += ("Efficiency of edits wrt. average size: %f\n" %
+                        sizeEfficiency)
+            else:
+                msg += "\nEvol. of avg. cluster size: N/A\n"
 
-            deltaReach = 1 - (postReach / preReach)
-            reachEfficiency = deltaReach / editCount
-            msg += "\nEvol. of reachability: {:.2%}\n".format(deltaReach)
-            msg += ("Efficiency of edits wrt. reachability: %f\n" %
-                    reachEfficiency)
+            if preReach:
+                deltaReach = 1 - (postReach / preReach)
+                reachEfficiency = deltaReach / editCount if editCount else 1
+                msg += "\nEvol. of reachability: {:.2%}\n".format(deltaReach)
+                msg += ("Efficiency of edits wrt. reachability: %f\n" %
+                        reachEfficiency)
+            else:
+                msg += "\nEvol. of reachability: N/A\n"
 
             return msg
 
@@ -411,7 +435,7 @@ class FlatGraph(object):
 
         # Step 3. pick out file-file paths with no intermediary files.
         for (v, vPaths) in shortestPaths.items():
-            delList = []
+            delSet = set()
             for (idx, p) in enumerate(vPaths):
                 if len(p) < 1:
                     continue
@@ -419,10 +443,10 @@ class FlatGraph(object):
                 # Ignore paths with intermediary files.
                 for node in p[1:-1]:
                     if types[node] == "file":
-                        delList.append(idx)
+                        delSet.add(idx)
 
             # Remove unsuitable paths.
-            for i in sorted(delList, reverse=True):
+            for i in sorted(list(delSet), reverse=True):
                 del vPaths[i]
             shortestPaths[v] = vPaths
 
@@ -474,7 +498,6 @@ class FlatGraph(object):
 
         # Plot the base graph with colours based on the communities.
         vs["vertex_color"] = self.membership
-        print(len(self.membership), len(self.g.vs))
         edge_widths = []
         for (s, d) in self.g.get_edgelist():
             if self.membership[s] == self.membership[d]:
@@ -696,7 +719,7 @@ class UnifiedGraph(CommonGraph):
 
         for (pair, count) in filePairs.items():
             self.edges.add(pair)
-            self.weights[pair] = count
+            self.weights[pair] = count  # FIXME 999999999?
 
 
 class GraphEngine(object):
