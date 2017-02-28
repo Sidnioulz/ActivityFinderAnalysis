@@ -60,6 +60,25 @@ class UserConfigLoader(object):
                             type=type,
                             list=isList) or defaultValue
 
+    def getExcludedHomeDirs(self):
+        def _get(self):
+            """Get the list of directories excluded from analysis."""
+            if not self.ini:
+                return []
+
+            return self.ini.get('HomeExclDirs',
+                                group='User Config',
+                                type='string', list=True) or []
+
+        l = _get(self)
+        l.append("/srv/")
+        l.append("/run/")
+        l.append("/proc/")
+        l.append("/dev/")
+        l.append("/usr/")
+        l.append("/tmp/")
+        return l
+
     def getSecurityExclusionLists(self):
         """Get the security exclusion lists setting."""
         if not self.ini:

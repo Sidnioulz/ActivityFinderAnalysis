@@ -3,16 +3,61 @@ from enum import Enum
 from Application import Application
 from SqlEvent import SqlEvent
 from File import File, EventFileFlags
-from utils import urlToUnixPath, int16, debugEnabled
+from utils import urlToUnixPath, int16, debugEnabled, intersection, \
+                  checkExcludedFilesEnabled
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
                       POSIX_OPENDIR_RE, POSIX_UNLINK_RE, POSIX_CLOSE_RE, \
                       POSIX_FCLOSE_RE, POSIX_RENAME_RE, POSIX_DUP_RE, \
                       O_ACCMODE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                       O_TRUNC, O_DIRECTORY, FD_OPEN, FD_CLOSE, \
                       POSIX_FDOPENDIR_RE
+from UserConfigLoader import UserConfigLoader
 import sys
 import re
 from os.path import normpath as np
+
+excludedEvents = 0
+excludedFiles = set()
+excludedApps = dict()
+exclItemsRORW = dict()
+
+
+def dbgPrintExcludedEvents():
+    """Print excluded Events/Files, if asked to. Used for debugging."""
+    global excludedApps
+    global excludedEvents
+    global excludedFiles
+
+    dids = dict()
+    print("\n\nINSTANCES")
+    for app, count in sorted(excludedApps.items(), key=lambda x: x[0].uid()):
+        print("%s: %d" % (app.uid(), count))
+        dd = dids.get(app.desktopid) or (0, 0)
+        dids[app.desktopid] = (dd[0] + count, dd[1] + 1)
+
+    print("\n\nDESKTOP IDS")
+    for did, count in sorted(dids.items()):
+        print("%s: %d files across %d instances" % (did, count[0], count[1]))
+
+    print("\n\nTOTAL EXCLUSIONS: %d files, %d events" % (
+           len(excludedFiles), excludedEvents))
+
+    print("\n\nTOTAL FILES ALSO ACCESSED BY EXCLUDED LISTS")
+    for uid, rorws in exclItemsRORW.items():
+        mustBePrinted = False
+        for e, rorw in rorws.items():
+            if rorw[1]:
+                mustBePrinted = True
+                break
+
+        if not mustBePrinted:
+            continue
+
+        print("APP: %s" % uid)
+        for e, rorw in rorws.items():
+            print(e, rorw)
+
+    sys.exit(0)
 
 
 class EventSource(Enum):
@@ -111,6 +156,113 @@ class Event(object):
         elif cmdlineStr:
             self.source = EventSource.cmdline
             self.parseCommandLine(cmdlineStr)
+
+        self.checkIfExcluded()
+
+    def checkIfExcluded(self):
+        """Check if Event concerns an excluded File, invalidate Event if so."""
+
+        def _hasExcludedFile(self):
+            if not self.data:
+                return False
+
+            global excludedApps
+            global excludedEvents
+            global excludedFiles
+            global exclItemsRORW
+
+            def _userFile(p, userHome):
+                hasParent = True
+                hidden = False
+                path = p
+                while hasParent and not hidden:
+                    path = File.getParentNameFromName(path)
+                    hasParent = True if path else False
+
+                    if hasParent:
+                        lastDir = path.rfind('/')
+                        if lastDir >= 0:
+                            hidden = len(path) > lastDir+1 and \
+                                path[lastDir+1] == '.'
+                        else:
+                            hidden = path[0] == '.'
+
+                if hidden or p.startswith(userHome+"/."):
+                    return False
+
+                if not p.startswith("/media") and \
+                        not p.startswith("/mnt") and \
+                        not p.startswith(userHome):
+                    return False
+
+                return True
+
+            if checkExcludedFilesEnabled():
+                if self.actor.uid() not in exclItemsRORW:
+                    eI = dict()
+                    userConf = UserConfigLoader.get()
+                    excl = userConf.getExcludedHomeDirs()
+                    for e in excl:
+                        eI[e] = [0, 0, 0, 0, set(), set()]
+                    exclItemsRORW[self.actor.uid()] = eI
+
+            userConf = UserConfigLoader.get()
+            userHome = userConf.getHomeDir()
+            excl = userConf.getExcludedHomeDirs()
+
+            if isinstance(self.data[0], File):
+                paths = list((f.path for f in self.data))
+            elif isinstance(self.data[0], str):
+                paths = self.data
+            elif isinstance(self.data[0], tuple):
+                if isinstance(self.data[0][0], File):
+                    paths = list((f.path for t in self.data for f in t))
+                elif isinstance(self.data[0][0], str):
+                    paths = list((f for t in self.data for f in t))
+
+            else:
+                print(type(self.data[0]))
+
+            i = []
+            ro = self.evflags & EventFileFlags.read
+            for p in paths:
+                found = False
+                for e in excl:
+                    if p.startswith(e):
+                        found = True
+                        i.append(p)
+                        if checkExcludedFilesEnabled():
+                            eI = exclItemsRORW[self.actor.uid()]
+                            for eKey, rorw in eI.items():
+                                if eKey == e:
+                                    rorw[0 if ro else 1] += 1
+                                else:
+                                    rorw[2 if ro else 3] += 1
+                                eI[eKey] = rorw
+                                exclItemsRORW[self.actor.uid()] = eI
+
+                if checkExcludedFilesEnabled() and not found \
+                        and _userFile(p, userHome):
+                    eI = exclItemsRORW[self.actor.uid()]
+                    for eKey, rorw in eI.items():
+                        rorw[4 if ro else 5].add(p)
+                        eI[eKey] = rorw
+                        exclItemsRORW[self.actor.uid()] = eI
+
+            if i:
+                if checkExcludedFilesEnabled():
+                    excludedEvents += 1
+                    for path in i:
+                        excludedFiles.add(path)
+                    aC = excludedApps.get(self.actor) or 0
+                    excludedApps[self.actor] = aC + 1
+                return True
+
+            return False
+
+        if _hasExcludedFile(self):
+            self.data = None
+            self.evtype = EventType.invalid
 
     def parseCommandLine(self, cmdlineStr: str):
         """Parse a command line to record acts of designation onto Files."""
@@ -248,7 +400,7 @@ class Event(object):
             print("Info: system call %s(%s, %d) from Application %s:%d "
                   "failed with error %d, and will not be logged." % (
                    syscall, path, flags,
-                   self.actor.getDesktopId(), self.actor.getPid(),
+                   self.actor.desktopid, self.actor.pid,
                    error),
                   file=sys.stderr)
         self.evtype = EventType.invalid

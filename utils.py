@@ -8,9 +8,10 @@ import string
 from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, PERLRE, PERLNAMER, \
                       MONORE, MONONAMER, MONOPROCNAME, DEFAULTDATAPATH, \
-                      NAMEDDATAPATHBASE
+                      NAMEDDATAPATHBASE, PHPRE, PHPNAMER, PHPPROCNAME
 
 __opt_check = False
+__opt_check_exclfiles = False
 __opt_debug = False
 __opt_output_fs = None
 __opt_related_files = False
@@ -24,6 +25,12 @@ def __setCheckMissing(opt):
     """Set the return value of :checkMissingEnabled():."""
     global __opt_check
     __opt_check = opt
+
+
+def __setCheckExcludedFiles(opt):
+    """Set the return value of :checkExcludedFilesEnabled():."""
+    global __opt_check_exclfiles
+    __opt_check_exclfiles = opt
 
 
 def __setDebug(opt):
@@ -72,6 +79,12 @@ def checkMissingEnabled():
     """Return True if the --check-missing flag was passed, False otherwise."""
     global __opt_check
     return __opt_check
+
+
+def checkExcludedFilesEnabled():
+    """Return True if the --check-excluded-files flag was passed."""
+    global __opt_check_exclfiles
+    return __opt_check_exclfiles
 
 
 def debugEnabled():
