@@ -4,5 +4,5 @@ urllib3
 blist
 orange3
 Orange3-Associate
-igraph
+python-igraph
 pygal

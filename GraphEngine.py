@@ -1,10 +1,6 @@
 """A graph representation of user document accesses by userland apps."""
 
-try:
-    from igraph import Graph, UniqueIdGenerator, plot, VertexClustering
-except(DeprecationWarning):
-    from jgraph import Graph, UniqueIdGenerator, plot, VertexClustering
-
+from igraph import Graph, UniqueIdGenerator, plot, VertexClustering
 from File import File, FileAccess
 from Application import Application
 from ApplicationStore import ApplicationStore
@@ -53,6 +49,7 @@ class CommonGraph(object):
         """Add a FileAccess edge to the graph."""
         raise NotImplementedError
 
+    @profile
     def populate(self, policy: Policy=None):
         """Populate the AccessGraph, filtering it based on a Policy."""
         appStore = ApplicationStore.get()
@@ -109,6 +106,7 @@ class CommonGraph(object):
         """Link application instance vertices together."""
         raise NotImplementedError
 
+    @profile
     def _construct(self):
         """Construct the graph after it was populated."""
         self.g = None
@@ -127,11 +125,13 @@ class CommonGraph(object):
         self.g.vs["type"] = list((self.vertices[n] for n in self.g.vs["name"]))
         del self.vertices
 
+    @profile
     def computeClusters(self):
         """Compute the clusters for this graph."""
         comm = self.g.community_fastgreedy(weights=self.g.es["weight"])
         self.clusters = comm.as_clustering()
 
+    @profile
     def plot(self, output: str=None):
         """Plot the graph and its communities to an output file."""
 
@@ -733,6 +733,7 @@ class GraphEngine(object):
         """Construct a GraphEngine."""
         super(GraphEngine, self).__init__()
 
+    @profile
     def runGraph(self,
                  policy: Policy=None,
                  outputDir: str=None,
