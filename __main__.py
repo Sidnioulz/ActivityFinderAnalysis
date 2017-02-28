@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from ApplicationStore import ApplicationStore
+from Event import dbgPrintExcludedEvents
 from EventStore import EventStore
 from FileStore import FileStore
 from PreloadLoggerLoader import PreloadLoggerLoader
@@ -18,18 +19,19 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
-                  __setPrintClusters, __setUser, \
+                  __setPrintClusters, __setUser, __setCheckExcludedFiles, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
-                  printClustersEnabled, initMimeTypes, getDataPath
+                  printClustersEnabled, checkExcludedFilesEnabled, \
+                  initMimeTypes, getDataPath
 import getopt
 import sys
 
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-missing ' \
                '--output-fs=<DIR> --debug --help --score\n --clusters' \
-               ' --graph-clusters]\n\tor\n' \
+               ' --graph-clusters --check-excluded-files]\n\tor\n' \
                '__main__.py --inode=<INODE> [--user=<NAME>]\n\tor\n' \
-               '__main__.py --post-analysis --output-fs=<DIR>'
+               '__main__.py --post-analysis=<DIR,DIR,DIR>'
 
 
 # Main function
@@ -40,17 +42,19 @@ def main(argv):
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hacdf:srpgi:u:", ["help",
-                                                             "post-analysis",
-                                                             "check-missing",
-                                                             "debug",
-                                                             "inode",
-                                                             "related-files",
-                                                             "output-fs=",
-                                                             "score",
-                                                             "user",
-                                                             "clusters",
-                                                             "graph-clusters"])
+        (opts, args) = getopt.getopt(argv, "ha:cedf:srpgi:u:",
+                                     ["help",
+                                      "post-analysis",
+                                      "check-missing",
+                                      "check-excluded-files",
+                                      "debug",
+                                      "inode",
+                                      "related-files",
+                                      "output-fs=",
+                                      "score",
+                                      "user",
+                                      "clusters",
+                                      "graph-clusters"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
@@ -62,8 +66,12 @@ def main(argv):
                 print("--check-missing:\n\tChecks whether some Desktop IDs "
                       "for apps in the user's directory are\n\tmissing. If so,"
                       " aborts execution of the program.\n")
+                print("--check-excluded-files:\n\tPrints the lists of files "
+                      "accessed by apps that also wrote to\n\texcluded files,"
+                      " then aborts execution of the program.\n")
                 print("--help:\n\tPrints this help information and exits.\n")
-                print("--post-analysis:\n\tUses the analysis output pointed to"
+                print("--post-analysis=<DIR,DIR,DIR>:\n\t"
+                      "Uses the analysis output pointed to"
                       " by --output-fs in order to produce graphs and "
                       "statistics.\n")
                 print("--debug:\n\tPrints additional debug information in "
@@ -86,6 +94,8 @@ def main(argv):
                 sys.exit()
             elif opt in ('c', '--check-missing'):
                 __setCheckMissing(True)
+            elif opt in ('-e', '--check-excluded-files'):
+                __setCheckExcludedFiles(True)
             elif opt in ('-d', '--debug'):
                 __setDebug(True)
             elif opt in ('-r', '--related-files'):
@@ -116,7 +126,10 @@ def main(argv):
                     print(USAGE_STRING)
                     sys.exit(2)
             elif opt in ('-a', '--post-analysis'):
-                __opt_post_analysis = True
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                __opt_post_analysis = (arg[1:] if arg[0] == '=' else arg)
 
     if __opt_post_analysis:
         if not outputFsEnabled():
@@ -179,8 +192,15 @@ def main(argv):
     # Simulate the events to build a file model
     print("\nSimulating all events to build a file model...")
     evStore.simulateAllEvents()
+    del sql
+    del pll
     evStore.sort()
     print("Simulated all events. %d files initialised." % len(fileStore))
+
+    if checkExcludedFilesEnabled():
+        print("\nPrinting files written and read by instances which wrote"
+              "to excluded directories...")
+        dbgPrintExcludedEvents()
 
     # Manage --inode queries
     if __opt_inode_query:
