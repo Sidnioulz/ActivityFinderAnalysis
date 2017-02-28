@@ -239,16 +239,24 @@ def main(argv):
     if scoreEnabled():
         engine = PolicyEngine()
 
+        # policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
+        #             DesignationPolicy, FileTypePolicy, FolderPolicy,
+        #             OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy]
+
+        # policies = [FFFPolicy, FFFSbPolicy, OneFFFPolicy, OneFFFSbPolicy]
+
         policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
                     DesignationPolicy, FileTypePolicy, FolderPolicy,
-                    OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy]
-
-        policies = [FFFPolicy, FFFSbPolicy, OneFFFPolicy, OneFFFSbPolicy]
+                    OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy,
+                    FFFPolicy, FFFSbPolicy, OneFFFPolicy, OneFFFSbPolicy,
+                    Win8Policy, Win10Policy]
 
         polArgs = [None, None, None,
                    None, None, None,
-                   None, None, None]
-                   # dict(folders=["~/Downloads", "/tmp"])
+                   None, None, None,
+                   None, None, None, None,
+                   None, None]
+        # dict(folders=["~/Downloads", "/tmp"])
 
         for (polIdx, polName) in enumerate(policies):
             if polArgs[polIdx]:
@@ -263,6 +271,8 @@ def main(argv):
 
             if pol.name == "FileTypePolicy" and checkMissingEnabled():
                 pol.abortIfUnsupportedExtensions()
+
+            del pol
 
     # Calculate frequently co-accessed files:
     if relatedFilesEnabled():
