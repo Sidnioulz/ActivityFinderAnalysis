@@ -71,6 +71,8 @@ class CommonGraph(object):
             if not f.isUserDocument(userHome=userConf.getHomeDir(),
                                     allowHiddenFiles=True):
                 continue
+            if f.isFolder():
+                continue
 
             # Provided they have userland apps accessing them.
             hasUserlandAccesses = False
