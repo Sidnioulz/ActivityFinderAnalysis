@@ -1,6 +1,10 @@
 """A graph representation of user document accesses by userland apps."""
 
-from igraph import Graph, UniqueIdGenerator, plot, VertexClustering
+try:
+    from igraph import Graph, UniqueIdGenerator, plot, VertexClustering
+except(DeprecationWarning):
+    from jgraph import Graph, UniqueIdGenerator, plot, VertexClustering
+
 from File import File, FileAccess
 from Application import Application
 from ApplicationStore import ApplicationStore
