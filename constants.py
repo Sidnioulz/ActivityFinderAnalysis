@@ -26,6 +26,9 @@ PERLNAMER = "^(?:[^/]*/)*(.*?)$"
 MONORE = "^(?:[^/]*/)*mono-sgen$"
 MONONAMER = "^(?:[^/]*/)*(.*?)(?:\.exe)?$"
 MONOPROCNAME = "^(.*?)(?:\.exe)?$"
+PHPRE = "^(?:[^/]*/)*php(5)?$"
+PHPNAMER = "^(?:[^/]*/)*(.*?)(?:\.php)?$"
+PHPPROCNAME = "^(.*?)(?:\.php)?$"
 
 # Zeitgeist Event index constants
 EV_ID = 0
