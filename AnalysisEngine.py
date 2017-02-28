@@ -1,10 +1,12 @@
 """An engine that produces graphs and statistics for a prior analysis."""
 from blist import sortedlist
 import glob
+import math
 import os
 import shutil
 import pygal
 from pygal.style import Style
+from utils import debugEnabled
 
 plottingBlacklist = ['apt-get', 'cairo-dock', 'dbus-send', 'dpkg', 'gdb',
                      'gst-plugin-scanner', 'helper-dialog', 'indicator-applet',
@@ -20,6 +22,9 @@ accessKeys = ["by designation", "file owned by app",
 costKeys = ["configuration", "granting", "cumulative granting", "isolating",
             "splitting", "g-granting", "g-isolating", "g-splitting"]
 
+costKeysNoG = ["configuration", "granting", "cumulative granting", "isolating",
+               "splitting"]
+
 coloursDoubled = ('#F44336', '#F44336', '#3F51B5', '#3F51B5', '#009688',
                   '#009688', '#FFC107', '#FFC107', '#FF5722', '#FF5722',
                   '#9C27B0', '#9C27B0', '#03A9F4', '#03A9F4', '#8BC34A',
@@ -33,18 +38,27 @@ coloursDoubled = ('#F44336', '#F44336', '#3F51B5', '#3F51B5', '#009688',
 class AnalysisEngine(object):
     """An engine that produces graphs and statistics for a prior analysis."""
 
-    def __init__(self, inputDir: str):
+    def __init__(self, inputDir: str, outputDir: str='/tmp/analysis'):
         """Construct an AnalysisEngine."""
         super(AnalysisEngine, self).__init__()
 
-        if not os.path.exists(inputDir):
-            raise ValueError("Path to output directory is not valid.")
+        print("Intialising analysis engine...")
 
         # Input dir where the analysis data is stored.
-        self.inputDir = inputDir
+        self.inputDir = inputDir.split(",")
+        for iD in self.inputDir:
+            if not os.path.exists(iD):
+                raise ValueError("Path to input directory is not valid: %s" %
+                                 iD)
 
         # Build directory to store analysis results.
-        self.outputDir = os.path.join(self.inputDir, "analysis")
+        self.outputDir = outputDir
+
+        if self.outputDir in self.inputDir:
+            raise ValueError("The output directory for the post-analysis "
+                             "engine is also one of the input directories. "
+                             "This would result in the input directory being "
+                             "overwritten. Aborting.")
 
         if os.path.exists(self.outputDir):
             backup = self.outputDir.rstrip("/") + ".backup"
@@ -53,24 +67,61 @@ class AnalysisEngine(object):
             os.replace(self.outputDir, backup)
         os.makedirs(self.outputDir, exist_ok=False)
 
+        print("Collecting policies...")
+
         # List policies to parse.
-        self.policyFolders = sorted(glob.glob(
-            os.path.join(self.inputDir, 'Policy*')))
-        self.policyNames = list(a[a.rfind("/")+10:-6] for
-                                a in self.policyFolders)
+        pFList = list(sorted(glob.glob(
+                      os.path.join(iD, 'Policy*'))) for iD in self.inputDir)
+        self.policyFolders = [item for sublist in pFList for item in sublist]
+        self.policyNames = list(a[a.rfind("/")+10:-6]
+                                for a in self.policyFolders)
+        self.foldersPerName = dict()
+        for (idx, name) in enumerate(self.policyNames):
+            l = self.foldersPerName.get(name) or []
+            l.append(self.policyFolders[idx])
+            self.foldersPerName[name] = l
+
+        print("Collecting applications...")
 
         # List apps and instances.
         allScores = set()
+        userScores = set()
         for pol in self.policyFolders:
             polScores = glob.glob(os.path.join(pol, "App*.score"))
             for p in polScores:
-                allScores.add(p.replace(pol, "@POLICY@"))
-        self.appScores = list((a for a in allScores if "Instance" not in a))
-        self.appNames = list((a[a.rfind("/")+7:-6] for a in self.appScores))
-        self.instScores = list((a for a in allScores if "Instance" in a))
-        self.instNames = list((a[a.rfind("/")+7:-6] for a in self.instScores))
+                name = p.replace(pol, "@POLICY@")
+                if name not in allScores and self.filterUsabilityScores(p):
+                    userScores.add(name)
+                allScores.add(name)
 
+        print("Sorting applications and app instances...")
+
+        self.appScores = list(a for a in allScores if "Instance" not in a)
+        self.appNames = list(a[a.rfind("/")+7:-6] for a in self.appScores)
+        self.userScores = list(a for a in userScores if "Instance" not in a)
+        self.userNames = list(a[a.rfind("/")+7:-6] for a in self.userScores)
+        self.instScores = list(a for a in allScores if "Instance" in a)
+        self.instNames = list(a[a.rfind("/")+7:-6] for a in self.instScores)
+
+        if debugEnabled():
+            print("User applications being analysed:")
+            for an in self.userScores:
+                print(an)
+            print("\n")
+
+        self.uAppCount = len(userScores)
+        if debugEnabled():
+            print("%d/%d apps" % (self.uAppCount, len(self.appScores)))
+
+
+        self.uInstCount = len(list(n for n in self.instNames if
+            n.split(" - ")[0] in self.userNames))
+        if debugEnabled():
+            print("%d/%d instances" % (self.uInstCount, len(self.instScores)))
+
+        # FIXME from here.
         # List exclusion scores.
+        print("Collecting application exclusion scores...")
         exclScores = set()
         for pol in self.policyFolders:
             polScores = glob.glob(os.path.join(pol, "App*.exclscore"))
@@ -78,6 +129,8 @@ class AnalysisEngine(object):
                 exclScores.add(p.replace(pol, "@POLICY@"))
         self.exclScores = list(exclScores)
         self.exclNames = list((a[a.rfind("/")+7:-6] for a in self.exclScores))
+
+        print("Ready to analyse!\n")
 
     def getHighestCostSum(self, costs: dict, confCostDivider: int=1):
         """TODO."""
@@ -169,120 +222,157 @@ class AnalysisEngine(object):
         return msg
 
     def parseUsabilityScores(self,
-                             filename: str,
-                             filterKey: str=None,
-                             filterValues: list=[],
+                             filenames: [],
                              confCostDivider: int=1):
-        """TODO."""
-        s = dict()
-        s["__VALID"] = True
 
+        s = dict()
+        s["by designation"] = 0
+        s["file owned by app"] = 0
+        s["policy-allowed"] = 0
+        s["illegal"] = 0
+        s["configuration"] = 0
+        s["granting"] = 0
+        s["cumulative granting"] = 0
+        s["isolating"] = 0
+        s["splitting"] = 0
+        s["g-granting"] = 0
+        s["g-isolating"] = 0
+        s["g-splitting"] = 0
+
+        def _parseUsabilityScores(s: dict,
+                                  filename: str,
+                                  confCostDivider: int=1):
+            """TODO."""
+            try:
+                with open(filename) as f:
+                    content = f.readlines()
+                    for line in content:
+                        if line.startswith("\t* by designation"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["by designation"] += d[0]
+                        elif line.startswith("\t* file owned by app"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["file owned by app"] += d[0]
+                        elif line.startswith("\t* policy-allowed"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["policy-allowed"] += d[0]
+                        elif line.startswith("\t* illegal"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["illegal"] += d[0]
+                        elif line.startswith("\t* configuration"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["configuration"] += d[0] / confCostDivider
+                        elif line.startswith("\t* granting"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["granting"] += d[0]
+                        elif line.startswith("\t* cumulative granting"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["cumulative granting"] += d[0]
+                        elif line.startswith("\t* isolating"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["isolating"] += d[0]
+                        elif line.startswith("\t* splitting"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["splitting"] += d[0]
+                        elif line.startswith("\t* g-granting"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["g-granting"] += d[0]
+                        elif line.startswith("\t* g-isolating"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["g-isolating"] += d[0]
+                        elif line.startswith("\t* g-splitting"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            s["g-splitting"] += d[0]
+            except (FileNotFoundError) as e:
+                pass
+
+        for filename in filenames:
+            _parseUsabilityScores(s, filename, confCostDivider)
+
+        return s
+
+    def filterUsabilityScores(self,
+                              filename: str,
+                              filterKey: str="APPTYPE",
+                              filterValues: list=["Application"]):
+        """TODO."""
         try:
             with open(filename) as f:
                 content = f.readlines()
                 for line in content:
                     if filterKey and line.startswith(filterKey+":"):
                         v = line[len(filterKey)+2:-1]
-                        s["__VALID"] = v in filterValues
-                    elif line.startswith("\t* by designation"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["by designation"] = d[0]
-                    elif line.startswith("\t* file owned by app"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["file owned by app"] = d[0]
-                    elif line.startswith("\t* policy-allowed"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["policy-allowed"] = d[0]
-                    elif line.startswith("\t* illegal"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["illegal"] = d[0]
-                    elif line.startswith("\t* configuration"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["configuration"] = d[0] / confCostDivider
-                    elif line.startswith("\t* granting"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["granting"] = d[0]
-                    elif line.startswith("\t* cumulative granting"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["cumulative granting"] = d[0]
-                    elif line.startswith("\t* isolating"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["isolating"] = d[0]
-                    elif line.startswith("\t* splitting"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["splitting"] = d[0]
-                    elif line.startswith("\t* g-granting"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["g-granting"] = d[0]
-                    elif line.startswith("\t* g-isolating"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["g-isolating"] = d[0]
-                    elif line.startswith("\t* g-splitting"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        s["g-splitting"] = d[0]
+                        return v in filterValues
         except (FileNotFoundError) as e:
-            s["by designation"] = 0
-            s["file owned by app"] = 0
-            s["policy-allowed"] = 0
-            s["illegal"] = 0
-            s["configuration"] = 0
-            s["granting"] = 0
-            s["cumulative granting"] = 0
-            s["isolating"] = 0
-            s["splitting"] = 0
-            s["g-granting"] = 0
-            s["g-isolating"] = 0
-            s["g-splitting"] = 0
-            return s
+            return False
+        return False
 
-        return s
-
-    def parseClusterScores(self, filename: str):
+    def parseClusterScores(self, filenames: list):
         """TODO."""
+        score = 0
 
-        try:
-            with open(filename) as f:
-                content = f.readlines()
-                for line in content:
-                    if line.startswith("# of clusters violating exclusion"):
-                        d = [int(s) for s in line[:-1].split(' ') if
-                             s.isdigit()]
-                        return d[0]
+        def _parseClusterScores(self, filename: str):
+            try:
+                with open(filename) as f:
+                    content = f.readlines()
+                    for line in content:
+                        if line.startswith("# of clusters violating exclusion"):
+                            d = [int(s) for s in line[:-1].split(' ') if
+                                 s.isdigit()]
+                            return d[0]
 
-        except (FileNotFoundError) as e:
+            except (FileNotFoundError) as e:
+                print(filename)
+                return -2
+
             return -1
 
-        return -1
+        for filename in filenames:
+            d = _parseClusterScores(self, filename)
+            if d == -1:
+                return -1
+            score += d
 
-    def parseOEScores(self, filename: str):
+        return score
+
+
+    def parseOEScores(self, filenames: list):
         """TODO."""
 
         prfx = "Distribution of over-entitlements: "
 
-        try:
-            with open(filename) as f:
-                content = f.readlines()
-                for line in content:
-                    if line.startswith(prfx):
-                        OEs = eval(line[len(prfx):])
-                        return OEs
+        def _parseOEScores(filename: str):
+            try:
+                with open(filename) as f:
+                    content = f.readlines()
+                    for line in content:
+                        if line.startswith(prfx):
+                            OEs = eval(line[len(prfx):])
+                            return OEs
 
-        except (FileNotFoundError) as e:
+            except (FileNotFoundError) as e:
+                return []
+
             return []
 
-        return []
+        retScores = []
+        for filename in filenames:
+            fScores = _parseOEScores(filename)
+            retScores.append(fScores)
+
+        return [item for sublist in retScores for item in sublist]
 
     def plotAppCostsPerPolBoxes(self,
                                 polRelCosts: dict,
@@ -308,7 +398,6 @@ class AnalysisEngine(object):
                                             'appAbsCostPerPol.svg'))
 
     def plotCostDistribution(self,
-                             polFolder: str,
                              polName: str,
                              costs: dict):
         """TODO."""
@@ -323,22 +412,21 @@ class AnalysisEngine(object):
                                         'costDistPie-%s.svg' % polName))
 
     def plotDistCostsBoxes(self,
-                           polFolder: str,
+                           folders: str,
                            polName: str,
                            validApps: list,
                            excludeZeroAccesses: bool=True):
         """TODO."""
         instCostDist = dict()
-        instCnt = len(self.instScores)
         for (udx, uapp) in enumerate(self.instScores):
             instName = self.instNames[udx]
             desktopid = instName[:instName.find("Instance") - 3]
 
             if desktopid in validApps and desktopid not in plottingBlacklist:
                 series = instCostDist.get(desktopid) or ([], [])
-                path = uapp.replace("@POLICY@", polFolder)
-                s = self.parseUsabilityScores(path,
-                                              confCostDivider=instCnt)
+                paths = list(uapp.replace("@POLICY@", f) for f in folders)
+                s = self.parseUsabilityScores(paths,
+                                              confCostDivider=self.uInstCount)
 
                 cSum = s["configuration"] + s["granting"] + \
                     s["isolating"] + s["splitting"]
@@ -413,6 +501,37 @@ class AnalysisEngine(object):
         boxProp.render_to_file(os.path.join(self.outputDir,
                                             'oeRatio-%s.svg' % appName))
 
+    def plotMostUsableDots(self,
+                           scores: dict,
+                           maxes: dict,
+                           title: str=None,
+                           tag: str=None):
+        """TODO."""
+        dotPlot = pygal.Dot()
+        dotPlotN = pygal.Dot()
+        dotPlot.x_labels = sorted(self.inputDir)
+        dotPlotN.x_labels = dotPlot.x_labels
+
+        if title:
+            dotPlot.title = "Costs of each policy per participant, %s" % title
+        else:
+            dotPlot.title = "Costs of each policy per participant"
+        dotPlotN.title = dotPlot.title + ", normalised"
+
+        for (polName, pScores) in sorted(scores.items()):
+            series = []
+            for pName in sorted(pScores):
+                series.append(pScores[pName])
+
+            dotPlot.add(polName, series)
+            dotPlotN.add(polName, [float(i)/maxes[dotPlot.x_labels[idx]] for (idx, i) in enumerate(series)])
+
+        filename = 'mostUsable-%s.svg' % tag if tag else 'mostUsable.svg'
+        dotPlot.render_to_file(os.path.join(self.outputDir, filename))
+        filename = 'mostUsable-%s-normalised.svg' % tag if tag \
+            else 'mostUsable-normalised.svg'
+        dotPlotN.render_to_file(os.path.join(self.outputDir, filename))
+
     def plotSecurityCosts(self, userlandScores: dict):
         """TODO."""
         sortable = sortedlist(key=lambda i: -i[0])
@@ -460,15 +579,12 @@ class AnalysisEngine(object):
         """TODO."""
 
         clusterScores = dict()
-        for (idx, folder) in enumerate(self.policyFolders):
-            clusterScores[self.policyNames[idx]] = \
-                self.parseClusterScores(
-                    os.path.join(folder, file))
+        for (name, folders) in sorted(self.foldersPerName.items()):
+            paths = list(os.path.join(f, file) for f in folders)
+            clusterScores[name] = self.parseClusterScores(paths)
 
         sortable = sortedlist(key=lambda i: -i[0])
-        for (pol, s) in clusterScores.items():
-            rank = s
-
+        for (pol, rank) in clusterScores.items():
             sortable.add((rank, pol))
 
         lineChart = pygal.Bar()
@@ -492,100 +608,192 @@ class AnalysisEngine(object):
 
     def analyse(self):
         """Perform the post-analysis."""
+        policyCount = len(self.foldersPerName)
+
+        if len(self.inputDir) > 1:
+            print("Generating plot of most usable policy per participant...")
+            mostUsable = dict()
+            leastUsable = dict()
+            leastUsableNoG = dict()
+            sums = dict()
+            sumsNoG = dict()
+
+            i = 1
+            iDCount = len(self.inputDir)
+            for iD in sorted(self.inputDir):  # MUST BE SORTED! plot fn x label
+                print("\t%d/%d: %s" % (i, iDCount, iD))
+                i += 1
+                # Get policies for this folder.
+                pFList = sorted(glob.glob(os.path.join(iD, 'Policy*')))
+                policyNames = list(a[a.rfind("/")+10:-6] for a in pFList)
+                foldersPerName = dict()
+                for (idx, name) in enumerate(policyNames):
+                    l = foldersPerName.get(name) or []
+                    l.append(pFList[idx])
+                    foldersPerName[name] = l
+
+                # Score them.
+                userlandScores = dict()
+                for (name, folders) in sorted(foldersPerName.items()):
+                    p = list(os.path.join(f, "UserlandApps.score") for f in folders)
+                    userlandScores[name] = self.parseUsabilityScores(p)
+
+                best = None
+                bestScore = math.inf
+                worstScore = 0
+                worstScoreNoG = 0
+                for (name, s) in userlandScores.items():
+                    sumScore = sum([s[key] for key in costKeys])
+                    sumScoreNoG = sum([s[key] for key in costKeysNoG])
+
+                    sumsForPol = sums.get(name) or dict()
+                    sumsForPol[iD] = sumScore
+                    sums[name] = sumsForPol
+
+                    sumsForPol = sumsNoG.get(name) or dict()
+                    sumsForPol[iD] = sumScoreNoG
+                    sumsNoG[name] = sumsForPol
+
+                    if sumScore < bestScore:
+                        best = name
+                        bestScore = sumScore
+                    if sumScore > worstScore:
+                        worstScore = sumScore
+                    if sumScoreNoG > worstScoreNoG:
+                        worstScoreNoG = sumScoreNoG
+
+                mostUsable[iD] = (best, bestScore)
+                leastUsable[iD] = worstScore
+                leastUsableNoG[iD] = worstScoreNoG
+
+            for (iD, (name, s)) in mostUsable.items():
+                print("Participant '%s': Policy %s scoring %d" % (iD, name, s))
+
+            # Plot dots for all costs with graphs, and without.
+            self.plotMostUsableDots(sums, leastUsable)
+            self.plotMostUsableDots(sumsNoG, leastUsableNoG,
+                                    "without graph optimisation costs",
+                                    "nograph")
+            print("Done.\n")
+        return
 
         # Get usability scores for all userland apps.
+        print("Generating table of usability scores for all userland apps...")
         userlandScores = dict()
-        for (idx, folder) in enumerate(self.policyFolders):
-            userlandScores[self.policyNames[idx]] = \
-                self.parseUsabilityScores(os.path.join(folder,
-                                                       "UserlandApps.score"))
+        i = 1
+        for (name, folders) in sorted(self.foldersPerName.items()):
+            print("\t%d/%d: %s" % (i, policyCount, name))
+            i += 1
+            p = list(os.path.join(f, "UserlandApps.score") for f in folders)
+            userlandScores[name] = self.parseUsabilityScores(p)
+
         self.genUsabilityCostTable(userlandScores,
                                    "UserlandApps.UsabScores.tex",
                                    "all user applications")
+        print("Done.\n")
 
-        for (idx, folder) in enumerate(self.policyFolders):
-            polName = self.policyNames[idx]
-            self.plotCostDistribution(folder,
-                                      polName,
-                                      userlandScores[polName])
+        print("Plotting cost distribution for all userland apps...")
+        i = 1
+        for (name) in sorted(self.foldersPerName):
+            print("\t%d/%d: %s" % (i, policyCount, name))
+            i += 1
+            self.plotCostDistribution(name, userlandScores[name])
+        print("Done.\n")
 
+        print("Generating table of usability scores for individual apps...")
         # Get usability scores for each app individually.
         appScores = dict()
         polAbsScores = dict()
         polRelScores = dict()
         validApps = []
-        appCnt = len(self.appScores)
-        for (adx, app) in enumerate(self.appScores):
+        j = 1
+        for (adx, app) in enumerate(self.userScores):
+            print("\t%d/%d: %s" % (j, self.uAppCount, app))
+            j += 1
+
             scores = dict()
 
-            for (idx, folder) in enumerate(self.policyFolders):
-                path = app.replace("@POLICY@", folder)
-                s = self.parseUsabilityScores(path,
-                                              filterKey="APPTYPE",
-                                              filterValues=["Application"],
-                                              confCostDivider=appCnt)
-                if s["__VALID"] is True:
-                    scores[self.policyNames[idx]] = s
-                else:
-                    break
+            i = 1
+            for (name, folders) in sorted(self.foldersPerName.items()):
+                print("\t\t%d/%d: %s" % (i, policyCount, name))
+                i += 1
 
-            if len(scores):
-                name = self.appNames[adx]
-                validApps.append(name)
-                self.genUsabilityCostTable(scores,
-                                           name + ".UsabScores.tex",
-                                           name)
+                paths = list(app.replace("@POLICY@", f) for f in folders)
+                s = self.parseUsabilityScores(paths,
+                                              confCostDivider=self.uAppCount)
 
-                if name not in plottingBlacklist:
-                    maxCost = self.getHighestCostSum(scores)
-                    relScores = self.genRelativeCosts(scores, maxCost)
-                    for pol, s in relScores.items():
-                        polRelScoreList = polRelScores.get(pol) or []
-                        polRelScoreList.append(s)
-                        polRelScores[pol] = polRelScoreList
-                    for pol, s in scores.items():
-                        polAbsScoreList = polAbsScores.get(pol) or []
-                        polAbsScoreList.append(s)
-                        polAbsScores[pol] = polAbsScoreList
+                scores[name] = s
+
+            name = self.userNames[adx]
+            self.genUsabilityCostTable(scores,
+                                       name + ".UsabScores.tex",
+                                       name)
+
+            if name not in plottingBlacklist:
+                maxCost = self.getHighestCostSum(scores)
+                relScores = self.genRelativeCosts(scores, maxCost)
+                for pol, s in relScores.items():
+                    polRelScoreList = polRelScores.get(pol) or []
+                    polRelScoreList.append(s)
+                    polRelScores[pol] = polRelScoreList
+                for pol, s in scores.items():
+                    polAbsScoreList = polAbsScores.get(pol) or []
+                    polAbsScoreList.append(s)
+                    polAbsScores[pol] = polAbsScoreList
 
             appScores[app] = scores
+        print("Done.\n")
 
+        print("Plot costs of accesses per policy, for every app...")
         self.plotAppCostsPerPolBoxes(polRelScores, polAbsScores)
+        print("Done.\n")
 
         # Whisker plot of usability scores for each instance, per app.
-        for (idx, folder) in enumerate(self.policyFolders):
-            self.plotDistCostsBoxes(folder, self.policyNames[idx], validApps)
+        print("Plot whisker-boxes of costs for each app for every policy...")
+        for (name, folders) in sorted(self.foldersPerName.items()):
+            self.plotDistCostsBoxes(folders, name, self.userNames)
+        print("Done.\n")
 
         # Plot security costs for all the policies.
+        print("Plot security costs for every policy...")
         self.plotSecurityCosts(userlandScores)
+        print("Done.\n")
 
         # Plot policies' exclusion list scores across whole clusters.
+        print("Plot cluster violations per app for every policy...")
         self.plotClusterViolations(file="clustersPerApp.securityscore",
                                    titleTag="", tag="app")
+        print("Done.\n")
+
+        print("Plot cluster violations per app instance for every policy...")
         self.plotClusterViolations(file="clustersPerAppInstance.securityscore",
                                    titleTag=" (memoryless apps)", tag="inst")
+        print("Done.\n")
 
         # Plot over-entitlement whisker boxes.
+        print("Plot over-entitlements for each user app...")
         overallOEScores = dict()
-        for (adx, app) in enumerate(self.appScores):
+        for (adx, app) in enumerate(self.userScores):
             scores = dict()
-            name = self.appNames[adx]
-            if name not in validApps:
-                continue
+            appName = self.userNames[adx]
 
-            for (idx, folder) in enumerate(self.policyFolders):
-                path = app.replace("@POLICY@", folder)
-                s = self.parseOEScores(path)
-                scores[self.policyNames[idx]] = s
+            for (name, folders) in sorted(self.foldersPerName.items()):
+                paths = list(app.replace("@POLICY@", f) for f in folders)
+                s = self.parseOEScores(paths)
+                scores[name] = s
 
-                overall = overallOEScores.get(self.policyNames[idx]) or []
+                overall = overallOEScores.get(name) or []
                 for pair in s:
                     overall.append(pair)
-                overallOEScores[self.policyNames[idx]] = overall
+                overallOEScores[name] = overall
 
-            self.genOETable(scores, name + ".OEScores.tex", name)
-            self.plotOEBoxes(scores, name)
+            self.genOETable(scores, appName + ".OEScores.tex", appName)
+            self.plotOEBoxes(scores, appName)
+        print("Done.\n")
 
-        name = "all userland apps"
-        self.genOETable(overallOEScores, name + ".OEScores.tex", name)
-        self.plotOEBoxes(overallOEScores, name)
+        print("Plot summary of all apps' over-entitlements...")
+        self.genOETable(overallOEScores,
+                        "UserlandApps.OEScores.tex",
+                        "all user applications")
+        self.plotOEBoxes(overallOEScores, "UserlandApps")
+        print("Done.\n")

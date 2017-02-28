@@ -132,14 +132,14 @@ def main(argv):
                 __opt_post_analysis = (arg[1:] if arg[0] == '=' else arg)
 
     if __opt_post_analysis:
-        if not outputFsEnabled():
-            raise AttributeError("Post-analysis requires an output filesystem "
-                                 "to analyse. Use the --output-fs option.")
+        from AnalysisEngine import AnalysisEngine
+        if outputFsEnabled():
+            engine = AnalysisEngine(inputDir=__opt_post_analysis,
+                                    outputDir=outputFsEnabled())
         else:
-            from AnalysisEngine import AnalysisEngine
-            engine = AnalysisEngine(inputDir=outputFsEnabled())
-            engine.analyse()
-            sys.exit(0)
+            engine = AnalysisEngine(inputDir=__opt_post_analysis)
+        engine.analyse()
+        sys.exit(0)
 
     # Make the application, event and file stores
     store = ApplicationStore.get()
