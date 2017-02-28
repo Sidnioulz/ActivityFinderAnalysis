@@ -26,6 +26,7 @@ class CommonGraph(object):
         super(CommonGraph, self).__init__()
         self.g = None
         self.clusters = None
+        self.editCount = None
         self.outputDir = outputDir or '/tmp/'
         self.printClusterInstances = False
 
