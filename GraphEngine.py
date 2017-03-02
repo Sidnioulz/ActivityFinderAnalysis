@@ -156,6 +156,11 @@ class CommonGraph(object):
             print("Error while plotting to %s: %s " % (
                   self.outputDir + "/" + output + ".graph.svg",
                   e))
+        except(MemoryError) as e:
+            print("Error (MemoryError) while plotting to %s: %s " % (
+                  self.outputDir + "/" + output + ".graph.svg",
+                  e))
+
 
         # Detect communities in the graph.
         self.computeClusters()
@@ -196,6 +201,10 @@ class CommonGraph(object):
         except(OSError) as e:
             print("Error while plotting to %s: %s " % (
                   self.outputDir + "/" + output + ".clusters.svg",
+                  e))
+        except(MemoryError) as e:
+            print("Error (MemoryError) while plotting to %s: %s " % (
+                  self.outputDir + "/" + output + ".graph.svg",
                   e))
 
     def calculateCosts(self,
