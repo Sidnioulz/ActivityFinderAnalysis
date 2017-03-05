@@ -64,7 +64,7 @@ class OneLibraryPolicy(Policy):
             else:
                 for (path, cost) in attr.items():
                     if(file.getName().startswith(path)):
-                        return (True, cost)
+                        return True
 
         return False
 
@@ -174,9 +174,8 @@ class FileTypePolicy(Policy):
                 ext = f.getFileName()[dot+1:]
                 self.unsupportedExts.add(ext)
 
-        return (fileType and (fileType in allowedTypes or
-                              allowedTypes[0] == "*"),
-                0)
+        return fileType and \
+            (fileType in allowedTypes or allowedTypes[0] == "*")
 
     def abortIfUnsupportedExtensions(self):
         if len(self.unsupportedExts):
@@ -387,7 +386,8 @@ class CompositionalPolicy(Policy):
                    engine: 'PolicyEngine',
                    f: File,
                    acc: FileAccess,
-                   composed: bool=False):
+                   composed: bool=False,
+                   dbgPrint: bool=False):
         """Assess the usability score of a FileAccess."""
 
         if not composed:
@@ -408,6 +408,8 @@ class CompositionalPolicy(Policy):
         # Loop through policies until we find a decision we can return.
         for pol in self.policies:
             decision = pol.accessFunc(engine, f, acc, composed=True)
+            if dbgPrint:
+                print(f.path, pol.name, decision)
             finished = self._selectAccessFuncDecision(decision)
             if finished:
                 break
@@ -600,7 +602,7 @@ class StickyBitPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        return (self.wasCreatedBy(f, app), 0)
+        return self.wasCreatedBy(f, app)
 
 
 class ProtectedFolderPolicy(Policy):
@@ -640,7 +642,7 @@ class ProtectedFolderPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        return (not self.inForbiddenFolder(f), 0)
+        return not self.inForbiddenFolder(f)
 
 
 class FilenamePolicy(FolderPolicy):
