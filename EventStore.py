@@ -42,24 +42,24 @@ class EventStore(object):
 
     def append(self, event: Event):
         """Append an Event to the store. The store will no longer be sorted."""
-        if event.getTime() == 0:
+        if event.time == 0:
             raise ValueError("Events must have a timestamp.")
         self.store.append(event)
         self._sorted = False
 
     def insert(self, event: Event):
         """Insert an Event. Maintains the store sorted, if it was sorted."""
-        if event.getTime() == 0:
+        if event.time == 0:
             raise ValueError("Events must have a timestamp.")
 
         # Binary search, first part: find a good index where to insert
-        targetval = event.getTime()
+        targetval = event.time
         targetb = 0
         minb = 0
         maxb = len(self.store)
         while maxb > minb + 1:
             currentb = minb + floor((maxb-minb)/2)
-            currentval = self.store[currentb].getTime()
+            currentval = self.store[currentb].time
 
             # Equal timestamps: put event after events with the same timestamp
             if currentval == targetval:
@@ -85,13 +85,13 @@ class EventStore(object):
         # floor in the previous loop to avoid that but we still needed to
         # iterate when timestamps are equal.
         maxb = len(self.store)
-        while targetb < maxb and self.store[targetb].getTime() <= targetval:
+        while targetb < maxb and self.store[targetb].time <= targetval:
             targetb += 1
         self.store.insert(targetb, event)
 
     def sort(self):
         """Sort all the inserted Events by timestamp."""
-        self.store = sorted(self.store, key=lambda x: x.getTime())
+        self.store = sorted(self.store, key=lambda x: x.time)
         self._sorted = True
 
     def getAllEvents(self):
@@ -111,9 +111,9 @@ class EventStore(object):
 
         # Get each File
         for subj in event.getData():
-            file = fileFactory.getFile(name=subj.getName(),
-                                       time=event.getTime(),
-                                       ftype=subj.getType())
+            file = fileFactory.getFile(name=subj.path,
+                                       time=event.time,
+                                       ftype=subj.ftype)
             files.append(file)
 
         # Check acts of designation
@@ -122,9 +122,9 @@ class EventStore(object):
 
         # Then, for each File, log the access
         for (file, flags) in res:
-            file.addAccess(actor=event.getActor(),
+            file.addAccess(actor=event.actor,
                            flags=flags,
-                           time=event.getTime())
+                           time=event.time)
             fileStore.updateFile(file)
 
     def simulateDestroy(self,
@@ -137,9 +137,9 @@ class EventStore(object):
 
         # Get each File
         for subj in event.getData():
-            file = fileFactory.getFile(name=subj.getName(),
-                                       time=event.getTime(),
-                                       ftype=subj.getType())
+            file = fileFactory.getFile(name=subj.path,
+                                       time=event.time,
+                                       ftype=subj.ftype)
             files.append(file)
 
         # Check acts of designation
@@ -149,8 +149,8 @@ class EventStore(object):
         # Then, for each File, set its end time, and update the store
         for (file, flags) in res:
             fileFactory.deleteFile(file,
-                                   event.getActor(),
-                                   event.getTime(),
+                                   event.actor,
+                                   event.time,
                                    flags)
             filesDeleted.append(file)
 
@@ -165,14 +165,14 @@ class EventStore(object):
         """Create a File, and return it."""
 
         file = fileFactory.getFile(name=name,
-                                   time=event.getTime(),
+                                   time=event.time,
                                    ftype=ftype)
-        file.setTimeOfStart(event.getTime())
+        file.setTimeOfStart(event.time)
         file.setType(ftype)
 
         res = self.desigcache.checkForDesignation(event, [file])
-        file.addAccess(actor=event.getActor(),
-                       time=event.getTime(),
+        file.addAccess(actor=event.actor,
+                       time=event.time,
                        flags=res[0][1])
         fileStore.updateFile(file)
 
@@ -213,8 +213,8 @@ class EventStore(object):
 
         # Get each File
         for subj in event.getData():
-            f = self.__doCreateFile(subj.getName(),
-                                    subj.getType(),
+            f = self.__doCreateFile(subj.path,
+                                    subj.ftype,
                                     event,
                                     fileFactory,
                                     fileStore)
@@ -229,85 +229,142 @@ class EventStore(object):
                      keepOld: bool=True):
         """Simulate a file copy or move Event, based on :keepOld:."""
         newFiles = []
-
-        # Get each file, set its starting time and type, and update the store
+        ctype = 'copy' if keepOld else 'move'
         baseFlags = event.evflags
-        for subj in event.getData():
-            old = subj[0]
-            new = subj[1]
 
-            # Not legal anyway.
-            if old.path == new.path:
-                continue
+        def _delFile(event: Event, f, read: bool=False):
+            event.evflags = (baseFlags |
+                             EventFileFlags.write |
+                             EventFileFlags.destroy)
+            if read:
+                event.evflags |= EventFileFlags.read
+            res = self.desigcache.checkForDesignation(event, [f])
+            fileFactory.deleteFile(f, event.actor, event.time, res[0][1])
+            event.evflags = baseFlags
 
-            if debugEnabled():
-                print("Info: copying '%s' to '%s' at time %s, by actor %s." % (
-                    old.getName(), new.getName(), time2Str(event.getTime()),
-                    event.actor.uid()))
+        def _addRead(event: Event, f):
+            event.evflags = (baseFlags | EventFileFlags.read)
+            res = self.desigcache.checkForDesignation(event, [f])
+            f.addAccess(actor=event.actor,
+                        flags=res[0][1],
+                        time=event.time)
+            event.evflags = baseFlags
 
-            # Delete any File on the new path as it would get overwritten.
-            newFile = fileFactory.getFileIfExists(new.getName(),
-                                                  event.getTime())
-            if newFile:
-                # FIXME: attn, for syscalls, a cp to a folder doesn't cause
-                # deletion of the folder, but only of the overridden children!
-
-
-                if newFile.isFolder():
-                    print("Warning: user copied to a folder. Must support "
-                          "in-depth copy! Source is: %s. Folder is: %s" %
-                           (old.getName(), newFile.getName()),
-                          file=sys.stderr)
-                    sys.exit(0)
-                baseFlags = event.evflags
-                event.evflags = (baseFlags |
-                                 EventFileFlags.write |
-                                 EventFileFlags.destroy)
-                res = self.desigcache.checkForDesignation(event, [newFile])
-                fileFactory.deleteFile(newFile,
-                                       event.getActor(),
-                                       event.getTime(),
-                                       res[0][1])
-
+        def _createCopy(event: Event, oldFile, newPath):
             # Create a file on the new path which is identical to the old File.
             event.evflags = (baseFlags |
                              EventFileFlags.write |
                              EventFileFlags.create |
                              EventFileFlags.overwrite)
-            newFile = self.__doCreateFile(new.getName(),
-                                          old.getType(),
+            newFile = self.__doCreateFile(newPath,
+                                          oldFile.ftype,
                                           event,
                                           fileFactory,
                                           fileStore)
-
-            # Delete the old file for move events only.
-            oldFile = fileFactory.getFile(old.getName(), event.getTime())
-            if not keepOld:
-                event.evflags = (baseFlags |
-                                 EventFileFlags.read |
-                                 EventFileFlags.write |
-                                 EventFileFlags.destroy)
-                res = self.desigcache.checkForDesignation(event, [oldFile])
-                fileFactory.deleteFile(oldFile,
-                                       event.getActor(),
-                                       event.getTime(),
-                                       res[0][1])
-            else:
-                event.evflags = (baseFlags | EventFileFlags.read)
-                res = self.desigcache.checkForDesignation(event, [oldFile])
-                oldFile.addAccess(actor=event.getActor(),
-                                  flags=res[0][1],
-                                  time=event.getTime())
+            event.evflags = baseFlags
 
             # Update the files' links
-            ctype = 'copy' if keepOld else 'move'
-            oldFile = fileFactory.getFile(old.getName(), event.getTime())
-            oldFile.addFollower(newFile.inode, event.getTime(), ctype)
-            newFile.setPredecessor(oldFile.inode, event.getTime(), ctype)
+            oldFile.addFollower(newFile.inode, event.time, ctype)
+            newFile.setPredecessor(oldFile.inode, event.time, ctype)
             fileStore.updateFile(oldFile)
             fileStore.updateFile(newFile)
 
-            newFiles.append(newFile)
+            return newFile
+
+        # Get each file, set its starting time and type, and update the store
+        subjects = ((old.path, new.path) for (old, new) in event.getData())
+        for (old, new) in subjects:
+
+            # Not legal. 'a' and 'a' are the same file.
+            if old == new:
+                # TODO DBG?
+                continue
+
+            # Get the old file. It must exist, or the simulation is invalid.
+            oldFile = fileFactory.getFile(old, event.time)
+            if not oldFile:
+                raise ValueError("Attempting to move/copy from a file that "
+                                 "does not exist: %s at time %d" % (
+                                  old,
+                                  event.time))
+
+            if debugEnabled():
+                print("Info: %s '%s' to '%s' at time %s, by actor %s." % (
+                      ctype,
+                      old,
+                      new,
+                      time2Str(event.time),
+                      event.actor.uid()))
+
+            # Check if the target is a directory, or a regular file. If it does
+            # not exist, it's a regular file.
+            newFile = fileFactory.getFileIfExists(new, event.time)
+            newIsFolder = newFile and newFile.isFolder()
+
+            # If the target is a directory, we will copy/move inside it.
+            sourceIsFolder = oldFile.isFolder()
+            targetPath = new if not newIsFolder else \
+                new + "/" + oldFile.getFileName()
+            # If mv/cp'ing a folder to an existing path, restrictions apply.
+            if sourceIsFolder:
+                # oldFile is a/, newFile is b/, targetFile is b/a/
+                targetFile = fileFactory.getFileIfExists(targetPath,
+                                                         event.time)
+                targetIsFolder = targetFile and targetFile.isFolder()
+
+                # cannot overwrite non-directory 'b' with directory 'a'
+                # cannot overwrite non-directory 'b/a' with directory 'a'
+                if targetFile and not targetIsFolder:
+                    # TODO DBG?
+                    continue
+
+                # mv: cannot move 'a' to 'b/a': Directory not empty
+                elif targetIsFolder and ctype == "move":
+                    children = fileStore.getChildren(targetFile, event.time)
+                    if len(children) == 0:
+                        _delFile(event, targetFile)
+                    else:
+                        # TODO DBG?
+                        continue
+
+                # mv or cp would make the target directory here. Our code later
+                # on in this function will create a copy of the old file, which
+                # means the new folder will be made, with a creation access
+                # from the actor that performs the copy event we are analysing.
+                elif not targetFile and ctype == "copy":
+                    pass
+
+            # When the source is a file, just delete the new target path.
+            else:
+                targetFile = fileFactory.getFileIfExists(targetPath,
+                                                         event.time)
+                if targetFile:
+                    _delFile(event, targetFile)
+
+            # Collect the children of the source folder.
+            children = fileStore.getChildren(oldFile, event.time) if \
+                sourceIsFolder else []
+
+            # Make the target file, and link the old and target files.
+            _createCopy(event, oldFile, targetPath)
+            if ctype == "move":
+                _delFile(event, oldFile, read=True)
+            else:
+                _addRead(event, oldFile)
+
+            # Move or copy the children.
+            for child in children:
+                childRelPath = child.path[len(oldFile.path)+1:]
+                childTargetPath = targetPath + "/" + childRelPath
+                childNewFile = None
+
+                # Let the Python purists hang me for that. Iterators will catch
+                # appended elements on a mutable list and this is easier to
+                # read than other solutions that don't modify the list while it
+                # is iterated over.
+                subjects.append(child.path, childTargetPath)
+
+            newFiles.append(targetFile)
 
         return newFiles
 
@@ -330,7 +387,7 @@ class EventStore(object):
             if event.getSource() == EventSource.zeitgeist:
                 # The event grants 5 minutes of designation both ways.
                 self.desigcache.addItem(event,
-                                        start=event.getTime() - 5*60*1000,
+                                        start=event.time - 5*60*1000,
                                         duration=10*60*1000)
             # The current Event is an act of designation for future Events
             # related to the same Application and Files. Save it.
