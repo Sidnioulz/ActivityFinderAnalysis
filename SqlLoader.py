@@ -11,7 +11,7 @@ from constants import EV_ID, EV_TIMESTAMP, EV_INTERPRETATION, \
                       EV_SUBJ_MANIFESTATION, EV_SUBJ_ORIGIN_URI, \
                       EV_SUBJ_MIMETYPE, EV_SUBJ_TEXT, EV_SUBJ_STORAGE, \
                       EV_SUBJ_CURRENT_URI
-from utils import uq
+from utils import uq, debugEnabled
 
 
 class SqlLoader(object):
@@ -185,6 +185,8 @@ class SqlLoader(object):
                     ev.actor_uri)
 
                 if evId != currentId:
+                    if debugEnabled():
+                        print ("New application:", evId, currentId, ev)
                     currentId = evId
                     currentApp = Application(desktopid=evId,
                                              pid=int(pkey),
