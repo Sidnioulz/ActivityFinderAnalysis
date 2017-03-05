@@ -1,7 +1,7 @@
 [Desktop Entry]
-Exec=php5
-Icon=php
+Exec=java
+Icon=java
 Terminal=false
 Type=Application
 Categories=System;
-Name=PHP interpreter
+Name=Java interpreter
