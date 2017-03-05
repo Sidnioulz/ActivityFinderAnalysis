@@ -306,16 +306,17 @@ class TestSecurityScores(unittest.TestCase):
         f3 = self.fileFactory.getFile("/home/user/Images/Photo.jpg", 20)
         f4 = self.fileFactory.getFile("/home/user/Images/Art.xcf", 20)
 
-        self.assertEqual(2, len(pol.s.overEntitlements[0]))
-        self.assertEqual(2, len(pol.s.overEntitlements[1]))
+        self.assertEqual(2, pol.s.overEntitlements[0])
+        self.assertEqual(2, pol.s.overEntitlements[1])
 
-        self.assertNotIn(f2, pol.s.overEntitlements[0])
-        self.assertNotIn(f2, pol.s.overEntitlements[1])
-
-        self.assertIn(f3, pol.s.overEntitlements[0])
-        self.assertIn(f3, pol.s.overEntitlements[1])
-        self.assertIn(f4, pol.s.overEntitlements[0])
-        self.assertIn(f4, pol.s.overEntitlements[1])
+        # These tests are no longer possible with the faster OE implementation.
+        # self.assertNotIn(f2, pol.s.overEntitlements[0])
+        # self.assertNotIn(f2, pol.s.overEntitlements[1])
+        #
+        # self.assertIn(f3, pol.s.overEntitlements[0])
+        # self.assertIn(f3, pol.s.overEntitlements[1])
+        # self.assertIn(f4, pol.s.overEntitlements[0])
+        # self.assertIn(f4, pol.s.overEntitlements[1])
 
         gimp = PolicyScores()
 
@@ -323,16 +324,18 @@ class TestSecurityScores(unittest.TestCase):
             oes = pol.perInstanceScores[oe].overEntitlements
             if oe == self.ag2.uid():
                 gimp += pol.perInstanceScores[oe]
-                self.assertEqual(0, len(oes[0]))
-                self.assertEqual(2, len(oes[1]))
+                self.assertEqual(0, oes[0])
+                self.assertEqual(2, oes[1])
             elif oe == self.ag1.uid():
                 gimp += pol.perInstanceScores[oe]
-                self.assertEqual(1, len(oes[0]))
-                self.assertEqual(2, len(oes[1]))
+                self.assertEqual(1, oes[0])
+                self.assertEqual(2, oes[1])
 
-        calcGimp = pol.perAppScores.get("gimp") or \
-            PolicyScores()
-        self.assertEqual(gimp, calcGimp)
+        # The new OE calculation method sacrified per-app scores, so this test
+        # is no longer valid.
+        # calcGimp = pol.perAppScores.get("gimp") or \
+        #     PolicyScores()
+        # self.assertEqual(gimp, calcGimp)
 
     def test_stateful_policy(self):
         self.eventStore.reset()
