@@ -101,14 +101,8 @@ class PolicyScores(object):
 
         return self
 
-    def printScores(self,
-                    outputDir: str=None,
-                    filename: str=None,
-                    userHome: str=None,
-                    extraText: str=None,
-                    quiet: bool=False):
-        """Print the access, cost and security scores of this PolicyScores."""
-
+    def __str__(self):
+        """Print this PolicyScores object."""
         msg = ("Accesses:\n")
         msg += ("\t* by designation: %d\n" % self.desigAccess)
         msg += ("\t* file owned by app: %d\n" % self.ownedPathAccess)
@@ -135,6 +129,16 @@ class PolicyScores(object):
         msg += ("\t* %d user documents used / %d reachable\n" % (
                 (self.overEntitlements[2],
                  self.overEntitlements[3])))
+
+        return msg
+
+    def printScores(self,
+                    outputDir: str=None,
+                    filename: str=None,
+                    extraText: str=None,
+                    quiet: bool=False):
+        """Print the access, cost and security scores of this PolicyScores."""
+        msg = self.__str__()
 
         if extraText:
             msg += extraText
@@ -242,7 +246,6 @@ class Policy(object):
                                            filename="App - %s - Instance %s."
                                            "score" % (desktopid,
                                                       app.uid()),
-                                           userHome=userHome,
                                            quiet=True)
 
                     count += 1
@@ -277,7 +280,6 @@ class Policy(object):
             score = self.perAppScores[desktopid]
             score.printScores(outputDir=self.scoreDir,
                               filename="App - %s.score" % desktopid,
-                              userHome=userHome,
                               extraText=extraText,
                               quiet=True)
 
@@ -294,16 +296,13 @@ class Policy(object):
         print("-------------------")
         print("\nALL SYSTEM APPS")
         systemS.printScores(outputDir=self.scoreDir,
-                            filename="SystemApps.score",
-                            userHome=userHome)
+                            filename="SystemApps.score")
         print("\nALL DESKTOP APPS")
         desktopS.printScores(outputDir=self.scoreDir,
-                             filename="DesktopApps.score",
-                             userHome=userHome)
+                             filename="DesktopApps.score")
         print("\nALL USER APPS")
         userappS.printScores(outputDir=self.scoreDir,
-                             filename="UserlandApps.score",
-                             userHome=userHome)
+                             filename="UserlandApps.score")
         print("-------------------")
 
         # File scores.
@@ -327,7 +326,6 @@ class Policy(object):
                 # print("\n\nFile: %s:%s" % (last.inode, outfilename))
                 score.printScores(outputDir=outputDir,
                                   filename=outfilename,
-                                  userHome=userHome,
                                   quiet=True)
 
                 if last.isUserDocument(userHome, allowHiddenFiles=True):
@@ -336,12 +334,10 @@ class Policy(object):
                     systemF += score
         print("\nALL SYSTEM FILES")
         systemF.printScores(outputDir=self.scoreDir,
-                            filename="SystemFiles.score",
-                            userHome=userHome)
+                            filename="SystemFiles.score")
         print("\nALL USER DOCUMENTS")
         userDocF.printScores(outputDir=self.scoreDir,
-                             filename="UserDocFiles.score",
-                             userHome=userHome)
+                             filename="UserDocFiles.score")
         print("-------------------")
 
         # General scores.
@@ -363,7 +359,6 @@ class Policy(object):
 
         self.s.printScores(outputDir=self.scoreDir,
                            filename="general.score",
-                           userHome=userHome,
                            extraText=extraText)
         print("\n\n\n")
 
