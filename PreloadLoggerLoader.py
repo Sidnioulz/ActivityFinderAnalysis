@@ -40,6 +40,10 @@ class PreloadLoggerLoader(object):
         while len(items):
             del items[0]
 
+            # Everything got deleted! It's an interactive interpreter session.
+            if not items:
+                return g
+
             # Remove -Es if present.
             if items[0] == "-Es":
                 continue
@@ -57,6 +61,10 @@ class PreloadLoggerLoader(object):
             # if items[0].startswith('-'):
             #     continue
             break
+        # We had to delete every item without breaking, this means the
+        # interpreter had no actual application parameter. It was interactive.
+        else:
+            return g
 
         res = pynamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
@@ -87,6 +95,10 @@ class PreloadLoggerLoader(object):
         while len(items):
             del items[0]
 
+            # Everything got deleted! It's an interactive interpreter session.
+            if not items:
+                return g
+
             # Remove -jar if present.
             if items[0] == "-jar":
                 continue
@@ -97,7 +109,7 @@ class PreloadLoggerLoader(object):
 
             # Skip the classpath if passed, and delete the next argument (the
             # value of the classpath parameter).
-            if items[0] == "-classpath":
+            if items[0] in ["-classpath", "-cp"]:
                 if len(items) > 1:
                     del items[0]
                     continue
@@ -109,10 +121,18 @@ class PreloadLoggerLoader(object):
             if items[0].startswith("-D") or items[0].startswith("-X"):
                 continue
 
+            # Remove -dsa and -esa, and -da and -ea.
+            if items[0] in ["dsa", "esa", "-da", "-ea"]:
+                continue
+
             # # Return if an unknown parameter was passed.
             # if items[0].startswith('-'):
             #     continue
             break
+        # We had to delete every item without breaking, this means the
+        # interpreter had no actual application parameter. It was interactive.
+        else:
+            return g
 
         res = javanamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
@@ -140,15 +160,28 @@ class PreloadLoggerLoader(object):
         if len(items) <= 1:
             return g
 
-        # Remove -w if present
-        if items[1] == "-w":
-            del items[1]
+        while len(items):
+            del items[0]
 
-        res = perlnamer.match(items[1])
+            # Everything got deleted! It's an interactive interpreter session.
+            if not items:
+                return g
+
+            # Remove -w if present.
+            if items[0] == "-w":
+                continue
+
+            break
+        # We had to delete every item without breaking, this means the
+        # interpreter had no actual application parameter. It was interactive.
+        else:
+            return g
+
+        res = perlnamer.match(items[0])
         name = res.groups()[0] if res.groups() else None
 
         if name:
-            newcmd = ' '.join(items[1:])
+            newcmd = ' '.join(items[0:])
             return (name, g[1], newcmd)
         else:
             return g
