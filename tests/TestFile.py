@@ -6,12 +6,14 @@ from EventStore import EventStore
 from FileStore import FileStore
 from File import EventFileFlags
 from FileFactory import FileFactory
+from UserConfigLoader import UserConfigLoader
 
 
 class TestEventFlags(unittest.TestCase):
     def setUp(self):
         self.eventStore = EventStore.get()
         self.appStore = ApplicationStore.get()
+        self.userConf = UserConfigLoader.get("user.ini")
         self.fileFactory = FileFactory.get()
 
     def test_merge_equal(self):
@@ -49,6 +51,7 @@ class TestEventFlags(unittest.TestCase):
         self.assertEqual(next(accs).evflags, ef3)
 
     def tearDown(self):
+        self.userConf = None
         EventStore.reset()
         ApplicationStore.reset()
         FileFactory.reset()
