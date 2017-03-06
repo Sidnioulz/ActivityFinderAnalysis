@@ -210,6 +210,7 @@ def initMimeTypes():
     # We would use mimetypes.add_type but there's something rotten in the
     # mimetypes API and it ignores our added types...
     # TODO
+    mimetypes.add_type("application/x-dia-diagram", ".dia", strict=False)
 
     mimetypes.add_type("application/octet-stream", ".rdb", strict=False)
     mimetypes.add_type("application/octet-stream", ".session", strict=False)
