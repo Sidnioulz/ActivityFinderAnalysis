@@ -157,7 +157,8 @@ class Event(object):
             self.source = EventSource.cmdline
             self.parseCommandLine(cmdlineStr)
 
-        self.checkIfExcluded()
+        if checkExcludedFilesEnabled():
+            self.checkIfExcluded()
 
     def checkIfExcluded(self):
         """Check if Event concerns an excluded File, invalidate Event if so."""
