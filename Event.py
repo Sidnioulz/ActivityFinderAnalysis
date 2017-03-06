@@ -69,26 +69,6 @@ class EventSource(Enum):
     cmdline = 3
 
 
-class EventType(Enum):
-    """Supported types of events, from Zeitgeist or PreloadLogger."""
-
-    invalid = -1
-    unknown = 0
-
-    filecreate = 1
-    filemove = 2
-    filecopy = 3
-    fileread = 4
-    filewrite = 5
-    filereadwrite = 6
-    filedelete = 7
-    filelink = 8
-    filesymlink = 9
-
-    applaunch = 20
-    appstart = 21
-
-
 class Event(object):
     """An action performed by an Application at a specific time.
 
@@ -122,11 +102,9 @@ class Event(object):
         self.actor = actor  # type: Application; responsible for the event
         self.time = time    # type: int; when the event occurred
 
-        self.evtype = EventType.unknown           # type: EventType
         self.evflags = EventFileFlags.no_flags  # type: EventFileFlags
         self.source = EventSource.unknown       # type: EventSource
 
-        self.subjects = []    # type: list; entities affected by the Event.
         self.data = []        # binary data specific to each Event.
         self.data_app = []    # binary data specific to each Event's actor.
 
@@ -159,6 +137,17 @@ class Event(object):
 
         if checkExcludedFilesEnabled():
             self.checkIfExcluded()
+
+    def markInvalid(self):
+        """Mark an Event as being invalid, by deleting its flags."""
+        self.evflags = EventFileFlags.no_flags
+        self.actor = None
+        self.data = None
+        self.data_app = None
+
+    def isInvalid(self):
+        """Tell if an Event is invalid by checking it has flags."""
+        return self.evflags == EventFileFlags.no_flags
 
     def checkIfExcluded(self):
         """Check if Event concerns an excluded File, invalidate Event if so."""
@@ -262,8 +251,7 @@ class Event(object):
             return False
 
         if _hasExcludedFile(self):
-            self.data = None
-            self.evtype = EventType.invalid
+            self.markInvalid()
 
     def parseCommandLine(self, cmdlineStr: str):
         """Parse a command line to record acts of designation onto Files."""
@@ -332,7 +320,7 @@ class Event(object):
 
     def parseZeitgeist(self, zge: SqlEvent):
         """Process a Zeitgeist event to initialise this Event."""
-        self.dbgdata = zge
+        # self.dbgdata = zge
         self.evflags |= EventFileFlags.designation
 
         # File creation (or file write on a file that was incorrectly detected
@@ -340,7 +328,6 @@ class Event(object):
         if zge.interpretation in (
              'activity://gui-toolkit/gtk2/FileChooser/FileCreate',
              'activity://gui-toolkit/gtk3/FileChooser/FileCreate'):
-            self.evtype = EventType.filecreate
             self.evflags |= EventFileFlags.create
             self.evflags |= EventFileFlags.write
             self.setDataZGFiles(zge)
@@ -349,7 +336,6 @@ class Event(object):
         elif zge.interpretation in (
              'activity://gui-toolkit/gtk2/FileChooser/FileAccess',
              'activity://gui-toolkit/gtk3/FileChooser/FileAccess'):
-            self.evtype = EventType.fileread
             self.evflags |= EventFileFlags.read
             self.setDataZGFiles(zge)
 
@@ -357,7 +343,6 @@ class Event(object):
         elif zge.interpretation in (
              'activity://gui-toolkit/gtk2/FileChooser/FileModify',
              'activity://gui-toolkit/gtk3/FileChooser/FileModify'):
-            self.evtype = EventType.filewrite
             self.evflags |= EventFileFlags.write
             self.setDataZGFiles(zge)
 
@@ -368,7 +353,6 @@ class Event(object):
              'zg#TrashEvent',
              'http://www.zeitgeist-project.com/ontologies/2010/01/27/'
              'zg#DeleteEvent'):
-            self.evtype = EventType.filedelete
             self.evflags |= EventFileFlags.write
             self.evflags |= EventFileFlags.destroy
             self.setDataZGFiles(zge)
@@ -378,7 +362,6 @@ class Event(object):
         elif zge.interpretation in (
              'http://www.zeitgeist-project.com/ontologies/2010/01/27/'
              'zg#MoveEvent',):
-            self.evtype = EventType.filemove
             self.evflags |= EventFileFlags.move
             self.setDataZGFilesDual(zge)
 
@@ -386,13 +369,12 @@ class Event(object):
         elif zge.interpretation in (
              'http://www.zeitgeist-project.com/ontologies/2010/01/27/'
              'zg#CopyEvent',):
-            self.evtype = EventType.filecopy
             self.evflags |= EventFileFlags.copy
             self.setDataZGFilesDual(zge)
 
         else:
             # TODO continue
-            self.evtype = EventType.invalid
+            self.markInvalid()
 
     def _rejectError(self, syscall, path, flags, error):
         """Print a warning that a syscall failed and invalidate the Event."""
@@ -404,30 +386,26 @@ class Event(object):
                    self.actor.desktopid, self.actor.pid,
                    error),
                   file=sys.stderr)
-        self.evtype = EventType.invalid
+
+        self.markInvalid()
 
     def _openFopenParseFlags(self, flags):
         """Parse flags for open syscalls (and for fopen, as PL maps them)."""
         if flags & O_CREAT:
             self.evflags |= EventFileFlags.create
-            self.evtype = EventType.filecreate
 
         if flags & O_TRUNC:
             self.evflags |= EventFileFlags.overwrite
-            self.evtype = EventType.filecreate
 
         if flags & O_ACCMODE == O_WRONLY:
             self.evflags |= EventFileFlags.write
-            self.evtype = EventType.filewrite
 
         if flags & O_ACCMODE == O_RDONLY:
             self.evflags |= EventFileFlags.read
-            self.evtype = EventType.fileread
 
         if flags & O_ACCMODE == O_RDWR:
             self.evflags |= EventFileFlags.write
             self.evflags |= EventFileFlags.read
-            self.evtype = EventType.filereadwrite
 
     def parsePOSIXOpen(self, syscall: str, content: str):
         """Process a POSIX open() or similar system call."""
@@ -439,7 +417,7 @@ class Event(object):
             if syscall not in ('openat', 'openat64', 'mkdirat'):
                 print("Error: POSIX open* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
             else:
                 print("TODO: find RE parser for: ", syscall, "***", content)
@@ -450,7 +428,7 @@ class Event(object):
             if len(g) != 5:
                 print("Error: POSIX open* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -498,14 +476,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX fopen/freopen system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 5:
                 print("Error: POSIX fopen/freopen system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -516,7 +494,7 @@ class Event(object):
         if filename.startswith('@/'):
             # print("Info: opening of abstract socket '%s' will be ignored." %
             #       filename)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
 
         # Build path to be used by simulator, and save the corresponding File
@@ -544,14 +522,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX fdopendir system call was not "
                   "logged properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 3:
                 print("Error: POSIX fdopendir system call was not "
                       "logged properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -587,14 +565,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX fdopen system call was not "
                   "logged properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 4:
                 print("Error: POSIX fdopen system call was not "
                       "logged properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -628,14 +606,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX opendir system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 4:
                 print("Error: POSIX opendir system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -669,14 +647,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX unlink system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 3:
                 print("Error: POSIX unlink system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -700,7 +678,6 @@ class Event(object):
                 self._rejectError(syscall, path, 0, error)
                 return
 
-        self.evtype = EventType.filedelete
         self.evflags |= EventFileFlags.write
         self.evflags |= EventFileFlags.destroy
 
@@ -717,14 +694,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX close* system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 2:
                 print("Error: POSIX close* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -755,14 +732,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX rename system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 6:
                 print("Error: POSIX rename system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -779,7 +756,6 @@ class Event(object):
         oldpath = old if old.startswith('/') else np(ocwd+'/'+old)
         newpath = new if new.startswith('/') else np(ncwd+'/'+new)
 
-        self.evtype = EventType.filecopy
         self.evflags |= EventFileFlags.copy
         self.setDataSyscallFilesDual(oldpath, newpath)
 
@@ -798,14 +774,14 @@ class Event(object):
         except(AttributeError) as e:
             print("Error: POSIX dup* system call was not logged "
                   "properly: %s" % content, file=sys.stderr)
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
         else:
             # Check the syscall was well formed and we have everything we need
             if len(g) != 5:
                 print("Error: POSIX dup* system call was not logged "
                       "properly: %s" % content, file=sys.stderr)
-                self.evtype = EventType.invalid
+                self.markInvalid()
                 return
 
             # Assign relevant variables
@@ -823,7 +799,7 @@ class Event(object):
         # references the stdin/out/err descriptors, and only then to abort
         # the current Event. This is much harder architecturally, though.
         if oldfd in (0, 1, 2) or newfd in (0, 1, 2):
-            self.evtype = EventType.invalid
+            self.markInvalid()
             return
 
         # Close the file descriptor at the previous address, for dup2 and dup3.
@@ -839,13 +815,12 @@ class Event(object):
         self.setDataSyscallFD(newfd, newpath, FD_OPEN)
 
         self.evflags |= EventFileFlags.read
-        self.evtype = EventType.fileread
         self.setDataSyscallFile(newpath)
 
     def parseSyscall(self, syscallStr: str):
         """Process a system call string to initialise this Event."""
 
-        self.dbgdata = syscallStr
+        # self.dbgdata = syscallStr
         self.evflags |= EventFileFlags.programmatic
 
         # Extract the system call name
@@ -890,15 +865,11 @@ class Event(object):
             self.parsePOSIXDup(syscall, content)
         else:
             # TODO continue
-            self.evtype = EventType.invalid
+            self.markInvalid()
 
     def getTime(self):
         """Return the Event's time of occurrence."""
         return self.time
-
-    def getType(self):
-        """Return the Event's type."""
-        return self.evtype
 
     def getFileFlags(self):
         """Return the Event's flags related to files."""

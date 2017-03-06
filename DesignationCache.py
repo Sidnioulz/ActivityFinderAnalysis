@@ -1,5 +1,5 @@
 """A cache for acts of designation used in an EventStore simulation."""
-from Event import Event, EventSource, EventType
+from Event import Event, EventSource
 from File import EventFileFlags
 from Application import Application
 from blist import sortedlist
@@ -45,7 +45,7 @@ class DesignationCache(object):
         """Add a new item to the designation cache."""
         # Zeitgeist Events mean designation is granted to syscalls.
         if event.source == EventSource.zeitgeist:
-            if event.getType() == EventType.invalid:
+            if event.isInvalid():
                 return
 
             if start == -1 or duration == -1:
@@ -53,7 +53,7 @@ class DesignationCache(object):
                                  " to be stored in the DesignationCache: %s" %
                                  event)
             files = []
-            if event.getType() in (EventType.filemove, EventType.filecopy):
+            if event.evflags & (EventFileFlags.move | EventFileFlags.copy):
                 for (src, dest) in event.data:
                     files.append(src)
                     files.append(dest)

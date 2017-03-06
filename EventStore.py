@@ -1,6 +1,6 @@
 """A store for Event objects."""
 from DesignationCache import DesignationCache
-from Event import Event, EventFileFlags, EventSource, EventType
+from Event import Event, EventFileFlags, EventSource
 from FileStore import FileStore
 from FileFactory import FileFactory
 from math import floor
@@ -381,7 +381,7 @@ class EventStore(object):
         if debugEnabled():
             print("Instantiating Zeitgeist acts of designation...")
         for event in self.store:
-            if event.evtype == EventType.invalid:
+            if event.isInvalid():
                 continue
 
             if event.getSource() == EventSource.zeitgeist:
@@ -398,7 +398,7 @@ class EventStore(object):
             print("Done. Starting simulation...")
         # Then, dispatch each event to the appropriate handler
         for event in self.store:
-            if event.evtype == EventType.invalid:
+            if event.isInvalid():
                 continue
 
             # Designation events are already processed.
@@ -419,6 +419,9 @@ class EventStore(object):
                 res = self.simulateDestroy(event, fileFactory, fileStore)
 
             elif event.getFileFlags() & EventFileFlags.create:
+                res = self.simulateCreate(event, fileFactory, fileStore)
+
+            elif event.getFileFlags() & EventFileFlags.overwrite:
                 res = self.simulateCreate(event, fileFactory, fileStore)
 
                 # We received a list of files that were created
