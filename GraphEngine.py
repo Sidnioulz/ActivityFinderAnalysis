@@ -8,7 +8,7 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from UserConfigLoader import UserConfigLoader
 from PolicyEngine import Policy
-from utils import intersection, outputFsEnabled
+from utils import intersection, outputFsEnabled, plottingDisabled, tprnt
 import itertools
 import sys
 import os
@@ -49,7 +49,7 @@ class CommonGraph(object):
         """Add a FileAccess edge to the graph."""
         raise NotImplementedError
 
-    def populate(self, policy: Policy=None):
+    def populate(self, policy: Policy=None, quiet: bool=False):
         """Populate the AccessGraph, filtering it based on a Policy."""
         appStore = ApplicationStore.get()
         fileStore = FileStore.get()
@@ -57,6 +57,8 @@ class CommonGraph(object):
         userConf = UserConfigLoader.get()
 
         # Add all user apps.
+        if not quiet:
+            tprnt("\t\tAdding apps...")
         for app in appStore:
             if app.isUserlandApp():
                 self._addAppNode(app)
@@ -67,6 +69,8 @@ class CommonGraph(object):
                  policy.allowedByPolicy(f, acc.actor))
 
         # Add all user documents.
+        if not quiet:
+            tprnt("\t\tAdding user documents...")
         for f in fileStore:
             if not f.isUserDocument(userHome=userConf.getHomeDir(),
                                     allowHiddenFiles=True):
@@ -88,17 +92,21 @@ class CommonGraph(object):
                     if _allowed(policy, f, acc):
                         self._addAccess(f, acc)
 
+        if not quiet:
+            tprnt("\t\tAdding file links...")
         links = fileFactory.getFileLinks()
         for (pred, follow) in links.items():
             source = str(pred)
             dest = str(follow)
             if source in self.vertices and dest in self.vertices:
-                print("Info: adding link from File %s to File %s in graph "
+                tprnt("Info: adding link from File %s to File %s in graph "
                       "as there is a file move/copy event between those." % (
                        source, dest))
                 self.edges.add((source, dest))
                 self.weights[(source, dest)] = 999999999
 
+        if not quiet:
+            tprnt("\t\tConstructing graph...")
         self._construct()
 
     def _linkInstances(self):
@@ -161,11 +169,14 @@ class CommonGraph(object):
                   self.outputDir + "/" + output + ".graph.svg",
                   e))
 
-
-        # Detect communities in the graph.
-        self.computeClusters()
-
+    def plotClusters(self, output: str=None):
         # Plot the base graph with colours based on the communities.
+        vs = {}
+        vs["vertex_size"] = 5
+        vs["vertex_shape"] = [CommonGraph.sd[t] for t in self.g.vs["type"]]
+        vs["layout"] = self.g.layout("fr")
+        vs["bbox"] = (2400, 1600)
+        vs["margin"] = 20
         vs["vertex_color"] = self.clusters.membership
         edge_widths = []
         for (s, d) in self.g.get_edgelist():
@@ -302,7 +313,7 @@ class CommonGraph(object):
                  grantingCost))
 
         if not quiet:
-            print(msg)
+            tprnt(msg)
 
         if output:
             path = self.outputDir + "/" + output + ".graphstats.txt"
@@ -383,14 +394,23 @@ class CommonGraph(object):
 
             return msg
 
+        if not quiet:
+            tprnt("\t\tPrinting statistics on whole graph...")
         msg += _printAndSum(self, self.editCount)
 
-        fg = FlatGraph(parent=self)
-        fg.plot(output=output)
+        if not quiet:
+            tprnt("\t\tBuilding flat file graph...")
+        fg = FlatGraph(parent=self, quiet=quiet)
+        if not plottingDisabled():
+          if not quiet:
+              tprnt("\t\tPlotting flat file graph...")
+          fg.plot(output=output)
+        if not quiet:
+            tprnt("\t\tPrinting statistics on flat file graph...")
         msg += _printAndSum(fg, self.editCount, tagPrefix="flat")
 
         if not quiet:
-            print(msg)
+            tprnt(msg)
 
         if output:
             path = self.outputDir + "/" + output + ".graphstats.txt"
@@ -403,7 +423,7 @@ class CommonGraph(object):
 class FlatGraph(object):
     """An internal class for graph flattening."""
 
-    def __init__(self, parent: CommonGraph):
+    def __init__(self, parent: CommonGraph, quiet: bool=False):
         """Construct a FlatGraph."""
         super(FlatGraph, self).__init__()
         if not isinstance(parent, CommonGraph):
@@ -419,11 +439,16 @@ class FlatGraph(object):
 
         # Step 1. make a copy of the graph without file-file nodes, to
         # find paths between files that go through apps.
+        if not quiet:
+            tprnt("\t\t\tStep 1: copy graph, excluding file-file nodes...")
+            tprnt("\t\t\t\tCopy graph...")
         copy = parent.g.copy()  # type: Graph
         types = parent.g.vs['type']
         names = parent.g.vs['name']
         toBeRemoved = []
         namesRemoved = []
+        if not quiet:
+            tprnt("\t\t\t\tFind edges to delete...")
         for edge in copy.es:
             if types[edge.source] == "file" and \
                     types[edge.target] == "file":
@@ -431,18 +456,29 @@ class FlatGraph(object):
                 namesRemoved.append((names[edge.source],
                                      names[edge.target]))
 
+        if not quiet:
+            tprnt("\t\t\t\tDelete edges...")
         copy.delete_edges(toBeRemoved)
 
         # Step 2. run an all-pairs shortest path algorithm.
+        # and
+        # Step 3. pick out file-file paths with no intermediary files.
+        if not quiet:
+            tprnt("\t\t\tSteps 2+3: run an all-pairs shortest path "
+                  "algorithm and remove file-file paths with intermediary "
+                  "files...")
+            tprnt("\t\t\t\tCopy file nodes...")
         fileNodes = list((copy.vs[i] for i, t in enumerate(types) if
                           t == "file"))
 
         shortestPaths = dict()
+        if not quiet:
+            tprnt("\t\t\t\tGet shortest paths for each file node...")
         for v in fileNodes:
-            shortestPaths[v] = copy.get_shortest_paths(v, to=fileNodes)
-
-        # Step 3. pick out file-file paths with no intermediary files.
-        for (v, vPaths) in shortestPaths.items():
+            # Get shortest paths.
+            vPaths = copy.get_shortest_paths(v, to=fileNodes)
+            
+            # Remove unnecessary bits.
             delSet = set()
             for (idx, p) in enumerate(vPaths):
                 if len(p) < 1:
@@ -456,10 +492,15 @@ class FlatGraph(object):
             # Remove unsuitable paths.
             for i in sorted(list(delSet), reverse=True):
                 del vPaths[i]
+            
             shortestPaths[v] = vPaths
 
         # Step 4. construct a graph with only file nodes.
+        if not quiet:
+            tprnt("\t\t\tStep 4: construct a graph with only file nodes...")
         # First, gather the edges.
+        if not quiet:
+            tprnt("\t\t\t\tGather edges...")
         edges = []
         weights = dict()
         idgen = UniqueIdGenerator()
@@ -477,12 +518,16 @@ class FlatGraph(object):
             weights[edge] = 1
 
         # Next, build the graph.
+        if not quiet:
+            tprnt("\t\t\t\tBuild graph...")
         edgelist = [(idgen[s], idgen[d]) for s, d in edges]
         self.g = Graph(edgelist)
         self.g.es["weight"] = list((weights[e] for e in edges))
         self.g.vs["name"] = idgen.values()
 
         # Steph 5. apply community information to the nodes.
+        if not quiet:
+            tprnt("\t\t\tStep 5: apply communities to flat graph...")
         parentMembers = parent.clusters.membership
         members = [0] * len(parentMembers)
         assigned = [0] * len(parentMembers)
@@ -746,13 +791,31 @@ class GraphEngine(object):
             policy else outputFsEnabled()
 
         if not quiet:
-            print("\nCompiling the Unified Graph...")
+            tprnt("\nCompiling the Unified Graph...")
+        if not quiet:
+            tprnt("\tMaking graph...")
         g = UnifiedGraph(outputDir=outputDir)
-        g.populate(policy=policy)
+        if not quiet:
+            tprnt("\tPopulating graph...")
+        g.populate(policy=policy, quiet=quiet)
         output = policy.name+"-graph-unified" if policy else \
             "graph-unified"
-        g.plot(output=output)
+        if not plottingDisabled():
+          if not quiet:
+              tprnt("\tPlotting graph...")
+          g.plot(output=output)
+        if not quiet:
+            tprnt("\tComputing community clusters...")
+        g.computeClusters()
+        if not plottingDisabled():
+          if not quiet:
+              tprnt("\tPlotting communities...")
+          g.plotClusters(output=output)
+        if not quiet:
+            tprnt("\tCalculating costs to optimal communities...")
         g.calculateCosts(output=output, policy=policy, quiet=quiet)
+        if not quiet:
+            tprnt("\tCalculating potential reachability improvement...")
         g.calculateReachability(output=output, quiet=quiet)
         if not quiet:
-            print("Done.")
+            tprnt("Done.")

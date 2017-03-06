@@ -17,6 +17,7 @@ __opt_output_fs = None
 __opt_related_files = False
 __opt_score = False
 __opt_graph = False
+__opt_plotting_disabled = False
 __opt_clusters = False
 __opt_user = None
 
@@ -61,6 +62,13 @@ def __setGraph(opt):
     """Set the return value of :graphEnabled():."""
     global __opt_graph
     __opt_graph = opt
+
+
+
+def __setPlottingDisabled(opt):
+    """Set the return value of :plottingDisabledEnabled():."""
+    global __opt_plotting_disabled
+    __opt_plotting_disabled = opt
 
 
 def __setPrintClusters(opt):
@@ -115,6 +123,12 @@ def graphEnabled():
     """Return True if --graph was passed, False otherwise."""
     global __opt_graph
     return __opt_graph
+
+
+def plottingDisabled():
+    """Return True if --disable-plotting was passed, False otherwise."""
+    global __opt_plotting_disabled
+    return __opt_plotting_disabled
 
 
 def printClustersEnabled():
@@ -315,3 +329,70 @@ monoprocname = re.compile(MONOPROCNAME)
 phpre = re.compile(PHPRE)
 phpnamer = re.compile(PHPNAMER)
 phpprocname = re.compile(PHPPROCNAME)
+
+
+# Get the last line of a file
+BLOCKSIZE = 4096
+def tail(f):
+    # Save old position.
+    oldPos = f.tell()
+
+    # Seek to end of file to get file length.
+    f.seek(0, 2)
+    bytesInFile = f.tell()
+
+    # Parse file to get tail.
+    linesFound = 0
+    totalBytesScanned = 0
+
+    # Find any position (efficiently-ish) such that it's before 2+ lines.
+    while (linesFound < 2 and bytesInFile > totalBytesScanned):
+        byteBlock = min(BLOCKSIZE, bytesInFile - totalBytesScanned)
+        f.seek( -(byteBlock + totalBytesScanned), 2)
+        totalBytesScanned += byteBlock
+
+        buff = f.read(BLOCKSIZE)
+        try:
+            countableBuff = buff.decode('utf-8')
+        except(UnicodeDecodeError) as e:
+            return None
+        else:
+            linesFound += countableBuff.count('\n')
+
+    # Seek to that position where there are 2+ lines, and then read lines.
+    f.seek(-totalBytesScanned, 2)
+    lineList = list(f.readlines())
+
+    # Reset position;
+    f.seek(oldPos, 0)
+
+    # Return the last line.
+    try:
+        readableLine = lineList[-1].decode('utf-8')
+    except(UnicodeDecodeError) as e:
+        return None
+    else:
+        return readableLine
+
+
+# Copied from StackExchange, timed prints.
+import atexit
+from time import time
+from datetime import timedelta
+
+__timed_print_start = time()
+
+def __secondsToStr(t):
+    global __timed_print_start
+    return str(timedelta(seconds=t - __timed_print_start))
+
+def tprnt(msg: str):
+    stripped = msg.lstrip("\n")
+    leadingCount = len(msg) - len(stripped)
+    print("%s%s: %s" % ("\n" * leadingCount, __secondsToStr(time()), stripped))
+
+def __finalTimedPrint():
+    tprnt("Exiting.")
+
+def registerTimePrint():
+    atexit.register(__finalTimedPrint)

@@ -20,18 +20,19 @@ from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
                   __setPrintClusters, __setUser, __setCheckExcludedFiles, \
+                  __setPlottingDisabled, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
                   printClustersEnabled, checkExcludedFilesEnabled, \
-                  initMimeTypes, getDataPath
+                  initMimeTypes, getDataPath, registerTimePrint, tprnt
 import getopt
 import sys
 
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-missing ' \
-               '--output-fs=<DIR> --debug --help --score\n --clusters' \
-               ' --graph-clusters --check-excluded-files]\n\tor\n' \
-               '__main__.py --inode=<INODE> [--user=<NAME>]\n\tor\n' \
-               '__main__.py --post-analysis=<DIR,DIR,DIR>'
+               '--output-fs=<DIR> --debug --help --score\n\t\t--clusters' \
+               ' --graph-clusters --disable-plotting --check-excluded-files]' \
+               '\n\nor:     __main__.py --inode=<INODE> [--user=<NAME>]' \
+               '\n\nor:     __main__.py --post-analysis=<DIR,DIR,DIR>'
 
 
 # Main function
@@ -42,7 +43,7 @@ def main(argv):
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "ha:cedf:srpgi:u:",
+        (opts, args) = getopt.getopt(argv, "ha:cedf:srpgGi:u:",
                                      ["help",
                                       "post-analysis",
                                       "check-missing",
@@ -54,14 +55,15 @@ def main(argv):
                                       "score",
                                       "user",
                                       "clusters",
-                                      "graph-clusters"])
+                                      "graph-clusters",
+                                      "disable-plotting"])
     except(getopt.GetoptError):
         print(USAGE_STRING)
         sys.exit(2)
     else:
         for opt, arg in opts:
             if opt in ('-h', '--help'):
-                print(USAGE_STRING + "\n")
+                print(USAGE_STRING + "\n\n\n\n")
 
                 print("--check-missing:\n\tChecks whether some Desktop IDs "
                       "for apps in the user's directory are\n\tmissing. If so,"
@@ -91,6 +93,8 @@ def main(argv):
                 print("--graph-clusters:\n\tFind communities in file/app "
                       "accesses using graph theory methods.\n\tRequires the "
                       "--score and --cluster options for per-policy graphs.\n")
+                print("--disable-plotting:\n\tDo not plot cluster graphs. See "
+                      "the --graph-clusters option.\n")
                 sys.exit()
             elif opt in ('-c', '--check-missing'):
                 __setCheckMissing(True)
@@ -106,6 +110,8 @@ def main(argv):
                 __setPrintClusters(True)
             elif opt in ('-g', '--graph-clusters'):
                 __setGraph(True)
+            elif opt in ('-G', '--disable-plotting'):
+                __setPlottingDisabled(True)
             elif opt in ('-f', '--output-fs'):
                 if not arg:
                     print(USAGE_STRING)
@@ -141,6 +147,8 @@ def main(argv):
         engine.analyse()
         sys.exit(0)
 
+    registerTimePrint()
+
     # Make the application, event and file stores
     store = ApplicationStore.get()
     evStore = EventStore.get()
@@ -153,52 +161,52 @@ def main(argv):
 
     # Load up and check the SQLite database
     sql = None
-    print("\nLoading the SQLite database: %s..." % (datapath+DATABASENAME))
+    tprnt("\nLoading the SQLite database: %s..." % (datapath+DATABASENAME))
     try:
         sql = SqlLoader(datapath+DATABASENAME)
     except ValueError as e:
         print("Failed to parse SQL: %s" % e.args[0], file=sys.stderr)
         sys.exit(-1)
     if checkMissingEnabled():
-        print("Checking for missing application identities...")
+        tprnt("Checking for missing application identities...")
         sql.listMissingActors()
     sql.loadDb(store)
-    print("Loaded the SQLite database.")
+    tprnt("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
-    print("\nLoading the PreloadLogger logs in folder: %s..." % datapath)
+    tprnt("\nLoading the PreloadLogger logs in folder: %s..." % datapath)
     pll = PreloadLoggerLoader(datapath)
     if checkMissingEnabled():
-        print("Checking for missing application identities...")
+        tprnt("Checking for missing application identities...")
         pll.listMissingActors()
     pll.loadDb(store)
-    print("Loaded the PreloadLogger logs.")
+    tprnt("Loaded the PreloadLogger logs.")
 
     # Resolve actor ids in all apps' events
-    print("\nUsing PreloadLogger Applications to resolve interpreters in "
+    tprnt("\nUsing PreloadLogger Applications to resolve interpreters in "
           "Zeitgeist Applications...")
     (interpretersAdded, instancesEliminated) = store.resolveInterpreters()
-    print("Resolved interpreter ids in %d Applications, and removed %d "
+    tprnt("Resolved interpreter ids in %d Applications, and removed %d "
           "instances by merging them with another as a result." % (
            interpretersAdded, instancesEliminated))
 
     # Update events' actor ids in the ApplicationStore, then take them and send
     # them to the EvnetStore. Finally, sort the EventStore by timestamp.
-    print("\nInserting and sorting all events...")
+    tprnt("\nInserting and sorting all events...")
     store.sendEventsToStore()
     evStore.sort()
-    print("Sorted all %d events in the event store." % evStore.getEventCount())
+    tprnt("Sorted all %d events in the event store." % evStore.getEventCount())
 
     # Simulate the events to build a file model
-    print("\nSimulating all events to build a file model...")
+    tprnt("\nSimulating all events to build a file model...")
     evStore.simulateAllEvents()
     del sql
     del pll
     evStore.sort()
-    print("Simulated all events. %d files initialised." % len(fileStore))
+    tprnt("Simulated all events. %d files initialised." % len(fileStore))
 
     if checkExcludedFilesEnabled():
-        print("\nPrinting files written and read by instances which wrote"
+        tprnt("\nPrinting files written and read by instances which wrote"
               "to excluded directories...")
         dbgPrintExcludedEvents()
 
@@ -207,13 +215,13 @@ def main(argv):
         inodes = __opt_inode_query.split(",")
         for inode in sorted(int(i) for i in inodes):
             f = fileStore.getFile(inode)
-            print("\nInode queried: %d" % inode)
-            print("Corresponding file: %s\n\t(%s)" % (f.getName(), f))
+            tprnt("\nInode queried: %d" % inode)
+            tprnt("Corresponding file: %s\n\t(%s)" % (f.getName(), f))
         sys.exit(0)
 
     # Print the model as proof of concept
     if debugEnabled():
-        print("\nPrinting the file model...\n")
+        tprnt("\nPrinting the file model...\n")
         fileStore.printFiles(showDeleted=True,
                              showCreationTime=True,
                              showDocumentsOnly=True,
@@ -222,7 +230,7 @@ def main(argv):
 
     # Make the filesystem corresponding to the model
     if outputFsEnabled():
-        print("\nMaking a copy of the file model at '%s'...\n" %
+        tprnt("\nMaking a copy of the file model at '%s'...\n" %
               outputFsEnabled())
         fileStore.makeFiles(outputDir=outputFsEnabled(),
                             showDeleted=True,
@@ -264,7 +272,7 @@ def main(argv):
             else:
                 pol = polName()
 
-            print("\nRunning %s..." % pol.name)
+            tprnt("\nRunning %s..." % pol.name)
             engine.runPolicy(pol,
                              outputDir=outputFsEnabled(),
                              printClusters=printClustersEnabled())
@@ -278,10 +286,10 @@ def main(argv):
     if relatedFilesEnabled():
         engine = FrequentFileEngine()
 
-        print("\nMining for frequently co-accessed files...")
+        tprnt("\nMining for frequently co-accessed files...")
         engine.mineFiles()
 
-        print("\nMining for frequently co-accessed file types...")
+        tprnt("\nMining for frequently co-accessed file types...")
         engine.mineFileTypes()
 
 
