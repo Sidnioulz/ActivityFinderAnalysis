@@ -55,7 +55,7 @@ class TestGraph(unittest.TestCase):
 
     def test_graph_print(self):
         g = AccessGraph()
-        g.populate()
+        g.populate(quiet=True)
         g.plot(output="graph-accesses")
         self.assertTrue(os.path.isfile("/tmp/graph-accesses.graph.svg"))
         self.assertTrue(os.path.isfile("/tmp/graph-accesses.clusters.svg"))
