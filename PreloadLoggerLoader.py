@@ -226,8 +226,6 @@ class PreloadLoggerLoader(object):
         if not items:
             items = space.split(g[2])
 
-        print(g, items)
-
         # Return if there are no parameters, the interpreter is the app
         if len(items) <= 1:
             return g
@@ -239,7 +237,6 @@ class PreloadLoggerLoader(object):
             procres = phpprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
 
-            print(name, procres, newproc)
             return (newproc, g[1], g[2])
         else:
             return g
@@ -479,7 +476,7 @@ class PreloadLoggerLoader(object):
                     # Add system call events
                     skipCache = None
                     lineIdx = 0
-                    syscalls = []
+                    currentCall = None
                     prevTimestamp = 0
                     timeDelta = 0
                     f.seek(0, 0)
@@ -512,13 +509,14 @@ class PreloadLoggerLoader(object):
                             skipCache = line
                             lineIdx += 1
                             continue
-                        
+
                         line = line[:-1]  # Remove ending "\n"
 
                         # Line is a parameter to the last system call logged
                         if line.startswith(' '):
-                            if len(syscalls):
-                                syscalls[-1][1] = syscalls[-1][1] + '\n' + line
+                            if currentCall:
+                                currentCall = (currentCall[0],
+                                               currentCall[1] + '\n' + line)
                             elif debugEnabled():
                                 print("%s has a corrupted line (no call): %s" %
                                       (file, line),
@@ -557,14 +555,14 @@ class PreloadLoggerLoader(object):
                           
                         # Process the last system call into an Event, and clear
                         # up the syscalls list to keep RAM free!
-                        for call in syscalls:
+                        if currentCall:
                             event = Event(actor=app,
-                                          time=call[0],
-                                          syscallStr=call[1])
+                                          time=currentCall[0],
+                                          syscallStr=currentCall[1])
                             app.addEvent(event)
                         
                         # Create the new syscalls list.
-                        syscalls = [[timestamp + timeDelta, h[1]]]
+                        currentCall = (timestamp + timeDelta, h[1])
                         prevTimestamp = timestamp
                         
                         lineIdx += 1
