@@ -1,6 +1,7 @@
 """An engine for running algorithms that implement an access control policy."""
 from File import File, FileAccess, EventFileFlags
 from FileStore import FileStore
+from FileFactory import FileFactory
 from Application import Application
 from ApplicationStore import ApplicationStore
 from UserConfigLoader import UserConfigLoader
@@ -887,11 +888,20 @@ class Policy(object):
                     l.add(f)
                     accessListsInst[instanceLabel] = l
 
+        links = FileFactory.get().getFileLinks()
+        accessListsLinks = list()
+        for (pred, follow) in links.items():
+            pair = set()
+            pair.add(pred)
+            pair.add(follow)
+            accessListsLinks.append(pair)
+
         # Then, merge clusters that share an item.
-        def _clusters(accessLists):
+        def _clusters(accessLists, links):
             clusters = []
 
-            for (app, l) in accessLists.items():
+            iterList = list(accessLists.values()) + links
+            for l in iterList:
                 mergeSet = []
 
                 # Single out all the clusters that share an item with l.
@@ -912,8 +922,8 @@ class Policy(object):
         # Return our final list of clusters.
         if not quiet:
             print("\t\tMerging lists into clusters...")
-        return (_clusters(accessListsApp),
-                _clusters(accessListsInst),
+        return (_clusters(accessListsApp, accessListsLinks),
+                _clusters(accessListsInst, accessListsLinks),
                 accessListsInst)
 
     # @profile
