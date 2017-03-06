@@ -272,7 +272,7 @@ class EventStore(object):
             return newFile
 
         # Get each file, set its starting time and type, and update the store
-        subjects = ((old.path, new.path) for (old, new) in event.getData())
+        subjects = list((old.path, new.path) for (old, new) in event.getData())
         for (old, new) in subjects:
 
             # Not legal. 'a' and 'a' are the same file.
@@ -362,7 +362,7 @@ class EventStore(object):
                 # appended elements on a mutable list and this is easier to
                 # read than other solutions that don't modify the list while it
                 # is iterated over.
-                subjects.append(child.path, childTargetPath)
+                subjects.append((child.path, childTargetPath))
 
             newFiles.append(targetFile)
 
