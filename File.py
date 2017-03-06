@@ -200,13 +200,11 @@ class File(object):
         self.path = path
         self.pred = None
         self.follow = []
-        self.links = []
-        self.symlinksrc = None
-        self.symlinks = []
+        # self.links = []
+        # self.symlinksrc = None
+        # self.symlinks = []
         self.tstart = tstart
         self.tend = tend
-        self.tsg = False
-        self.teg = False
         if ftype:
             self.ftype = ftype
         else:
@@ -223,11 +221,6 @@ class File(object):
         fileType = mimetypes.guess_type(self.path, strict=False)
         if fileType and fileType[0]:
             self.ftype = fileType[0]
-
-    def setGuessFlags(self, sf: bool, ef: bool):
-        """Set whether the start and end times are guessed instead of known."""
-        self.tsg = sf
-        self.teg = ef
 
     @staticmethod
     def getParentNameFromName(path: str):
@@ -306,25 +299,25 @@ class File(object):
     def clearFollowers(self):
         self.follow.clear()
 
-    def addLink(self, linkedFile: 'File'):
-        """Add a hard link to this File."""
-        self.links.append(linkedFile)
-        linkedFile.links.append(self)
-
-    def removeLink(self, linkedFile: 'File'):
-        """Remove a hard link from this File."""
-        self.links.remove(linkedFile)
-        linkedFile.links.remove(self)
-
-    def symlink(self, linkedFile: 'File'):
-        """Add a symbolic link to this File."""
-        linkedFile.symlinks.append(self)
-        self.symlinksrc = linkedFile
-
-    def removeSymlink(self, linkedFile: 'File'):
-        """Add a symbolic link to this File."""
-        linkedFile.symlinks.remove(self)
-        self.symlinksrc = None
+    # def addLink(self, linkedFile: 'File'):
+    #     """Add a hard link to this File."""
+    #     self.links.append(linkedFile)
+    #     linkedFile.links.append(self)
+    #
+    # def removeLink(self, linkedFile: 'File'):
+    #     """Remove a hard link from this File."""
+    #     self.links.remove(linkedFile)
+    #     linkedFile.links.remove(self)
+    #
+    # def symlink(self, linkedFile: 'File'):
+    #     """Add a symbolic link to this File."""
+    #     linkedFile.symlinks.append(self)
+    #     self.symlinksrc = linkedFile
+    #
+    # def removeSymlink(self, linkedFile: 'File'):
+    #     """Add a symbolic link to this File."""
+    #     linkedFile.symlinks.remove(self)
+    #     self.symlinksrc = None
 
     def setType(self, ftype: str):
         """Set the MIME type of the file to the given value."""

@@ -67,7 +67,6 @@ class FileFactory(object):
                        name, time, tstart),
                       file=sys.stderr)
                 f = File(path=name, tstart=prevTend, tend=tstart, ftype=ftype)
-                f.setGuessFlags(True, True)
                 self.fileStore.addFile(f)
                 return file
             # Current file is valid as it has not ended yet
@@ -83,7 +82,6 @@ class FileFactory(object):
         else:
             # Make a new file starting where the last one ended, and not ending
             f = File(path=name, tstart=prevTend, tend=0, ftype=ftype)
-            f.setGuessFlags(True, False)
             self.fileStore.addFile(f)
             return f
 
