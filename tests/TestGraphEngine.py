@@ -58,6 +58,8 @@ class TestGraph(unittest.TestCase):
         g.populate(quiet=True)
         g.plot(output="graph-accesses")
         self.assertTrue(os.path.isfile("/tmp/graph-accesses.graph.svg"))
+        g.computeClusters()
+        g.plotClusters(output="graph-accesses")
         self.assertTrue(os.path.isfile("/tmp/graph-accesses.clusters.svg"))
 
     def tearDown(self):
