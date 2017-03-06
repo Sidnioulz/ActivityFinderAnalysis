@@ -321,7 +321,7 @@ class PreloadLoggerLoader(object):
                               file=sys.stderr)
                         invalids += 1
                         continue
-                    
+
                     # Parse the header line, make sure it has the right length.
                     g = result.groups()
                     if (len(g) != 3):
@@ -368,7 +368,7 @@ class PreloadLoggerLoader(object):
                     # Get first and last event to calculate the timestamps.
                     tstart = float("inf")
                     tend = 0
-                    
+
                     skipCache = None
                     lineIdx = 0
                     f.seek(0, 0)
@@ -390,7 +390,7 @@ class PreloadLoggerLoader(object):
                             lineIdx += 1
                             skipCache = None
                             continue
-                    
+
                         # Previous line did not end and was skipped, merge it.
                         if skipCache:
                             line = skipCache + line
@@ -401,7 +401,7 @@ class PreloadLoggerLoader(object):
                             skipCache = line
                             lineIdx += 1
                             continue
-                        
+
                         line = line.rstrip("\n").lstrip(" ")
 
                         # Line is a parameter to the last system call logged
@@ -441,7 +441,7 @@ class PreloadLoggerLoader(object):
                         # Update the timestamp (convert to ZG millisec format)
                         h = result.groups()
                         tend = int(h[0]) * 1000
-                      
+
                     # Check if the timestamps have been set
                     if tend == 0:
                         nosyscalls.append(g)
@@ -472,7 +472,7 @@ class PreloadLoggerLoader(object):
                     # Add command-line event
                     event = Event(actor=app, time=tstart, cmdlineStr=g[2])
                     app.addEvent(event)
-                    
+
                     # Add system call events
                     skipCache = None
                     lineIdx = 0
@@ -498,7 +498,7 @@ class PreloadLoggerLoader(object):
                             lineIdx += 1
                             skipCache = None
                             continue
-                    
+
                         # Previous line did not end and was skipped, merge it.
                         if skipCache:
                             line = skipCache + line
@@ -552,7 +552,7 @@ class PreloadLoggerLoader(object):
                             timeDelta += 1
                         else:
                             timeDelta = 0
-                          
+
                         # Process the last system call into an Event, and clear
                         # up the syscalls list to keep RAM free!
                         if currentCall:
@@ -560,11 +560,11 @@ class PreloadLoggerLoader(object):
                                           time=currentCall[0],
                                           syscallStr=currentCall[1])
                             app.addEvent(event)
-                        
+
                         # Create the new syscalls list.
                         currentCall = (timestamp + timeDelta, h[1])
                         prevTimestamp = timestamp
-                        
+
                         lineIdx += 1
 
                     # Add the found process id to our list of actors, using the
