@@ -6,7 +6,8 @@ from ApplicationStore import ApplicationStore
 from Event import Event
 from utils import space, pyre, pynamer, pyprocname, javare, javanamer, \
                   javaprocname, perlre, perlnamer, monore, mononamer, \
-                  monoprocname, phpre, phpnamer, phpprocname, debugEnabled
+                  monoprocname, phpre, phpnamer, phpprocname, debugEnabled, \
+                  tail
 
 
 class PreloadLoggerLoader(object):
@@ -290,9 +291,7 @@ class PreloadLoggerLoader(object):
                       file=sys.stderr)
             else:
                 with f:
-                    content = f.readlines()  # type: list
-
-                    if len(content) == 0:
+                    if os.fstat(f.fileno()).st_size == 0:
                         print("Info: file '%s' is empty. Skipping." % file)
                         continue
 
@@ -300,9 +299,10 @@ class PreloadLoggerLoader(object):
                     # but sometimes the header ends up on the second line
                     # in some logs... So, parse until we find a match, and
                     # remember the line index of the header
+                    idx = 0
                     headerLocation = 0
                     result = None
-                    for (idx, binary) in enumerate(content):
+                    for binary in f:
                         try:
                             line = binary.decode('utf-8')
                         except(UnicodeDecodeError) as e:
@@ -310,14 +310,13 @@ class PreloadLoggerLoader(object):
                                    file,
                                    str(e)),
                                   file=sys.stderr)
+                            idx += 1
                             continue
                         result = PreloadLoggerLoader.header.match(line)
                         if result:
                             headerLocation = idx
                             break
-
-                    # Remove the header to help the syscall parser
-                    del content[headerLocation]
+                        idx += 1
 
                     # Files with a missing or corrupted header are invalid
                     if result is None:
@@ -325,10 +324,12 @@ class PreloadLoggerLoader(object):
                               file=sys.stderr)
                         invalids += 1
                         continue
+                    
+                    # Parse the header line, make sure it has the right length.
                     g = result.groups()
                     if (len(g) != 3):
                         print("%s has wrong group count: " % file,
-                              content[0],
+                              result.group(),
                               file=sys.stderr)
                         invalids += 1
                         continue
@@ -367,18 +368,21 @@ class PreloadLoggerLoader(object):
                         g = self.parsePHP(g, items)
                         # print("PHP APP: %s" % g[2])
 
-                    # Parse file content to calculate the timestamps
+                    # Get first and last event to calculate the timestamps.
                     tstart = float("inf")
                     tend = 0
-                    prevTimestamp = 0
-                    timeDelta = 0
-                    syscalls = []
-                    skip = 0
-                    for (lineIdx, binary) in enumerate(content):
-                        if skip:
-                            skip -= 1
+                    
+                    skipCache = None
+                    lineIdx = 0
+                    f.seek(0, 0)
+                    for binary in f:
+                        # Ignore the header.
+                        if lineIdx == headerLocation:
+                            lineIdx += 1
+                            skipCache = None
                             continue
 
+                        # Decode line.
                         try:
                             line = binary.decode('utf-8')
                         except(UnicodeDecodeError) as e:
@@ -386,30 +390,26 @@ class PreloadLoggerLoader(object):
                                    file,
                                    str(e)),
                                   file=sys.stderr)
+                            lineIdx += 1
+                            skipCache = None
                             continue
+                    
+                        # Previous line did not end and was skipped, merge it.
+                        if skipCache:
+                            line = skipCache + line
+                            skipCache = None
 
                         # Line continues...
-                        try:
-                            while line.endswith('\\\n'):
-                                skip += 1
-                                nextBinary = content[lineIdx+skip]
-                                nextLine = nextBinary.decode('utf-8')
-                                line += nextLine
-                        except(UnicodeDecodeError) as e:
-                            print("Error: %s has a non utf-8 line: %s " % (
-                                   file,
-                                   str(e)),
-                                  file=sys.stderr)
+                        if line.endswith('\\\n'):
+                            skipCache = line
+                            lineIdx += 1
                             continue
+                        
+                        line = line.rstrip("\n").lstrip(" ")
 
                         # Line is a parameter to the last system call logged
                         if line.startswith(' '):
-                            if len(syscalls):
-                                syscalls[-1][1] = syscalls[-1][1] + '\n' + line
-                            elif debugEnabled():
-                                print("%s has a corrupted line (no call): %s" %
-                                      (file, line),
-                                      file=sys.stderr)
+                            lineIdx += 1
                             continue
 
                         # Check that line is a syntactically valid system call
@@ -420,30 +420,31 @@ class PreloadLoggerLoader(object):
                                        file,
                                        line),
                                       file=sys.stderr)
+                            lineIdx += 1
                             continue
 
                         # Update the timestamp (convert to ZG millisec format)
                         h = result.groups()
-                        timestamp = int(h[0]) * 1000
-                        tstart = min(tstart, timestamp)
-                        tend = max(tend, timestamp)
+                        tstart = int(h[0]) * 1000
+                        break
 
-                        # Append the system call to our syscall list. Note that
-                        # we do something odd with the timestamp: because PL
-                        # only logs at second precision, a lot of system calls
-                        # have the same timestamp, which causes the EventStore
-                        # to sort them in the wrong order. So, every time we
-                        # have a timestamp identical to the previous one, we
-                        # increase a counter that sorts them. This works under
-                        # the assumption that there are at most 1000 events per
-                        # second.
-                        if timestamp == prevTimestamp:
-                            timeDelta += 1
-                        else:
-                            timeDelta = 0
-                        syscalls.append([timestamp + timeDelta, h[1]])
-                        prevTimestamp = timestamp
+                    # TODO, first non-header line + tail code.
+                    lastLine = tail(f)
+                    result = None
+                    if lastLine:
+                        result = PreloadLoggerLoader.syscall.match(lastLine)
 
+                    if result is None:
+                        if debugEnabled():
+                            print("%s's last line is corrupted: %s" % (
+                                   file,
+                                   lastLine),
+                                  file=sys.stderr)
+                    else:
+                        # Update the timestamp (convert to ZG millisec format)
+                        h = result.groups()
+                        tend = int(h[0]) * 1000
+                      
                     # Check if the timestamps have been set
                     if tend == 0:
                         nosyscalls.append(g)
@@ -474,13 +475,99 @@ class PreloadLoggerLoader(object):
                     # Add command-line event
                     event = Event(actor=app, time=tstart, cmdlineStr=g[2])
                     app.addEvent(event)
-
+                    
                     # Add system call events
-                    for h in syscalls:
-                        event = Event(actor=app,
-                                      time=h[0],
-                                      syscallStr=h[1])
-                        app.addEvent(event)
+                    skipCache = None
+                    lineIdx = 0
+                    syscalls = []
+                    prevTimestamp = 0
+                    timeDelta = 0
+                    f.seek(0, 0)
+                    for binary in f:
+                        # Ignore the header.
+                        if lineIdx == headerLocation:
+                            lineIdx += 1
+                            skipCache = None
+                            continue
+
+                        # Decode line.
+                        try:
+                            line = binary.decode('utf-8')
+                        except(UnicodeDecodeError) as e:
+                            print("Error: %s has a non utf-8 line: %s " % (
+                                   file,
+                                   str(e)),
+                                  file=sys.stderr)
+                            lineIdx += 1
+                            skipCache = None
+                            continue
+                    
+                        # Previous line did not end and was skipped, merge it.
+                        if skipCache:
+                            line = skipCache + line
+                            skipCache = None
+
+                        # Line continues...
+                        if line.endswith('\\\n'):
+                            skipCache = line
+                            lineIdx += 1
+                            continue
+                        
+                        line = line[:-1]  # Remove ending "\n"
+
+                        # Line is a parameter to the last system call logged
+                        if line.startswith(' '):
+                            if len(syscalls):
+                                syscalls[-1][1] = syscalls[-1][1] + '\n' + line
+                            elif debugEnabled():
+                                print("%s has a corrupted line (no call): %s" %
+                                      (file, line),
+                                      file=sys.stderr)
+                            lineIdx += 1
+                            continue
+
+                        # Check that line is a syntactically valid system call
+                        result = PreloadLoggerLoader.syscall.match(line)
+                        if result is None:
+                            if debugEnabled():
+                                print("%s has a corrupted line (match): %s" % (
+                                       file,
+                                       line),
+                                      file=sys.stderr)
+                            lineIdx += 1
+                            continue
+
+                        # Update the timestamp (convert to ZG millisec format)
+                        h = result.groups()
+                        timestamp = int(h[0]) * 1000
+
+                        # Append the system call to our syscall list. Note that
+                        # we do something odd with the timestamp: because PL
+                        # only logs at second precision, a lot of system calls
+                        # have the same timestamp, which causes the EventStore
+                        # to sort them in the wrong order. So, every time we
+                        # have a timestamp identical to the previous one, we
+                        # increase a counter that sorts them. This works under
+                        # the assumption that there are at most 1000 events per
+                        # second.
+                        if timestamp == prevTimestamp:
+                            timeDelta += 1
+                        else:
+                            timeDelta = 0
+                          
+                        # Process the last system call into an Event, and clear
+                        # up the syscalls list to keep RAM free!
+                        for call in syscalls:
+                            event = Event(actor=app,
+                                          time=call[0],
+                                          syscallStr=call[1])
+                            app.addEvent(event)
+                        
+                        # Create the new syscalls list.
+                        syscalls = [[timestamp + timeDelta, h[1]]]
+                        prevTimestamp = timestamp
+                        
+                        lineIdx += 1
 
                     # Add the found process id to our list of actors, using the
                     # app identity that was resolved by the Application ctor
