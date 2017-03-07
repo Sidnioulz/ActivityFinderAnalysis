@@ -185,34 +185,43 @@ class EventStore(object):
         """Simulate a file creation Event."""
         filesCreated = []
 
-        # TODO: if a file has an overwrite flag, DESTROY PREVIOUS VERSION first
-        # TODO: else, apply the rules below for ZG, and treat as an open/access
-        #       for syscalls
-
-        # TODO
-        """
-        get file.
-        if file did not exist:
-            proceed to set up file and updateFile
-        elif file existed:
-            if created less than 1 sec ago AND from SAME ACTOR (how?)
-                    AND from actor in a whitelist (soffice.bin, etc):
-                pass  # it's a dup
-            elif same but actor not whitelisted:
-                print warning to manually check the data
-                exit
-
-            if file was accessed by same application instance:
-                ignore event
-                inject a FileModified equivalent event right after
-            else:
-                ignore event
-                inject a FileDestroyed for the same file right after
-                inject the original event after the FileDestroyed
-        """
-
         # Get each File
         for subj in event.getData():
+
+            # Remove old File if it exists and we overwrite.
+            if event.evflags & EventFileFlags.overwrite:
+                oldFile = fileFactory.getFileIfExists(subj.path, event.time)
+                if oldFile:
+                    deleting = True
+
+                    # Check if the File was created by us, recently.
+                    # TODO
+
+                    # Check if we accessed the File, recently (some overwrites
+                    # can be false positives). This means this Event is
+                    # actually a simulated write to File, so we must correct
+                    # that.
+                    # TODO
+
+                    deleting = False  # FIXME temporary till above code written
+                    # If we decide to delete the File, this is executed.
+                    if deleting:
+                        baseFlags = event.evflags
+                        event.evflags = (event.evflags |
+                                         EventFileFlags.write |
+                                         EventFileFlags.destroy &
+                                         ~EventFileFlags.create &
+                                         ~EventFileFlags.overwrite &
+                                         ~EventFileFlags.read &
+                                         ~EventFileFlags.copy &
+                                         ~EventFileFlags.move)
+                        res = self.desigcache.checkForDesignation(event, [f])
+                        fileFactory.deleteFile(oldFile,
+                                               event.actor,
+                                               event.time,
+                                               res[0][1])
+                        event.evflags = baseFlags
+
             f = self.__doCreateFile(subj.path,
                                     subj.ftype,
                                     event,

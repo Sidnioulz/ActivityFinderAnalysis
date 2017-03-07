@@ -145,6 +145,15 @@ class FileCopy(object):
         self.copytype = copytype
 
 
+class FileStub(object):
+    """A stub for a future File, only the path and type of which are known."""
+
+    def __init__(self, path: str, ftype: str=None):
+        """Construct a FileStub."""
+        self.path = path
+        self.ftype = ftype
+
+
 class File(object):
     """A UNIX File, with its time of existence and its history of names.
 

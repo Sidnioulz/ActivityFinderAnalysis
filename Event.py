@@ -2,7 +2,7 @@
 from enum import Enum
 from Application import Application
 from SqlEvent import SqlEvent
-from File import File, EventFileFlags
+from File import File, EventFileFlags, FileStub
 from utils import urlToUnixPath, int16, debugEnabled, intersection, \
                   checkExcludedFilesEnabled
 from constants import POSIX_OPEN_RE, POSIX_FOPEN_RE, POSIX_FDOPEN_RE, \
@@ -200,12 +200,12 @@ class Event(object):
             userHome = userConf.getHomeDir()
             excl = userConf.getExcludedHomeDirs()
 
-            if isinstance(self.data[0], File):
+            if isinstance(self.data[0], FileStub):
                 paths = list((f.path for f in self.data))
             elif isinstance(self.data[0], str):
                 paths = self.data
             elif isinstance(self.data[0], tuple):
-                if isinstance(self.data[0][0], File):
+                if isinstance(self.data[0][0], FileStub):
                     paths = list((f.path for t in self.data for f in t))
                 elif isinstance(self.data[0][0], str):
                     paths = list((f for t in self.data for f in t))
@@ -286,7 +286,7 @@ class Event(object):
 
     def setDataSyscallFile(self, path: str, ftype: str=''):
         """Set data to a single file (for simple file events)."""
-        self.data = [File(path=path, ftype=ftype)]
+        self.data = [FileStub(path, ftype)]
 
     def setDataSyscallFD(self, fd: int, path: str, fdType):
         """Set list of FDs that this Event links to its acting Application."""
@@ -294,17 +294,16 @@ class Event(object):
 
     def setDataSyscallFilesDual(self, oldpath: str, newpath: str):
         """Set data to a list of file couples (for copy/move events)."""
-        fold = File(path=oldpath)
-        fnew = File(path=newpath)
-        self.data = [(fold, fnew)]
+        fold = (oldpath, None)
+        fnew = (newpath, None)
+        self.data = [FileStub(fold, fnew)]
 
     def setDataZGFiles(self, zge: SqlEvent):
         """Set data to a list of files (for simple file events)."""
         self.data = []
         for subj in zge.subjects:
             if subj.uri.startswith("file://"):
-                f = File(path=urlToUnixPath(subj.uri),
-                         ftype=subj.mimetype)
+                f = FileStub(urlToUnixPath(subj.uri), subj.mimetype)
                 self.data.append(f)
 
     def setDataZGFilesDual(self, zge: SqlEvent):
@@ -312,10 +311,8 @@ class Event(object):
         self.data = []
         for subj in zge.subjects:
             if subj.uri.startswith("file://"):
-                fold = File(path=urlToUnixPath(subj.uri),
-                            ftype=subj.mimetype)
-                fnew = File(path=urlToUnixPath(subj.current_uri),
-                            ftype=subj.mimetype)
+                fold = FileStub(urlToUnixPath(subj.uri), subj.mimetype)
+                fnew = FileStub(urlToUnixPath(subj.current_uri), subj.mimetype)
                 self.data.append((fold, fnew))
 
     def parseZeitgeist(self, zge: SqlEvent):

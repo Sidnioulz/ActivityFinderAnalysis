@@ -141,27 +141,27 @@ class DesignationCache(object):
 
             # Now find Files that match the act of designation's own Files
             for (fIdx, f) in enumerate(files):
-                if f.getName() in act.cmdline:
+                if f.path in act.cmdline:
                     # print("Info: Event '%s' performed on %s by App '%s' on "
                     #       "File '%s' is turned into a %s event based on an "
                     #       "act of designation performed on %s." % (
                     #        event.getFileFlags(),
                     #        time2Str(event.getTime()),
                     #        event.getActor().uid(),
-                    #        f.getName(),
+                    #        f.path,
                     #        "designation" if newFlags &
                     #        EventFileFlags.designation else "programmatic",
                     #        time2Str(act.tstart)))
                     res.append((f, newFlags))
                     del files[fIdx]
-                elif f.getName() in [x.getName() for x in act.files]:
+                elif f.path in [x.path for x in act.files]:
                     print("Info: Event '%s' performed on %s by App '%s' on "
                           "File '%s' is turned into a %s event based on an "
                           "Zeitgeit event performed on %s." % (
                            event.getFileFlags(),
                            time2Str(event.getTime()),
                            event.getActor().uid(),
-                           f.getName(),
+                           f.path,
                            "designation" if newFlags &
                            EventFileFlags.designation else "programmatic",
                            time2Str(act.tstart)))
