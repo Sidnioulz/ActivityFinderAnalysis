@@ -448,6 +448,12 @@ class PreloadLoggerLoader(object):
                         nosyscallactors.add(g[0])
                         continue
 
+                    # Sometimes, short logs have event ordering problems... We
+                    # can try to ignore these problems as all events are indi-
+                    # vidually timestamped anyway.
+                    if tstart > tend:
+                        tend, start = tstart, tend
+
                     # TODO: process deletions and remove corresponding files
 
                     # Make the application
