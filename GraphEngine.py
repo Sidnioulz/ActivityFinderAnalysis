@@ -461,23 +461,37 @@ class FlatGraph(object):
         copy.delete_edges(toBeRemoved)
 
         # Step 2. run an all-pairs shortest path algorithm.
-        # and
-        # Step 3. pick out file-file paths with no intermediary files.
+        # Step 2. pick out file-file paths with no intermediary files.
+        # Step 2. save this info in the form of an edge list.
         if not quiet:
-            tprnt("\t\t\tSteps 2+3: run an all-pairs shortest path "
-                  "algorithm and remove file-file paths with intermediary "
-                  "files...")
+            tprnt("\t\t\tStep 2: run an all-pairs shortest path "
+                  "algorithm, remove file-file paths with intermediary "
+                  "files and gather final file-file edges...")
             tprnt("\t\t\t\tCopy file nodes...")
         fileNodes = list((copy.vs[i] for i, t in enumerate(types) if
                           t == "file"))
 
-        shortestPaths = dict()
+        edges = []
+        # weights = dict()
+        idgen = UniqueIdGenerator()
+
+        fileNodeCount = len(fileNodes)
         if not quiet:
-            tprnt("\t\t\t\tGet shortest paths for each file node...")
+            tprnt("\t\t\t\tGet shortest paths for each of %d file nodes..." %
+                   fileNodeCount)
+        threshold = int(fileNodeCount / 100)
+        nodeI = 0
+        nodePct = 0
         for v in fileNodes:
+            nodeI += 1
+            if nodeI == threshold:
+                nodeI = 0
+                nodePct += 1
+                print("\t\t\t\t\t... (%d%% done)" % nodePct)
+
             # Get shortest paths.
             vPaths = copy.get_shortest_paths(v, to=fileNodes)
-            
+
             # Remove unnecessary bits.
             delSet = set()
             for (idx, p) in enumerate(vPaths):
@@ -492,42 +506,34 @@ class FlatGraph(object):
             # Remove unsuitable paths.
             for i in sorted(list(delSet), reverse=True):
                 del vPaths[i]
-            
-            shortestPaths[v] = vPaths
+            del delSet
 
-        # Step 4. construct a graph with only file nodes.
-        if not quiet:
-            tprnt("\t\t\tStep 4: construct a graph with only file nodes...")
-        # First, gather the edges.
-        if not quiet:
-            tprnt("\t\t\t\tGather edges...")
-        edges = []
-        weights = dict()
-        idgen = UniqueIdGenerator()
-
-        for (v, vPaths) in shortestPaths.items():
+            # Save the shortest paths remaining as edges.
             for p in vPaths:
                 if len(p) <= 1:
                     continue
-                key = (names[p[0]], names[p[-1]])
+                key = (idgen[names[p[0]]], idgen[names[p[-1]]])
                 edges.append(key)
-                weights[key] = 1 / (len(p) - 1)
+                # weights[key] = 1 / (len(p) - 1)
 
-        for edge in namesRemoved:
-            edges.append(edge)
-            weights[edge] = 1
-
-        # Next, build the graph.
+        # Add edges for removed names
         if not quiet:
-            tprnt("\t\t\t\tBuild graph...")
-        edgelist = [(idgen[s], idgen[d]) for s, d in edges]
-        self.g = Graph(edgelist)
-        self.g.es["weight"] = list((weights[e] for e in edges))
+            tprnt("\t\t\t\tRe-add file-file direct nodes into graph...")
+        for (src, dest) in namesRemoved:
+            edges.append((idgen[src], idgen[dest]))
+            # weights[edge] = 1
+
+        # Step 3. construct a graph with only file nodes.
+        if not quiet:
+            tprnt("\t\t\tStep 3: construct a graph with only file nodes...")
+        self.g = Graph(edges)
+        del edges
+        # self.g.es["weight"] = list((weights[e] for e in edges))
         self.g.vs["name"] = idgen.values()
 
-        # Steph 5. apply community information to the nodes.
+        # Steph 4. apply community information to the nodes.
         if not quiet:
-            tprnt("\t\t\tStep 5: apply communities to flat graph...")
+            tprnt("\t\t\tStep 4: apply communities to flat graph...")
         parentMembers = parent.clusters.membership
         members = [0] * len(parentMembers)
         assigned = [0] * len(parentMembers)
