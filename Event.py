@@ -294,9 +294,9 @@ class Event(object):
 
     def setDataSyscallFilesDual(self, oldpath: str, newpath: str):
         """Set data to a list of file couples (for copy/move events)."""
-        fold = (oldpath, None)
-        fnew = (newpath, None)
-        self.data = [FileStub(fold, fnew)]
+        fold = FileStub(oldpath, None)
+        fnew = FileStub(newpath, None)
+        self.data = [(fold, fnew)]
 
     def setDataZGFiles(self, zge: SqlEvent):
         """Set data to a list of files (for simple file events)."""
