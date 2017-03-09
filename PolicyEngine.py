@@ -629,7 +629,7 @@ class Policy(object):
         the matched pattern in the File's path. Else, return None.
         """
         exp = self.exclRegEx[pattern]
-        res = exp.match(file.getName())
+        res = exp.match(file.path)
         if res:
             return res.group(0)
         return None
@@ -889,11 +889,14 @@ class Policy(object):
                     accessListsInst[instanceLabel] = l
 
         links = FileFactory.get().getFileLinks()
+        fileStore = FileStore.get()
         accessListsLinks = list()
         for (pred, follow) in links.items():
+            predFile = fileStore.getFile(pred.inode)
+            followFile = fileStore.getFile(follow)
             pair = set()
-            pair.add(pred)
-            pair.add(follow)
+            pair.add(predFile)
+            pair.add(followFile)
             accessListsLinks.append(pair)
 
         # Then, merge clusters that share an item.

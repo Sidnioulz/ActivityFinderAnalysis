@@ -96,7 +96,7 @@ class CommonGraph(object):
             tprnt("\t\tAdding file links...")
         links = fileFactory.getFileLinks()
         for (pred, follow) in links.items():
-            source = str(pred)
+            source = str(pred.inode)
             dest = str(follow)
             if source in self.vertices and dest in self.vertices:
                 tprnt("Info: adding link from File %s to File %s in graph "
