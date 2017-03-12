@@ -166,8 +166,8 @@ class FileStore(object):
                         print("Warning: file '%s' aready exists, but is a "
                               "parent folder for file '%s'. Attempting to "
                               "delete the file and create a folder "
-                              " instead..." % (parentFileName,
-                                               last.getName()),
+                              "instead..." % (parentFileName,
+                                              last.getName()),
                               file=sys.stderr)
                         parentFiles = self.getFilesForName(parentFileName)
                         for parentFile in parentFiles:
@@ -180,7 +180,7 @@ class FileStore(object):
                         os.remove(parentPath)
                         os.makedirs(parentPath, exist_ok=False)
                         print("Info: updated %d files with name '%s'." % (
-                               len(parentFiles), last.getName()),
+                               len(parentFiles), parentFile.getName()),
                               file=sys.stderr)
 
                 if not last.getTimeOfEnd() or showDeleted:
