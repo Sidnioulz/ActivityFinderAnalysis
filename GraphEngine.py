@@ -102,8 +102,13 @@ class CommonGraph(object):
                 tprnt("Info: adding link from File %s to File %s in graph "
                       "as there is a file move/copy event between those." % (
                        source, dest))
-                self.edges.add((source, dest))
-                self.weights[(source, dest)] = 999999999
+                if (source, dest) in self.edges:
+                    self.weights[(source, dest)] = 999999999
+                elif (dest, source) in self.edges:
+                    self.weights[(dest, source)] = 999999999
+                else:
+                    self.edges.add((source, dest))
+                    self.weights[(source, dest)] = 999999999
 
         if not quiet:
             tprnt("\t\tConstructing graph...")
