@@ -173,10 +173,11 @@ class FileStore(object):
                         for parentFile in parentFiles:
                             if parentFile.getType() and not \
                                     parentFile.isFolder():
-                                raise e
-                            else:
-                                parentFile.setType('inode/directory')
-                                self.updateFile(parentFile)
+                                print("Warning: file '%s' already exists and"
+                                      " is not a directory. Mime type: %s" %
+                                       (parentFile.path, parentFile.getType()))
+                            parentFile.setType('inode/directory')
+                            self.updateFile(parentFile)
                         os.remove(parentPath)
                         os.makedirs(parentPath, exist_ok=False)
                         print("Info: updated %d files with name '%s'." % (
