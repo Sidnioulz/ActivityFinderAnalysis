@@ -309,6 +309,8 @@ def initMimeTypes():
     mimetypes.add_type("application/x-sqlite3", ".sqlite", strict=False)
     mimetypes.add_type("application/x-sqlite3", ".db", strict=False)
 
+    mimetypes.add_type("text/x-tex", ".tex", strict=False)
+
     # for (key, ext) in sorted(mimetypes.types_map.items()):
     #     print("%s\t->\t%s" % (key, ext))
     # print("Done initialising MIME types.")
