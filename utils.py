@@ -16,6 +16,7 @@ __opt_debug = False
 __opt_output_fs = None
 __opt_related_files = False
 __opt_score = False
+__opt_skip = None
 __opt_graph = False
 __opt_plotting_disabled = False
 __opt_clusters = False
@@ -56,6 +57,12 @@ def __setScore(opt):
     """Set the return value of :scoreEnabled():."""
     global __opt_score
     __opt_score = opt
+
+
+def __setSkip(opt):
+    """Set the return value of :skipEnabled():."""
+    global __opt_skip
+    __opt_skip = opt
 
 
 def __setGraph(opt):
@@ -117,6 +124,12 @@ def scoreEnabled():
     """Return True if --score was passed, False otherwise."""
     global __opt_score
     return __opt_score
+
+
+def skipEnabled():
+    """Return the value of --skip if it was passed, None otherwise."""
+    global __opt_skip
+    return __opt_skip
 
 
 def graphEnabled():

@@ -20,19 +20,24 @@ from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
                   __setPrintClusters, __setUser, __setCheckExcludedFiles, \
-                  __setPlottingDisabled, \
+                  __setPlottingDisabled, __setSkip, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
                   printClustersEnabled, checkExcludedFilesEnabled, \
+                  skipEnabled, \
                   initMimeTypes, getDataPath, registerTimePrint, tprnt
 import getopt
 import sys
 
-USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-missing ' \
-               '--output-fs=<DIR> --debug --help --score\n\t\t--clusters' \
-               ' --graph-clusters --disable-plotting --check-excluded-files]' \
-               '\n\nor:     __main__.py --inode=<INODE> [--user=<NAME>]' \
-               '\n\nor:     __main__.py --post-analysis=<DIR,DIR,DIR>'
+USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
+               '--check-missing --score\n\t\t--skip=<Policy,Policy,\'graphs' \
+               '\'> --clusters --graph \n\t\t--disable-plotting ' \
+               '--output=<DIR> --debug] ' \
+               '\n\nor:     __main__.py --inode=<INODE> [--user=<NAME> ' \
+               '--debug]' \
+               '\n\nor:     __main__.py --post-analysis=<DIR,DIR,DIR> ' \
+               '[--debug]'\
+               '\n\nor:     __main__.py --help'
 
 
 # Main function
@@ -43,7 +48,7 @@ def main(argv):
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "ha:cedf:srpgGi:u:",
+        (opts, args) = getopt.getopt(argv, "ha:cedf:skrpgGi:u:",
                                      ["help",
                                       "post-analysis",
                                       "check-missing",
@@ -51,10 +56,13 @@ def main(argv):
                                       "debug",
                                       "inode",
                                       "related-files",
+                                      "output=",
                                       "output-fs=",
                                       "score",
+                                      "skip=",
                                       "user",
                                       "clusters",
+                                      "graph",
                                       "graph-clusters",
                                       "disable-plotting"])
     except(getopt.GetoptError):
@@ -65,36 +73,39 @@ def main(argv):
             if opt in ('-h', '--help'):
                 print(USAGE_STRING + "\n\n\n\n")
 
+                print("--check-excluded-files:\n\tPrints the lists of files "
+                      "accessed by apps that also wrote to excluded\n\tfiles,"
+                      " then aborts execution of the program.\n")
                 print("--check-missing:\n\tChecks whether some Desktop IDs "
                       "for apps in the user's directory are\n\tmissing. If so,"
                       " aborts execution of the program.\n")
-                print("--check-excluded-files:\n\tPrints the lists of files "
-                      "accessed by apps that also wrote to\n\texcluded files,"
-                      " then aborts execution of the program.\n")
-                print("--help:\n\tPrints this help information and exits.\n")
-                print("--post-analysis=<DIR,DIR,DIR>:\n\t"
-                      "Uses the analysis output pointed to"
-                      " by --output-fs in order to produce graphs and "
-                      "statistics.\n")
+                print("--clusters:\n\tPrints clusters of files with "
+                      "information flows to one another. Requires\n\tthe "
+                      "--score option.\n")
                 print("--debug:\n\tPrints additional debug information in "
                       "various code paths to help debug\n\tthe program.\n")
-                print("--output-fs=<DIR>:\n\tSaves a copy of the simulated "
+                print("--disable-plotting:\n\tDo not plot cluster graphs. See "
+                      "the --graph option.\n")
+                print("--graph:\n\tFind communities in file/app "
+                      "accesses using graph theory methods.\n\tRequires the "
+                      "--score and --cluster options for per-policy graphs.\n")
+                print("--help:\n\tPrints this help information and exits.\n")
+                print("--output=<DIR>:\n\tSaves a copy of the simulated "
                       "files, and some information on events\n\trelated to "
                       "them, in a folder created at the <DIR> path.\n")
+                print("--post-analysis=<DIR,DIR,DIR>:\n\t"
+                      "Uses the value pointed to"
+                      " by --output in order to produce graphs and\n\t"
+                      "statistics.\n")
                 print("--related-files:\n\tMines for files that are frequently"
                       " accessed together by apps. WORK IN\n\tPROGRESS!\n")
                 print("--score:\n\tCalculates the usability and security "
                       "scores of a number of file access\n\tcontrol policies"
                       ", replayed over the simulated accesses. Prints results"
                       "\n\tand saves them to the output directory.\n")
-                print("--clusters:\n\tPrints clusters of files with "
-                      "information flows to one another.\n\tRequires the "
-                      "--score option.\n")
-                print("--graph-clusters:\n\tFind communities in file/app "
-                      "accesses using graph theory methods.\n\tRequires the "
-                      "--score and --cluster options for per-policy graphs.\n")
-                print("--disable-plotting:\n\tDo not plot cluster graphs. See "
-                      "the --graph-clusters option.\n")
+                print("--skip=<Policy,Policy,'graphs'>:\n\tSkip the scoring of "
+                      "policies in the lists. If the list contains the word"
+                      "\n\t'graphs', skips the general graph computation.\n")
                 sys.exit()
             elif opt in ('-c', '--check-missing'):
                 __setCheckMissing(True)
@@ -108,11 +119,11 @@ def main(argv):
                 __setScore(True)
             elif opt in ('-p', '--print-clusters'):
                 __setPrintClusters(True)
-            elif opt in ('-g', '--graph-clusters'):
+            elif opt in ('-g', '--graph-clusters', '--graph'):
                 __setGraph(True)
             elif opt in ('-G', '--disable-plotting'):
                 __setPlottingDisabled(True)
-            elif opt in ('-f', '--output-fs'):
+            elif opt in ('-f', '--output-fs', '--output'):
                 if not arg:
                     print(USAGE_STRING)
                     sys.exit(2)
@@ -136,6 +147,14 @@ def main(argv):
                     print(USAGE_STRING)
                     sys.exit(2)
                 __opt_post_analysis = (arg[1:] if arg[0] == '=' else arg)
+            elif opt in ('-k', '--skip'):
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                __opt_skip = (arg[1:] if arg[0] == '=' else arg)
+                __setSkip(__opt_skip.split(","))
+
+    registerTimePrint()
 
     if __opt_post_analysis:
         from AnalysisEngine import AnalysisEngine
@@ -146,8 +165,6 @@ def main(argv):
             engine = AnalysisEngine(inputDir=__opt_post_analysis)
         engine.analyse()
         sys.exit(0)
-
-    registerTimePrint()
 
     # Make the application, event and file stores
     store = ApplicationStore.get()
@@ -240,8 +257,11 @@ def main(argv):
 
     # Build a general access graph.
     if graphEnabled():
-        engine = GraphEngine()
-        engine.runGraph(policy=None)
+        if 'graphs' in skipEnabled():
+            tprnt("\nGraphs in skip list, skipping global graph generation.")
+        else:
+            engine = GraphEngine()
+            engine.runGraph(policy=None)
 
     # Policy engine. Create a policy and run a simulation to score it.
     if scoreEnabled():
@@ -266,6 +286,7 @@ def main(argv):
                    None, None]
         # dict(folders=["~/Downloads", "/tmp"])
 
+        skipList = skipEnabled()
         for (polIdx, polName) in enumerate(policies):
             if polArgs[polIdx]:
                 pol = polName(**polArgs[polIdx])
@@ -273,6 +294,11 @@ def main(argv):
                 pol = polName()
 
             tprnt("\nRunning %s..." % pol.name)
+
+            if pol.name in skipList:
+                tprnt("%s is in skip list, skipping." % pol.name)
+                continue
+
             engine.runPolicy(pol,
                              outputDir=outputFsEnabled(),
                              printClusters=printClustersEnabled())
