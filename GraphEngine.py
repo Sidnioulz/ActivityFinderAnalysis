@@ -102,13 +102,9 @@ class CommonGraph(object):
                 tprnt("Info: adding link from File %s to File %s in graph "
                       "as there is a file move/copy event between those." % (
                        source, dest))
-                if (source, dest) in self.edges:
-                    self.weights[(source, dest)] = 999999999
-                elif (dest, source) in self.edges:
-                    self.weights[(dest, source)] = 999999999
-                else:
-                    self.edges.add((source, dest))
-                    self.weights[(source, dest)] = 999999999
+                edge = (source, dest) if source <= dest else (dest, source)
+                self.edges.add(edge)
+                self.weights[edge] = 999999999
 
         if not quiet:
             tprnt("\t\tConstructing graph...")
@@ -476,7 +472,7 @@ class FlatGraph(object):
         fileNodes = list((copy.vs[i] for i, t in enumerate(types) if
                           t == "file"))
 
-        edges = []
+        edges = set()
         # weights = dict()
         idgen = UniqueIdGenerator()
 
@@ -518,19 +514,19 @@ class FlatGraph(object):
                 if len(p) <= 1:
                     continue
                 key = (idgen[names[p[0]]], idgen[names[p[-1]]])
-                edges.append(key)
+                edges.add(key)
                 # weights[key] = 1 / (len(p) - 1)
 
         # Add edges for removed names
         if not quiet:
             tprnt("\t\t\t\tRe-add file-file direct nodes into graph...")
         for (src, dest) in namesRemoved:
-            edges.append((idgen[src], idgen[dest]))
-            # weights[edge] = 1
+            edges.add((idgen[src], idgen[dest]))
 
         # Step 3. construct a graph with only file nodes.
         if not quiet:
             tprnt("\t\t\tStep 3: construct a graph with only file nodes...")
+        edges = list(edges)
         self.g = Graph(edges)
         del edges
         # self.g.es["weight"] = list((weights[e] for e in edges))
@@ -768,7 +764,8 @@ class UnifiedGraph(CommonGraph):
         for (app, insts) in self.instances.items():
             weight = 0.1 / len(insts)
             edges = list(itertools.combinations(insts, 2))
-            for edge in edges:
+            for (s, d) in edges:
+                edge = (s, d) if s <= d else (d, s)
                 self.edges.add(edge)
                 self.weights[edge] = weight
 
@@ -781,7 +778,8 @@ class UnifiedGraph(CommonGraph):
                 cnt = filePairs.get(edge) or 0
                 filePairs[edge] = cnt+1
 
-        for (pair, count) in filePairs.items():
+        for ((s, d), count) in filePairs.items():
+            pair = (s, d) if s <= d else (d, s)
             self.edges.add(pair)
             self.weights[pair] = count  # FIXME 999999999?
 
