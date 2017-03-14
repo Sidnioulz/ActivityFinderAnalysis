@@ -13,6 +13,7 @@ from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
 __opt_check = False
 __opt_check_exclfiles = False
 __opt_debug = False
+__opt_ext = False
 __opt_output_fs = None
 __opt_related_files = False
 __opt_score = False
@@ -39,6 +40,12 @@ def __setDebug(opt):
     """Set the return value of :debugEnabled():."""
     global __opt_debug
     __opt_debug = opt
+
+
+def __setPrintExtensions(opt):
+    """Set the return value of :printExtensions():."""
+    global __opt_ext
+    __opt_ext = opt
 
 
 def __setOutputFs(opt):
@@ -106,6 +113,12 @@ def debugEnabled():
     """Return True if the --debug flag was passed, False otherwise."""
     global __opt_debug
     return __opt_debug
+
+
+def printExtensions():
+    """Return True if the --extensions flag was passed, False otherwise."""
+    global __opt_ext
+    return __opt_ext
 
 
 def outputFsEnabled():

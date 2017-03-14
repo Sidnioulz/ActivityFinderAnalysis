@@ -20,14 +20,15 @@ from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, \
                   __setPrintClusters, __setUser, __setCheckExcludedFiles, \
-                  __setPlottingDisabled, __setSkip, \
+                  __setPlottingDisabled, __setSkip, __setPrintExtensions, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
                   printClustersEnabled, checkExcludedFilesEnabled, \
-                  skipEnabled, \
+                  skipEnabled, printExtensions, \
                   initMimeTypes, getDataPath, registerTimePrint, tprnt
 import getopt
 import sys
+import mimetypes
 
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
                '--check-missing --score\n\t\t--skip=<Policy,Policy,\'graphs' \
@@ -48,7 +49,7 @@ def main(argv):
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "ha:cedf:skrpgGi:u:",
+        (opts, args) = getopt.getopt(argv, "ha:cedf:skrpgGi:u:x",
                                      ["help",
                                       "post-analysis",
                                       "check-missing",
@@ -86,6 +87,8 @@ def main(argv):
                       "various code paths to help debug\n\tthe program.\n")
                 print("--disable-plotting:\n\tDo not plot cluster graphs. See "
                       "the --graph option.\n")
+                print("--extensions:\n\tPrints file extensions and MIME type "
+                      "associations for this user.\n")
                 print("--graph:\n\tFind communities in file/app "
                       "accesses using graph theory methods.\n\tRequires the "
                       "--score and --cluster options for per-policy graphs.\n")
@@ -111,6 +114,8 @@ def main(argv):
                 __setCheckMissing(True)
             elif opt in ('-e', '--check-excluded-files'):
                 __setCheckExcludedFiles(True)
+            elif opt in ('-x', '--extensions'):
+                __setPrintExtensions(True)
             elif opt in ('-d', '--debug'):
                 __setDebug(True)
             elif opt in ('-r', '--related-files'):
@@ -221,11 +226,25 @@ def main(argv):
     del pll
     evStore.sort()
     tprnt("Simulated all events. %d files initialised." % len(fileStore))
+    
+    if printExtensions():
+        exts = set()
+        for f in fileStore:
+            exts.add(f.getExtension())
+        try:
+            exts.remove(None)
+        except(KeyError):
+            pass
+        tprnt("Info: the following file extensions were found:")
+        for e in sorted(exts):
+            print("\t%s: %s" % (e, mimetypes.guess_type("f.%s" % e, strict=False)))
 
-    if checkExcludedFilesEnabled():
-        tprnt("\nPrinting files written and read by instances which wrote"
-              "to excluded directories...")
-        dbgPrintExcludedEvents()
+        if checkExcludedFilesEnabled():
+            tprnt("\nPrinting files written and read by instances which wrote"
+                  "to excluded directories...")
+            dbgPrintExcludedEvents()
+        import time as t
+        t.sleep(10)
 
     # Manage --inode queries
     if __opt_inode_query:
