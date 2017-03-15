@@ -51,7 +51,7 @@ def main(argv):
     try:
         (opts, args) = getopt.getopt(argv, "ha:cedf:skrpgGi:u:x",
                                      ["help",
-                                      "post-analysis",
+                                      "post-analysis=",
                                       "check-missing",
                                       "check-excluded-files",
                                       "debug",
@@ -162,13 +162,21 @@ def main(argv):
     registerTimePrint()
 
     if __opt_post_analysis:
-        from AnalysisEngine import AnalysisEngine
-        if outputFsEnabled():
-            engine = AnalysisEngine(inputDir=__opt_post_analysis,
-                                    outputDir=outputFsEnabled())
+        if relatedFilesEnabled():
+            tprnt("Starting post-analysis of related files...\n")
+            engine = FrequentFileEngine()
+            engine.processFrequentItemLists(__opt_post_analysis)
+
         else:
-            engine = AnalysisEngine(inputDir=__opt_post_analysis)
-        engine.analyse()
+            tprnt("Starting post-analysis of usability/security scores...\n")
+            from AnalysisEngine import AnalysisEngine
+            if outputFsEnabled():
+                engine = AnalysisEngine(inputDir=__opt_post_analysis,
+                                        outputDir=outputFsEnabled())
+            else:
+                engine = AnalysisEngine(inputDir=__opt_post_analysis)
+            engine.analyse()
+
         sys.exit(0)
 
     # Make the application, event and file stores
@@ -331,8 +339,8 @@ def main(argv):
     if relatedFilesEnabled():
         engine = FrequentFileEngine()
 
-        tprnt("\nMining for frequently co-accessed files...")
-        engine.mineFiles()
+        # tprnt("\nMining for frequently co-accessed files...")
+        # engine.mineFiles()
 
         tprnt("\nMining for frequently co-accessed file types...")
         engine.mineFileTypes()
