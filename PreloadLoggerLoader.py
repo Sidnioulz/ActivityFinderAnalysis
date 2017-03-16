@@ -4,7 +4,7 @@ import re
 from Application import Application
 from ApplicationStore import ApplicationStore
 from Event import Event
-from utils import space, pyre, pynamer, pyprocname, javare, javanamer, \
+from utils import space, pyre, bashre, pynamer, pyprocname, javare, javanamer, \
                   javaprocname, perlre, perlnamer, monore, mononamer, \
                   monoprocname, phpre, phpnamer, phpprocname, debugEnabled, \
                   tail
@@ -49,6 +49,10 @@ class PreloadLoggerLoader(object):
             if items[0] == "-Es":
                 continue
 
+            # Remove -m if present, and use module name.
+            if items[0] == "-m":
+                continue
+
             # Return if a command was passed, as it's actually Python running.
             if items[0] == "-c":
                 return g
@@ -72,6 +76,47 @@ class PreloadLoggerLoader(object):
 
         if name:
             procres = pyprocname.match(name)
+            newproc = procres.groups()[0] if procres.groups() else name
+            newcmd = ' '.join(items[0:])
+            return (newproc, g[1], newcmd)
+        else:
+            return g
+
+    def parseBash(self, g: tuple, items: list=None):
+        """Parse cmdline to find the proper app behind a Bash command."""
+        if not hasattr(g, '__len__'):
+            return g
+        if len(g) is not 3:
+            return g
+
+        if not items:
+            items = space.split(g[2])
+
+        # Return if there are no parameters, the interpreter is the app
+        if len(items) <= 1:
+            return g
+
+        while len(items):
+            del items[0]
+
+            # Everything got deleted! It's an interactive interpreter session.
+            if not items:
+                return g
+
+            # # Return if an unknown parameter was passed.
+            # if items[0].startswith('-'):
+            #     continue
+            break
+        # We had to delete every item without breaking, this means the
+        # interpreter had no actual application parameter. It was interactive.
+        else:
+            return g
+
+        res = bashnamer.match(items[0])
+        name = res.groups()[0] if res.groups() else None
+
+        if name:
+            procres = bashprocname.match(name)
             newproc = procres.groups()[0] if procres.groups() else name
             newcmd = ' '.join(items[0:])
             return (newproc, g[1], newcmd)
@@ -341,6 +386,12 @@ class PreloadLoggerLoader(object):
                         interpreterid = g[0]
                         g = self.parsePython(g, items)
                         # print("PYTHON APP: %s" % g[2])
+
+                    # Bash
+                    if (bashre.match(g[0])):
+                        interpreterid = g[0]
+                        g = self.parseBash(g, items)
+                        # print("BASH APP: %s" % g[2])
 
                     # Java
                     if (javare.match(g[0])):

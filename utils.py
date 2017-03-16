@@ -6,6 +6,7 @@ import mimetypes
 import random
 import string
 from constants import SPACE_REGEXP, PYTHONRE, PYTHONNAMER, PYTHONPROCNAME, \
+                      BASHRE, BASHNAMER, BASHPROCNAME, \
                       JAVARE, JAVANAMER, JAVAPROCNAME, PERLRE, PERLNAMER, \
                       MONORE, MONONAMER, MONOPROCNAME, DEFAULTDATAPATH, \
                       NAMEDDATAPATHBASE, PHPRE, PHPNAMER, PHPPROCNAME
@@ -335,6 +336,7 @@ def initMimeTypes():
     mimetypes.add_type("application/x-sqlite3", ".sqlite", strict=False)
     mimetypes.add_type("application/x-sqlite3", ".db", strict=False)
 
+    mimetypes.add_type("text/x-tex", ".aux", strict=False)
     mimetypes.add_type("text/x-tex", ".tex", strict=False)
 
     # for (key, ext) in sorted(mimetypes.types_map.items()):
@@ -347,6 +349,9 @@ space = re.compile(SPACE_REGEXP)
 pyre = re.compile(PYTHONRE)
 pynamer = re.compile(PYTHONNAMER)
 pyprocname = re.compile(PYTHONPROCNAME)
+bashre = re.compile(BASHRE)
+bashnamer = re.compile(BASHNAMER)
+bashprocname = re.compile(BASHPROCNAME)
 javare = re.compile(JAVARE)
 javanamer = re.compile(JAVANAMER)
 javaprocname = re.compile(JAVAPROCNAME)
