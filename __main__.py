@@ -32,7 +32,7 @@ import mimetypes
 
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
                '--check-missing --score\n\t\t--skip=<Policy,Policy,\'graphs' \
-               '\'> --clusters --graph \n\t\t--disable-plotting ' \
+               '\'> --clusters --graph --extensions\n\t\t--disable-plotting ' \
                '--output=<DIR> --debug] ' \
                '\n\nor:     __main__.py --inode=<INODE> [--user=<NAME> ' \
                '--debug]' \
@@ -56,6 +56,7 @@ def main(argv):
                                       "check-excluded-files",
                                       "debug",
                                       "inode",
+                                      "extensions",
                                       "related-files",
                                       "output=",
                                       "output-fs=",
