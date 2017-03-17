@@ -11,106 +11,6 @@ class FrequentFileEngine(object):
         super(FrequentFileEngine, self).__init__()
         self.outputDir = outputFsEnabled() or '/tmp/'
 
-    def mineFiles(self, differentiateAccesses: bool=True):
-        """Mine for frequently co-accessed individual Files."""
-        from FileStore import FileStore
-        from UserConfigLoader import UserConfigLoader
-        from blist import sortedlist
-
-        fileStore = FileStore.get()
-        userConf = UserConfigLoader.get()
-
-        docs = sortedlist(key=lambda i: i.inode)  # Files we'll mine (columns)
-        apps = set()                              # Apps we'll mine (rows)
-        accessedDocsPerApp = dict()  # Format we need to write each row
-
-        # List the data we'll use in a more useful format. Only user docs.
-        for doc in fileStore:
-            # Ignore non-documents.
-            if not doc.isUserDocument(userConf.getHomeDir(),
-                                      allowHiddenFiles=True):
-                continue
-
-            # Ignore folders, they tend to get open and read and traversed.
-            if doc.isFolder():
-                continue
-
-            docs.add(doc)
-
-            # For each app we must know what it accessed to write its row in
-            # the output file.
-            for acc in doc.getAccesses():
-                actor = acc.getActor()
-                apps.add(actor)
-                l = accessedDocsPerApp.get(actor) or []
-                l.append((doc, acc))
-                accessedDocsPerApp[actor] = l
-
-        # Write our Orange input file.
-        with open(self.outputDir + '/' + 'filesPerInstance.tab', 'w') as f:
-            # Print the header line.
-            header = 'Application\t'
-            for doc in docs:
-                header += '"\%s"\t' % doc.getName()
-            header = header.rstrip('\t')
-            print(header, file=f)
-
-            # Print the metadata line.
-            header = 'd\t' + ('d\t' * (len(docs) - 1)) + 'd'
-            print(header, file=f)
-            header = 'c\t' + ('\t' * (len(docs) - 1))
-            print(header, file=f)
-
-            # Write each row of the input file.
-            for app in apps:
-                msg = '%s\t' % app.uid()
-                l = accessedDocsPerApp.get(app) or []
-                # Add a column for each user document of the entire FS.
-                for doc in docs:
-                    accessType = 0
-                    # If we find the entry, add a number based on access type.
-                    for entry in l:
-                        if entry[0] == doc:
-                            accessType |= (1 if entry[1].isReadOnly() else 2)
-
-                    # If we don't differentiate accesses, flatten accessType.
-                    if not differentiateAccesses and accessType:
-                        accessType = 1
-
-                    # If we find the entry, add a number based on access type,
-                    # else add an empty column.
-                    msg += '%d\t' % accessType if accessType else '\t'
-                msg = msg.rstrip('\t')
-
-                # Write down the input file to the FS.
-                print(msg, file=f)
-
-        print("Mining files done, check out '%s/filesPerInstance.tab'." %
-              self.outputDir)
-
-        # Write the other input file, for aggregation via Python API.
-        with open(self.outputDir + '/' + 'filesPerInstance.list', 'w') as f:
-            for app in apps:
-                msg = '%s\t' % app.uid()
-                l = accessedDocsPerApp.get(app) or []
-                cols = set()
-
-                # Add a column for each file type + access type combination.
-                for entry in l:
-                    cols.add(entry[0])
-                    if differentiateAccesses:
-                        if entry[1].isReadOnly():
-                            cols.add(entry[0]+":r")
-                        else:
-                            cols.add(entry[0]+":w")
-
-                # Write app line to the input file.
-                msg += "\t".join(list(str(c) for c in cols))
-                print(msg, file=f)
-
-        print("Mining files done, check out '%s/filesPerInstance.list'." %
-              self.outputDir)
-
     def mineFileTypes(self, differentiateAccesses: bool=True):
         """Mine for frequently co-accessed file types."""
         from FileStore import FileStore
@@ -119,7 +19,13 @@ class FrequentFileEngine(object):
         fileStore = FileStore.get()
         userConf = UserConfigLoader.get()
 
-        types = set()                 # Columns are now MIME types
+        home = userConf.getHomeDir() or "/MISSING-HOME-DIR"
+        desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
+        down = userConf.getSetting("XdgDownloadsDir") or "~/Downloads"
+        user = userConf.getSetting("Username") or "user"
+        host = userConf.getSetting("Hostname") or "localhost"
+
+        types = set()                 # Columns are file paths + MIME types
         apps = set()                  # Apps we'll mine (rows)
         accessedTypesPerApp = dict()  # Format we need to write each row
 
@@ -134,78 +40,51 @@ class FrequentFileEngine(object):
             if doc.isFolder():
                 continue
 
-            fileType = mimetypes.guess_type(doc.getName())
+            fileType = mimetypes.guess_type(doc.path)
             if fileType and fileType[0]:
-                types.add(fileType[0])
 
                 # For each app we must know what it accessed to write its row
                 # in the output file.
                 for acc in doc.getAccesses():
                     actor = acc.getActor()
+                    if not actor.isUserlandApp():
+                        continue
+
                     apps.add(actor)
                     l = accessedTypesPerApp.get(actor) or []
-                    l.append((fileType[0], acc))
+                    l.append((doc.path, fileType[0], acc))
                     accessedTypesPerApp[actor] = l
-
-        # Write our Orange input file.
-        with open(self.outputDir + '/' + 'typesPerInstance.tab', 'w') as f:
-            # Print the header line.
-            header = 'Application\t'
-            for t in types:
-                header += '"\%s"\t' % t
-            header = header.rstrip('\t')
-            print(header, file=f)
-
-            # Print the metadata line.
-            header = 'd\t' + ('d\t' * (len(types) - 1)) + 'd'
-            print(header, file=f)
-            header = 'c\t' + ('\t' * (len(types) - 1))
-            print(header, file=f)
-
-            # Write each row of the input file.
-            for app in apps:
-                msg = '%s\t' % app.uid()
-                l = accessedTypesPerApp.get(app) or []
-                # Add a column for each file type of the entire FS.
-                for t in types:
-                    accessType = 0
-                    # If we find the entry, add a number based on access type.
-                    for entry in l:
-                        if entry[0] == t:
-                            accessType |= (1 if entry[1].isReadOnly() else 2)
-
-                    # If we don't differentiate accesses, flatten accessType.
-                    if not differentiateAccesses and accessType:
-                        accessType = 1
-
-                    # If we find the entry, add a number based on access type,
-                    # else add an empty column.
-                    msg += '%d\t' % accessType if accessType else '\t'
-                msg = msg.rstrip('\t')
-
-                # Write down the input file to the FS.
-                print(msg, file=f)
-
-        print("Mining types done, check out '%s/typesPerInstance.tab'." %
-              self.outputDir)
 
         # Write the other input file, for aggregation via Python API.
         with open(self.outputDir + '/' + 'typesPerInstance.list', 'w') as f:
-            # TODO add desktopid
-            # TODO add file paths / file names too. TODO add all folder elements to find folders that contain more of a file type
+            # TODO add all folder elements to find folders that contain more of a file type
+            # TODO       itemsets with two types are "co-frequent types".
+            # TODO       itemsets without types must be searched for mutually exclusive folders (not parents of one another).
+            # TODO then, itemsets with one type + folders are frequent types for those folders.
+            # TODO       itemsets with just one folder are frequent folders.
+            # TODO       itemsets with just one type are frequent types.
             for app in apps:
-                msg = '%s\t' % app.uid()
+                msg = '%s\t' % (app.uid())
                 l = accessedTypesPerApp.get(app) or []
                 cols = set()
 
                 # Add a column for each file type + access type combination.
                 for entry in l:
-                    if not differentiateAccesses:
-                        cols.add(entry[0])
-                    elif entry[1].isReadOnly():
-                        cols.add(entry[0]+":r")
+                    path = entry[0]
+                    path = path.replace(desk, '@XDG_DESKTOP_DIR@')
+                    path = path.replace(down, '@XDG_DOWNLOADS_DIR@')
+                    path = path.replace(host, '@HOSTNAME@')
+                    path = path.replace(home, '~')
+                    path = path.replace(user, '@USER@')
+                    
+                    cols.add(path)
+                    if differentiateAccesses:
+                        if entry[2].isReadOnly():
+                            cols.add(entry[1]+":r")
+                        else:
+                            cols.add(entry[1]+":w")
                     else:
-                        cols.add(entry[0]+":w")
+                        cols.add(entry[1])
 
                 # Write app line to the input file.
                 msg += "\t".join(list(str(c) for c in cols))
@@ -234,9 +113,11 @@ class FrequentFileEngine(object):
         tprnt("Aggregating transactions from input files...")
         transactions = []
         for p in inputPaths:
+            participantFolder = p.split("/")[-2]
             with open(p, 'r') as f:
                 for line in f:
                     transaction = line.rstrip("\n").split("\t")
+                    transaction[0] = participantFolder + "/" + transaction[0] 
                     transactions.append(transaction)
         tprnt("Done.")
 
@@ -246,47 +127,117 @@ class FrequentFileEngine(object):
         tprnt("Done.")
 
         # Functions to sort itemsets.
+        def _isPath(elem):
+            return elem[0] in ['/', '~', '@']
+
+        def _hasPath(item):
+            typeCnt = 0
+
+            for t in item[0]:
+                if _isPath(t):
+                    return True
+
+            return False
+
         def _uniqueType(item):
-            return len(item[0]) == 1
+            typeCnt = 0
+
+            for t in item[0]:
+                if not _isPath(t):
+                    typeCnt += 1
+
+                    # Save time.
+                    if typeCnt > 1:
+                        return False
+
+            return typeCnt == 1
 
         def _uniqueTypeWithAccessVariations(item):
-            # if len(item[0]) == 1:
-            #     return False
             uniqueType = None
+
             for t in item[0]:
-                if t.endswith(":r") or t.endswith(":w"):
-                    t = t[:-2]
-                if not uniqueType:
-                    uniqueType = t
-                elif uniqueType != t:
-                    return False
-            return True
+                if not _isPath(t):
+                    if t.endswith(":r") or t.endswith(":w"):
+                        t = t[:-2]
+
+                    if not uniqueType:
+                        uniqueType = t
+                    elif uniqueType != t:
+                        return False
+
+            return uniqueType != None
+
+        def _multipleTypes(item):
+            uniqueType = None
+
+            for t in item[0]:
+                if not _isPath(t):
+                    if t.endswith(":r") or t.endswith(":w"):
+                        t = t[:-2]
+
+                    if not uniqueType:
+                        uniqueType = t
+                    elif uniqueType != t:
+                        return True
+
+            return False
 
         # Sort itemsets
         uniques = []
-        rws = []
-        patterns = []
+        patterns = dict()
         for item in itemsets:
-            if _uniqueType(item):
+            if _hasPath(item):
+                pass
+            elif _uniqueType(item):
                 uniques.append(item)
             elif _uniqueTypeWithAccessVariations(item):
-                rws.append(item)
-            else:
-                patterns.append(item)
+                pass
+            elif _multipleTypes(item):
+                patterns[item[0]] = item[1]
+        
+        # displayPatterns = dict()
+        # for p in patterns:
+        #     disp = set()
+        #     for elem in p:
+        #         if elem.endswith(":r") or elem.endswith(":w"):
+        #             disp.add(elem)
+        #         elif elem+":w" not in p and elem+":r" not in p:
+        #             disp.add(elem)
+        #     displayPatterns[p] = disp
 
         tprnt("\nMost commonly found types:")
         for item in sorted(uniques, key=lambda x: x[1], reverse=True):
             print("\t", item)
 
         tprnt("\nMost commonly found patterns:")
-        for item in sorted(patterns, key=lambda x: x[1], reverse=True):
+        for item in sorted(patterns.items(), key=lambda x: x[1], reverse=True):
             print("\t", item)
 
         del itemsets
 
         # Match items in patterns to transactions, and print out app and file
         # names.
-        #for t in transactions:
-            # TODO check if in patterns
-            # TODO if so, print it   
+        tprnt("\nMatching frequent patterns to transactions...")
+        transactionsPerPattern = dict()
+        for t in transactions:
+            for p in patterns.keys():
+                if p.issubset(t):
+                    matches = transactionsPerPattern.get(p) or []
+                    matches.append(t)
+                    transactionsPerPattern[p] = matches
+        tprnt("Done.")
             
+        tprnt("\nPrinting matched transactions...")
+        line = ""
+        # Print all the transactions that match a pattern, for manual analysis.
+        for (p, matches) in sorted(transactionsPerPattern.items()):
+            tprnt("%s%d\tPATTERN: %s" % (line, patterns[p], p.__str__()))
+            line = "\n"
+
+            for matchedTransaction in matches:
+                print("\tApp: %s" % matchedTransaction[0])
+                for transactionElem in sorted(matchedTransaction[1:]):
+                    if transactionElem[0] in ['/', '~', '@']:
+                        print("\t* %s" % transactionElem)
+                print("")
+

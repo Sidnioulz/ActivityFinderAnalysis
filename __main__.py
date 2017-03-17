@@ -341,9 +341,6 @@ def main(argv):
     if relatedFilesEnabled():
         engine = FrequentFileEngine()
 
-        # tprnt("\nMining for frequently co-accessed files...")
-        # engine.mineFiles()
-
         tprnt("\nMining for frequently co-accessed file types...")
         engine.mineFileTypes()
 
