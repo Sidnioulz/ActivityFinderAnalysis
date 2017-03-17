@@ -284,7 +284,8 @@ def main(argv):
 
     # Build a general access graph.
     if graphEnabled():
-        if 'graphs' in skipEnabled():
+        skipList = skipEnabled()
+        if skipList and 'graphs' in skipList:
             tprnt("\nGraphs in skip list, skipping global graph generation.")
         else:
             engine = GraphEngine()
@@ -322,7 +323,7 @@ def main(argv):
 
             tprnt("\nRunning %s..." % pol.name)
 
-            if pol.name in skipList:
+            if skipList and pol.name in skipList:
                 tprnt("%s is in skip list, skipping." % pol.name)
                 continue
 
