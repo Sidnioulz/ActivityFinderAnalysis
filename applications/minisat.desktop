@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Mini SAT Solver
+Exec=/usr/bin/minisat
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Desktop
+Name=Clipboard Manager
+TryExec=copyq
+Exec=copyq
+Icon=copyq
+Terminal=false
+Categories=GTK;Utility;TrayIcon;
+StartupNotify=false

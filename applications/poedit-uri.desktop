@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Poedit
+Type=Application
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/poedit;
+Exec=poeditor --handle-poedit-uri %u
+Icon=poedit

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=HPC Challenge Benchmark client
+TryExec=hpcc
+Exec=hpcc
+Type=Application
+Categories=Development;

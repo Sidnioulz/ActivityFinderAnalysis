@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=sudoku_verif
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Unknown sudoku_verif (p7)

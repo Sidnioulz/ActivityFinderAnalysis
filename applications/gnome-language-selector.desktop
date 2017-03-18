@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Language Selector
+Exec=gnome-language-selector
+Terminal=false
+Type=Desktop
+NoDisplay=true
+StartupNotify=true
+Categories=GNOME;GTK;Settings;X-GNOME-Settings-Panel;X-GNOME-PersonalSettings;
+OnlyShowIn=GNOME;

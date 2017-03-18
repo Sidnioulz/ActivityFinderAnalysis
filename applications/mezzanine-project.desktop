@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=mezzanine
+Icon=mezzanine
+Terminal=false
+Type=Application
+MimeType=text/plain;text/x-python;appication/python;
+Categories=System;
+Name=Mezzanine Django CMS

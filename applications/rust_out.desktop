@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=rust_out
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Unknown Rust application (p2)

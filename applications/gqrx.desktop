@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=gqrx
+Icon=gqrx
+Terminal=false
+Type=Application
+Categories=System;
+Name=gqrx Radio Receiver

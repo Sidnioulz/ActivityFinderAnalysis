@@ -1,0 +1,15 @@
+[Desktop Entry]
+Categories=Office;Publishing;
+Exec=texstudio %F
+GenericName=LaTeX Editor
+GenericName[fr]=Editeur LaTeX
+Comment=LaTeX development environment
+Comment[fr]=Environnement de développement LaTeX
+Keywords=editor;latex;pdflatex;xelatex;lualatex;context;bibtex;tex;
+Icon=texstudio
+MimeType=text/x-tex;application/pdf;application/x-latex;
+Name=TeXstudio
+StartupNotify=false
+Terminal=false
+Type=Application
+LibraryCaps=documents;

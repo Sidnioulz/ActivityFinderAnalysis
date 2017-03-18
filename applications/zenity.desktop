@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Zenity (display windows for shell scripts)
+Exec=/usr/bin/zenity
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+Icon=terminal

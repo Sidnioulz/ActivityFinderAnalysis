@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=conky
+Icon=gtk-missing-image
+Terminal=false
+Type=Desktop
+Categories=System;
+Name=Conky

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Desktop
+Exec=lxsession
+StartupNotify=false
+Terminal=false
+Categories=System;
+Name=Lxde Session Daemon
+RWPaths=^~/\.config/autostart;^~/\.ICEauthority$;

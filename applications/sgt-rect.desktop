@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-rect
+Icon=sgt-rect
+Type=Application
+Categories=Game;LogicGame;
+Name=Rectangles
+Comment=Subdivide the grid into rectangles of various sizes following certain rules
+Comment[fr]=Diviser la grille de jeu en rectangles de tailles variables en suivant certaines règles
+Comment[de]=Unterteile das Gitter gemäß bestimmter Regeln in Rechtecke verschiedener Größe

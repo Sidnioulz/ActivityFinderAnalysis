@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Linux Accounts Service
+Exec=/usr/lib/accountsservice/accounts-daemon
+NoDisplay=true
+Type=System

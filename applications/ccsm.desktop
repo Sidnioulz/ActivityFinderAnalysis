@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=CompizConfig Settings Manager
+Comment=Configure Compiz with CompizConfig
+Icon=ccsm
+Exec=ccsm
+Terminal=false
+Type=Desktop
+Categories=Settings;DesktopSettings;
+StartupNotify=true
+X-Ubuntu-Gettext-Domain=compiz

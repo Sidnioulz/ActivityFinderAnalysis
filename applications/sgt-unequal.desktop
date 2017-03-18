@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-unequal
+Icon=sgt-unequal
+Type=Application
+Categories=Game;LogicGame;
+Name=Unequal
+Comment=Fully populate the grid with numbers under some conditions
+Comment[fr]=Remplir complètement la grille de nombre sous certaines conditions
+Comment[de]=Bevölkere das Gitter mit Zahlen gemäß bestimmter Bedingungen

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Desktop
+Exec=kupfer
+Icon=gtk-execute
+StartupNotify=true
+Terminal=false
+Categories=Utility;
+Name=Kupfer App Launcher

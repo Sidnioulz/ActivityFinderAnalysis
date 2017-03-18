@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Glasgow Haskell Compiler
+Exec=/usr/bin/ghc
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

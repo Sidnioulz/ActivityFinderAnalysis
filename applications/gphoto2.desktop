@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=GPhoto2
+Comment=Digital camera command-line client
+Exec=gphoto2
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;Utility;Core;
+Keywords=Photos;Pictures;
+X-Ubuntu-Gettext-Domain=gnome-photos
+MimeType=image/png;image/gif;image/jpeg;image/bmp;image/x-pixmap;image/tiff;image/svg+xml;image/x-xpixmap;
+LibraryCaps=image;
+

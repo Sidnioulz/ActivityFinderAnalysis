@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=The Static Speaks My Name
+Exec=/usr/games/thestatic_linux.x86
+Terminal=false
+Type=Application
+Categories=Game;

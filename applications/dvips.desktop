@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=DVI PS
+GenericName=dvips
+Comment=A DVI to PS tool
+Exec=dvips
+Icon=dvips
+Type=Application
+StartupNotify=false
+Categories=Office;
+MimeType=application/postscript;application/x-dvi;
+LibraryCaps=documents;
+Terminal=true

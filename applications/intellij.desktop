@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=IntelliJ IDEA
+Icon=intellij
+Exec=intellij
+Terminal=false
+Categories=Development;IDE;Java;
+LibraryCaps=documents;
+MimeType=application/java;application/x-java-class;text/x-java-source;application/x-java-commerce;

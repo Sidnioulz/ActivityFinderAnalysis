@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Subversion
+Exec=/usr/bin/svn
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

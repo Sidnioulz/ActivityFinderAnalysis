@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Xfce Xkb Plugin
+Exec=xfce4-xkb-plugin
+Terminal=false
+Type=Desktop
+Categories=XFCE;GTK;
+NotShowIn=GNOME;KDE;Unity;
+StartupNotify=true
+X-XfcePluggable=true
+RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=irssi
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=irssi IRC client

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Xfce Timer Plugin
+Exec=xfce4-timer-plugin
+Terminal=false
+Type=Desktop
+Categories=XFCE;GTK;
+NotShowIn=GNOME;KDE;Unity;
+StartupNotify=true
+X-XfcePluggable=true
+RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

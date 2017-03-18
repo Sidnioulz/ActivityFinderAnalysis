@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Code Igniter
+Comment=Sophisticated text editor for code, html and prose
+Exec=codeigniter %F
+Icon=codeigniter
+Categories=Utility;TextEditor;
+Terminal=false
+LibraryCaps=documents;
+MimeType=text/plain;application/x-javascript;application/javascript;text/javascript;text/html;text/xml;application/xhtml+xml;text/php;text/x-xsrc;text/css;

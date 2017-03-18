@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=hardening-wrapper
+Icon=gtk-missing-image
+Terminal=false
+Type=System
+Categories=System;Security;
+Name=Compiler wrapper to enable security hardening flags

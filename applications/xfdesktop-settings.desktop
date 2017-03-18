@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=xfdesktop-settings
+Icon=xfdesktop-settings
+Terminal=false
+Type=Desktop
+Categories=XFCE;GTK;Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;
+Name=Xfce4 Desktop Settings
+RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

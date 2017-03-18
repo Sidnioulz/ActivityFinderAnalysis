@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=ALSA Sound Mixer
+Comment=Manage audio hardware
+Icon=multimedia-volume-control
+Exec=alsamixer
+Type=System
+StartupNotify=true
+Terminal=false
+Categories=Audio;Mixer;
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;^/run/user/[0-9]+/pulse;

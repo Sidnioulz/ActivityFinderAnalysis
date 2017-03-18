@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=MySQL
+Exec=/usr/bin/mysql
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Lxde Terminal
+Exec=lxterminal
+Icon=utilities-terminal
+Terminal=false
+Type=Desktop
+Categories=GTK;System;TerminalEmulator;
+StartupNotify=true

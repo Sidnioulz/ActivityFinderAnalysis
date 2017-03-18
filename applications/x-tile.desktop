@@ -1,0 +1,11 @@
+
+[Desktop Entry]
+Name=X Tile
+Comment=Tile the Windows Upon your X Desktop
+Exec=x-tile
+Icon=x-tile
+Terminal=false
+Type=System
+StartupNotify=true
+Categories=GTK;Utility;
+Name[en_US]=x-tile

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-mines
+Icon=sgt-mines
+Type=Application
+Categories=Game;LogicGame;
+Name=Mines
+Comment=Clear hidden mines from a minefield
+Comment[fr]=Nettoyer un champ de mines de ses mines cachées
+Comment[de]=Beseitige versteckte Minen aus einem Minenfeld

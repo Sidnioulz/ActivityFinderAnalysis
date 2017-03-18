@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Popcorn Time P2P Player
+Icon=Popcorn-Time
+Exec=Popcorn-Time %F
+Terminal=false
+Type=Application
+Categories=GTK;AudioVideo;Player;Video;
+StartupNotify=true
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Archive Manager
+Comment=Create and modify an archive
+Keywords=zip;tar;extract;unpack;
+TryExec=xarchiver
+Exec=xarchiver %U
+StartupNotify=true
+Terminal=false
+Type=Application
+Icon=xarchiver
+Categories=GTK;GNOME;Utility;Archiving;Compression;X-GNOME-Utilities;
+NotShowIn=KDE;
+MimeType=application/zip;application/x-gzip;application/x-tar;application/x-rar-compressed;application/x-7z-compressed;‎application/x-bzip;‎application/x-bzip2;‎application/x-xz;

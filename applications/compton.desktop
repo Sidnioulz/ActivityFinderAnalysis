@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=compton
+Icon=compton
+Terminal=false
+Type=Desktop
+Categories=XFCE;
+Name=compton
+RWPaths=^/dev/dri;~/\.config/menus/;^~$;

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Session Settings
+Exec=xfce4-session-settings
+Icon=preferences-system
+Terminal=false
+Type=Desktop
+Categories=XFCE;GTK;Settings;DesktopSettings;X-XFCE-SettingsDialog;
+OnlyShowIn=XFCE;
+X-XfceSettingsManagerHidden=true
+RWPaths=^~/\.config/xfce4/xfconf;^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

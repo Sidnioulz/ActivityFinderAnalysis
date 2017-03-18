@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Mercurial
+Exec=/usr/bin/hg
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

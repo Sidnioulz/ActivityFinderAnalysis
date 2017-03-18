@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Friendly Interactive Shell
+Exec=/usr/bin/fish
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;
+Icon=terminal
+RWPaths=^~/\.bash.*;^/dev/tty;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Plexus Codehaus
+#https://codehaus-plexus.github.io/ - no exact idea what this is part of.
+Exec=org.codehaus.plexus.whatever
+Terminal=false
+Categories=Development;IDE;Java;
+LibraryCaps=documents;
+MimeType=application/java;application/x-java-class;text/x-java-source;application/x-java-commerce;

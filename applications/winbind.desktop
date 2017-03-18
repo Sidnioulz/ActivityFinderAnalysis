@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Windows NT server bind
+Exec=/usr/bin/winbind
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;

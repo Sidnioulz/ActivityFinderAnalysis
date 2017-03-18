@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=notification-daemon
+Icon=notification-daemon
+Terminal=false
+Type=Desktop
+Name=Notification daemon
+RWPaths=^~/\.(config/)?pulse;^/dev/shm/pulse\-shm.*;
+

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PlayOnLinux
+MimeType=application/x-ms-dos-executable;application/x-msi;application/x-ms-shortcut;
+Exec=playonlinux
+Icon=playonlinux
+Categories=Game;
+NoDisplay=true
+StartupNotify=true

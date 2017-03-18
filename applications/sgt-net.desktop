@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-net
+Icon=sgt-net
+Type=Application
+Categories=Game;LogicGame;
+Name=Net
+Comment=Rotate every tile to fix the network
+Comment[fr]=Remetter en place les câbles pour réparer le réseau
+Comment[de]=Rotiere jeden Spielstein, um das Netz zu reparieren

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Name=Network
+Comment=Configure network devices and connections
+Exec=network-admin
+Icon=preferences-system-network
+Terminal=false
+Type=Desktop
+Categories=GNOME;GTK;System;Settings;X-GNOME-NetworkSettings;
+X-GNOME-Bugzilla-Bugzilla=GNOME
+X-GNOME-Bugzilla-Product=gnome-system-tools
+X-GNOME-Bugzilla-Component=network-admin
+X-GNOME-Bugzilla-Version=3.0.0
+StartupNotify=true
+X-Ubuntu-Gettext-Domain=gnome-system-tools

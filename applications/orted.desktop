@@ -1,0 +1,7 @@
+[Desktop Entry]
+MimeType=text/calendar;
+Comment=Open RTE Daemon
+Exec=orted
+Type=System
+Name=orted
+Categories=System;Utility;

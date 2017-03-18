@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=LÖVE
+MimeType=application/x-love-game;
+Exec=/usr/bin/love
+Comment=Games development framework in lua
+Comment[es]=Entorno de desarrollo de videojuegos en lua
+Type=Application
+Categories=Development;Game;
+Terminal=false
+Icon=love-app
+NoDisplay=true

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Exec=Mathematica
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=Education;
+Name=Mathematica
+MimeType=application/x-3ds;text/plain;application/octet-stream;audio/x-aiff;audio/x-au;video/x-msvideo;image/bmp;application/x-bzip2;text/csv;application/msword;application/x-dif;model/x3d+binary;inode/directory;image/x-win-bitmap;text/x-csrc;image/x-dicom;image/x-eps;text/xml;model/x3d+xml;application/xhtml+xml;application/x-dxf;application/json;video/x-flv;audio/x-flac;image/tiff;image/gif;application/gml+xml;application/graphml+xml;application/x-gzip;application/x-hdf;chemical/x-hin;text/html;image/x-icon;application/vnd.iccprofile;text/calendar;chemical/x-jcamp-dx;image/jpeg;application/x-latex;text/x-tex;audio/mpeg;application/mathematica;application/mbox;application/x-msaccess;audio/midi;audio/mpeg;application/x-netcdf;application/x-tgif;application/vnd.oasis.opendocument.spreadsheet;audio/ogg;image/x-portable-bitmap;chemical/x-pdb;application/pdf;image/x-portable-graymap;image/pict;image/png;image/x-portable-pixmap;video/quicktime;text/rtf;application/x-rss+xml;application/x-qgis;text/scriptlet;application/smil+xml;audio/basic;application/vnd.ms-pki.stl;application/x-shockwave-flash;application/vnd.sun.xml.calc;image/svg+xml;application/zip;image/x-xbitmap;application/vnd.ms-excel;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/x-msmetafile;application/x-tar;chemical/x-mopac-input;image/x-tga;chemical/x-mdl-tgf;text/tab-separated-values;text/x-vcard;text/x-vcalendar;x-world/x-vrml;image/webp;audio/x-wav;
+LibraryCaps=documents;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=view.Main
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Unknown Java app view.Main (p7)

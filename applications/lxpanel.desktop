@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=lxpanel
+Icon=lxpanel
+Terminal=false
+Type=Desktop
+Name=lxpanel
+RWPaths=^~/\.config/menus/;

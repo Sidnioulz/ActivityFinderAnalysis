@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=xfce4-notes-settings
+Icon=xfce4-notes-settings
+Terminal=false
+Type=Desktop
+Categories=XFCE;GTK;Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;
+Name=Xfce4 Notes Settings
+RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

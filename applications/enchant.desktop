@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Wrapper for spellchecker programs
+Exec=/usr/bin/enchant
+Terminal=true
+Type=System
+StartupNotify=false
+Categories=System;

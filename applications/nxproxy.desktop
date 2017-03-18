@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=nxproxy
+Icon=nxproxy
+Terminal=false
+Type=Desktop
+Categories=System;
+Name=No Machine NX protocol proxy

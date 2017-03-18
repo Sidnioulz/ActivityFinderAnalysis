@@ -1,0 +1,8 @@
+[Desktop Entry]
+Exec=xfce4-keyboard-settings
+Icon=xfce4-keyboard-settings
+Terminal=false
+Type=Desktop
+Categories=XFCE;GTK;Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;
+Name=Xfce4 Keyboard Settings
+RWPaths=^~/\.(config(/xfce4)?|cache|local(/share)?(/xfce4)?)$;^~$;

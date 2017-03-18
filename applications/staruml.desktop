@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=StarUML
+Type=Application
+Categories=Development
+Exec=/opt/staruml/staruml %U
+Icon=staruml
+MimeType=text/html;
+Keywords=Design;Modeling;Development;UML;
+LibraryCaps=documents;

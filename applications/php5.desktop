@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=php5
+Icon=php
+Terminal=false
+Type=Application
+Categories=System;
+Name=PHP interpreter

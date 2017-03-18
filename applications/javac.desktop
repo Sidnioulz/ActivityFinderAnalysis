@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Java Compiler
+Exec=/usr/bin/javac
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

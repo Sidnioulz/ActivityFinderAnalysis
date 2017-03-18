@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=fingerprint-gui
+Icon=fingerprint-gui
+Terminal=false
+Type=Application
+Categories=System;Security;
+Name=Fingerprint

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-keen
+Icon=sgt-keen
+Type=Application
+Categories=Game;LogicGame;
+Name=Keen
+Comment=Game based on KenKen
+Comment[de]=Auf KenKen basierendes Puzzlespiel

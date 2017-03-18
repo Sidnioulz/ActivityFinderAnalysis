@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=QSSTV
+GenericName=Qt-based slow-scan TV and fax
+Comment=Qt-based slow-scan TV and fax
+Exec=qsstv
+Icon=/usr/share/qsstv/qsstv.png
+Terminal=false
+Type=Application
+Categories=Network;HamRadio;
+Keywords=TV;Fax;

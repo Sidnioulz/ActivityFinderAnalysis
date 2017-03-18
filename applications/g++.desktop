@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=C++ Compiler
+Exec=/usr/bin/g++
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal

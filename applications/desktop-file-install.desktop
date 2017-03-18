@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Desktop File install
+Exec=desktop-file-install
+Icon=preferences-system
+Terminal=false
+Type=Desktop
+Categories=GTK;Settings;DesktopSettings;

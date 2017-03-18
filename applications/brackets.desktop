@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Brackets
+Comment=Code editor for Web files
+Exec=brackets
+Icon=brackets
+Categories=Utility;TextEditor;
+Terminal=false
+LibraryCaps=documents;
+MimeType=application/x-javascript;application/javascript;text/javascript;text/html;text/xml;application/xhtml+xml;text/css;text/plain;

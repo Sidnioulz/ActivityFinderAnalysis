@@ -18,3 +18,4 @@ X-GNOME-Bugzilla-Version=3.16.5
 X-GNOME-UsesNotifications=true
 X-Ubuntu-Gettext-Domain=file-roller
 X-AppStream-Ignore=true
+MimeType=application/zip;application/x-gzip;application/x-tar;application/x-rar-compressed;application/x-7z-compressed;‎application/x-bzip;‎application/x-bzip2;‎application/x-xz;

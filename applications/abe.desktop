@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Encoding=UTF-8
+Name=Abe's Amazing Adventure
+Comment=Side-scrolling game
+TryExec=/usr/games/abe
+Exec=/usr/games/abe
+Categories=Game;AdventureGame;
+Icon=/usr/share/pixmaps/abe.xpm
+MimeType=

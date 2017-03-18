@@ -1,0 +1,17 @@
+[Desktop Entry]
+Name=PDF Chain
+GenericName=pdfchain
+Comment=A graphical user interface for the PDF Toolkit (PDFtk)
+Exec=pdfchain
+Icon=pdfchain
+Type=Application
+StartupNotify=false
+Categories=Office;
+MimeType=application/pdf;
+Terminal=false
+Keywords=pdf,splitting,concatenating,form,converting,user-interface
+Comment[de]=Eine grafische Benutzerschnittstelle für das PDF Toolkit (PDFtk)
+#Comment[en]=
+Comment[es]=Interfaz del usuario grafica para el PDF Toolkit (PDFtk)
+#Comment[fr]=
+Comment[it]=Interfaccia utente grafica per il PDF Toolkit (PDFtk)

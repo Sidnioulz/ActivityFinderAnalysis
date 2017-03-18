@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Leafpad
+Exec=leafpad %F
+Icon=accessories-text-editor
+Terminal=false
+StartupNotify=true
+Type=Application
+Categories=Utility;TextEditor;GTK;
+MimeType=text/plain;
+LibraryCaps=documents;
+RWPaths=^~/\.gnome2/gtksourceview\-1\.0;^~/\.local/share/gtksourceview\-2\.0;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=nxclient
+Icon=nxclient
+Terminal=false
+Type=Desktop
+Categories=System;
+Name=No Machine NX protocol client

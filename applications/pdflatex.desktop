@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=PDF LaTeX
+Icon=pdflatex
+Exec=pdflatex %F
+MimeType=text/x-tex;application/pdf;application/x-latex;text/x-bibtex;
+Categories=Office;
+LibraryCaps=documents;

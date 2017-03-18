@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Exec=hplip
+Icon=hplip
+Terminal=false
+Type=System
+Categories=System;
+Name=hplip

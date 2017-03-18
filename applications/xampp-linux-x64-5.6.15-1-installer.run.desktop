@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=xampp-linux-x64-5.6.15-1-installer.run
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Xampp installer (p7)

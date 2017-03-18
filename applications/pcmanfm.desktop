@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=PcmanFm
+Exec=pcmanfm %F
+Icon=pcmanfm
+Terminal=false
+StartupNotify=true
+Type=Desktop
+Categories=System;Utility;Core;GTK;FileTools;FileManager;
+RWPaths=.*;
+# vi:set encoding=UTF-8:

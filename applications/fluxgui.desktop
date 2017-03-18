@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Fluxgui
+GenericName=Color temperature adjustment
+Comment=Color temperature adjustment tool
+Exec=fluxgui
+Icon=fluxgui
+Terminal=true
+Type=System
+NoDisplay=true

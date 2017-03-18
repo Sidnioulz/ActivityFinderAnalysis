@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=ruby
+Icon=ruby
+Terminal=false
+Type=Application
+Categories=System;
+Name=Ruby interpreter

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-flip
+Icon=sgt-flip
+Type=Application
+Categories=Game;LogicGame;
+Name=Flip
+Comment=Light all the squares up at the same time
+Comment[fr]=Illuminer simultanément tous les carrés du jeu
+Comment[de]=Erleuchte alle Quadrate gleichzeitig

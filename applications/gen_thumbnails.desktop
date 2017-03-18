@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=gen_thumbnails
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Unknown gen_thumbnails (p4)

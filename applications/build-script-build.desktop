@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=build-script-build
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Unknown build-script-build (p2)

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=EPP.java
+Icon=gtk-missing-image
+Terminal=false
+Type=Application
+Categories=System;
+Name=Unknown EPP java app (p7)

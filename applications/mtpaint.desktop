@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Name=mtPaint graphic editor
+GenericName=Painting program
+Comment=painting program to create pixel art and manipulate digital photos
+Comment[es_ES]=programa de pintura para crear pixel art y manipular fotos digitales
+Comment[pt_BR]=programa de pintura para criar pixel art e manipular fotos digitais
+Type=Application
+Exec=mtpaint
+Icon=mtpaint
+Categories=Graphics;RasterGraphics;
+Keywords=graphics;editor
+MimeType=image/bmp;image/gif;image/x-fits;image/x-pcx;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-pixmap;image/x-sgi;image/x-tga;image/x-xbitmap;image/tiff;image/jpeg;image/x-psp;image/png;image/jp2;image/jpeg2000;image/jpx;
+LibraryCaps=image;

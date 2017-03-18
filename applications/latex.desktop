@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=LaTeX
+Icon=latex
+Exec=latex %F
+MimeType=text/x-tex;application/postscript;application/x-latex;text/x-bibtex;
+Categories=Office;
+LibraryCaps=documents;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=JQ Json parser
+Exec=/usr/bin/jq
+Terminal=true
+Type=Application
+StartupNotify=false
+Categories=System;
+Icon=terminal
+MimeType=text/json;text/plain

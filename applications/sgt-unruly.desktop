@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Exec=sgt-unruly
+Icon=sgt-unruly
+Type=Application
+Categories=Game;LogicGame;
+Name=Unruly
+Comment=Black and white grid puzzle
+Comment[de]=Schwarz-und-Weiss-Gitter-Puzzle

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=nxplayer
+Icon=nxplayer
+Terminal=false
+Type=Desktop
+Categories=System;
+Name=No Machine NX protocol player

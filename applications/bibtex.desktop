@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=BibTeX
+Icon=bibtex
+Exec=bibtex %F
+MimeType=text/x-tex;application/x-latex;text/x-bibtex;
+Categories=Office;
+LibraryCaps=documents;
