@@ -114,6 +114,7 @@ class FrequentFileEngine(object):
         transactions = []
         for p in inputPaths:
             participantFolder = p.split("/")[-2]
+            tprnt("%s: %s" % (participantFolder, p))
             with open(p, 'r') as f:
                 for line in f:
                     transaction = line.rstrip("\n").split("\t")
@@ -123,7 +124,7 @@ class FrequentFileEngine(object):
 
         # Compute itemsets from transactions.
         tprnt("\nComputing frequent itemsets.")
-        itemsets = frequent_itemsets(transactions, 2)
+        itemsets = frequent_itemsets(transactions, 40)
         tprnt("Done.")
 
         # Functions to sort itemsets.
@@ -183,9 +184,16 @@ class FrequentFileEngine(object):
             return False
 
         # Sort itemsets
+        tprnt("\nSorting frequent itemsets to isolate mime type co-access "
+              "patterns.")
         uniques = []
         patterns = dict()
+        i = 0
         for item in itemsets:
+            i += 1
+            if i % 100 == 0:
+                print ("... %d done." % i)
+
             if _hasPath(item):
                 pass
             elif _uniqueType(item):
@@ -194,6 +202,7 @@ class FrequentFileEngine(object):
                 pass
             elif _multipleTypes(item):
                 patterns[item[0]] = item[1]
+        tprnt("Done.")
         
         # displayPatterns = dict()
         # for p in patterns:
@@ -237,7 +246,6 @@ class FrequentFileEngine(object):
             for matchedTransaction in matches:
                 print("\tApp: %s" % matchedTransaction[0])
                 for transactionElem in sorted(matchedTransaction[1:]):
-                    if transactionElem[0] in ['/', '~', '@']:
-                        print("\t* %s" % transactionElem)
+                    print("\t* %s" % transactionElem)
                 print("")
 
