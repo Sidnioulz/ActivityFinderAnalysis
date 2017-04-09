@@ -13,7 +13,6 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
                      FilenamePolicy, ProtectedFolderPolicy, FFFPolicy
 
-
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
         self.appStore = ApplicationStore.get()
@@ -437,6 +436,9 @@ class TestPolicies(unittest.TestCase):
         accs = f001.getAccesses()
         pol.accessFunc(None, f001, next(accs))
         self.illegal += 1
+        self._assert(pol)
+        pol.accessFunc(None, f001, next(accs))
+        self.owned += 1
         self._assert(pol)
 
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
