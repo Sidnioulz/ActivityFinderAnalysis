@@ -216,10 +216,16 @@ class SqlLoader(object):
                     else:
                         instanceCount -= 1  # We discount this app instance
 
+
+        self.appCount = len(actors)
+        self.instCount = instanceCount
+        self.eventCount = count
+        self.validEventRatio = 100-100*len(nopids) / count)
+
         print("Finished loading DB.\n%d events seen, %d normal, %d without a "
               "PID.\nIn total, %.02f%% events accepted." % (
                count,
                count-len(nopids),
                len(nopids),
-               100-100*len(nopids) / count))
-        print("Instance count: %d" % instanceCount)
+               self.validEventRatio))
+        print("Instance count: %d" % self.instCount)

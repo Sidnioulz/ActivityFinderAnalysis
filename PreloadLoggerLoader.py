@@ -314,6 +314,7 @@ class PreloadLoggerLoader(object):
         instanceCount = 0      # Count of distinct app instances in the dataset
         hasErrors = False      # Whether some uninitialised apps were found
         invalidApps = set()    # List of desktop IDs that could not be init'd
+        eventCount = 0
 
         # List all log files that match the PreloadLogger syntax
         for file in os.listdir(self.path):
@@ -617,6 +618,7 @@ class PreloadLoggerLoader(object):
                                           time=currentCall[0],
                                           syscallStr=currentCall[1])
                             app.addEvent(event)
+                            eventCount += 1
 
                         # Create the new syscalls list.
                         currentCall = (timestamp + timeDelta, h[1])
@@ -653,16 +655,21 @@ class PreloadLoggerLoader(object):
         # for act in sorted(nosyscallactors):
         #     print(act)
 
+        self.appCount = len(actors)
+        self.instCount = count-empties-invalids-len(nosyscalls)
+        self.eventCount = eventCount
+        self.validEventRatio = 100-100*(invalids+empties+len(nosyscalls)) / (count)
+
         print("Finished loading DB.\n%d files seen, %d valid from %d apps, "
               "%d empty files, "
               "%d logs with 0 syscalls from %d apps, "
               "%d invalid.\nIn "
               "total, %.02f%% files processed." % (
                count,
-               count-empties-invalids-len(nosyscalls),
-               len(actors),
+               self.instCount,
+               self.appCount,
                empties,
                len(nosyscalls), len(nosyscallactors),
                invalids,
-               100-100*(invalids+empties+len(nosyscalls)) / (count)))
+               self.validEventRatio))
         print("Instance count: %d" % instanceCount)
