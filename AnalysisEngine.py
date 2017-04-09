@@ -675,7 +675,6 @@ class AnalysisEngine(object):
                                     "without graph optimisation costs",
                                     "nograph")
             print("Done.\n")
-        return
 
         # Get usability scores for all userland apps.
         print("Generating table of usability scores for all userland apps...")
