@@ -64,9 +64,9 @@ class AccessListCache(object):
                     continue
 
                 # Only take user documents.
-                if not f.isUserDocument(userHome=self.userHome,
-                                        allowHiddenFiles=True):
-                    continue
+                # if not f.isUserDocument(userHome=self.userHome,
+                #                         allowHiddenFiles=True):
+                #     continue
 
                 for acc in f.getAccesses():
                     if not acc.actor.isUserlandApp():
@@ -83,3 +83,9 @@ class AccessListCache(object):
             self.cache[name] = (accessListsApp, accessListsInst)
 
         return self.cache[name]
+
+    def getAccessListFromPolicy(self, pol):
+        """Build access list for a given Policy."""
+        return self.getAccessList(pol.name,
+                                  pol.allowedByPolicy, 
+                                  pol.accessAllowedByPolicy)
