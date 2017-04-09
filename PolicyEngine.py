@@ -1,4 +1,5 @@
 """An engine for running algorithms that implement an access control policy."""
+from AccessListCache import AccessListCache
 from File import File, FileAccess, EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
@@ -160,13 +161,15 @@ class PolicyScores(object):
 class Policy(object):
     """Virtual pure parent class for policy algorithms."""
 
+    appPathCache = dict()
+    fileOwnedCache = dict()
+
     def __init__(self,
                  name: str):
         """Construct a Policy."""
         super(Policy, self).__init__()
         self.name = name
         self.userConf = UserConfigLoader.get()
-        self.appPathCache = dict()
         self.clearScores()
 
     def clearScores(self):
@@ -431,9 +434,23 @@ class Policy(object):
                 iScore.overEntitlements[2 if accessed else 3] += 1
             self.perInstanceScores[actor.uid()] = iScore
 
+    def fileOwnedByApp(self, f: File, acc: FileAccess):
+        """Return True if a File is owned by an Application."""
+        decision = False
+
+        if (f, acc) not in Policy.fileOwnedCache:
+            ownedPaths = self.generateOwnedPaths(acc.actor)
+            for (path, evflags) in ownedPaths:
+                if path.match(f.getName()) and acc.allowedByFlagFilter(evflags, f):
+                    decision = True
+
+            Policy.fileOwnedCache[(f, acc)] = decision
+
+        return decision
+
     def generateOwnedPaths(self, actor: Application):
         """Return the paths where an Application can fully write Files."""
-        if actor not in self.appPathCache:
+        if actor not in Policy.appPathCache:
             paths = []
             home = self.userConf.getHomeDir() or "/MISSING-HOME-DIR"
             desk = self.userConf.getSetting("XdgDesktopDir") or "~/Desktop"
@@ -528,9 +545,9 @@ class Policy(object):
                 path = path.replace('~', home)
                 paths.append((re.compile(path), rof))
 
-            self.appPathCache[actor] = paths
+            Policy.appPathCache[actor] = paths
 
-        return self.appPathCache[actor]
+        return Policy.appPathCache[actor]
 
     def _accFunPreCompute(self,
                           f: File,
@@ -579,10 +596,7 @@ class Policy(object):
                 return DESIGNATION_ACCESS
 
             # Some files are allowed because they clearly belong to the app
-            ownedPaths = self.generateOwnedPaths(acc.actor)
-            for (path, evflags) in ownedPaths:
-                if path.match(f.getName()) and \
-                        acc.allowedByFlagFilter(evflags, f):
+            if self.fileOwnedByApp(f, acc):
                     self.incrementScore('ownedPathAccess', f, acc.actor)
                     return OWNED_PATH_ACCESS
 
@@ -609,6 +623,10 @@ class Policy(object):
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         raise NotImplementedError
+
+    def accessAllowedByPolicy(self, f: File, acc: FileAccess):
+        """Tell if a File can be accessed by an Application."""
+        return self._accFunCondDesignation(f, acc, False, None)
 
     def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on DESIGNATION_ACCESS."""
@@ -853,7 +871,6 @@ class Policy(object):
 
     def buildSecurityClusters(self,
                               engine: 'PolicyEngine',
-                              userDocumentsOnly: bool=False,
                               quiet: bool=False):
         """Build clusters of files with information flows to one another."""
         # First, build clusters of files co-accessed by every single app.
@@ -868,16 +885,15 @@ class Policy(object):
                 continue
 
             # Only take user documents if asked to.
-            if userDocumentsOnly and not \
-                    f.isUserDocument(userHome=userHome, allowHiddenFiles=True):
+            if not f.isUserDocument(userHome=userHome, allowHiddenFiles=True):
                 continue
 
             for acc in f.getAccesses():
                 if not acc.actor.isUserlandApp():
                     continue
 
-                policyAllowed = self.allowedByPolicy(f, acc.actor)
-                if policyAllowed or acc.isByDesignation():
+                if self.allowedByPolicy(f, acc.actor) or \
+                        self.accessAllowedByPolicy(f, acc):
                     instanceLabel = "App - %s - Instance %s.score" % (
                                      acc.actor.desktopid,
                                      acc.actor.uid())
@@ -888,16 +904,14 @@ class Policy(object):
                     l.add(f)
                     accessListsInst[instanceLabel] = l
 
-        links = FileFactory.get().getFileLinks()
-        fileStore = FileStore.get()
-        accessListsLinks = list()
-        for (pred, follow) in links.items():
-            predFile = fileStore.getFile(pred.inode)
-            followFile = fileStore.getFile(follow)
-            pair = set()
-            pair.add(predFile)
-            pair.add(followFile)
-            accessListsLinks.append(pair)
+
+        alCache = AccessListCache.get()
+        # TODO: translate labels to make use of cache...
+        # (accessListsApp, accessListsInst) = \
+        #     alCache.getAccessList(self.name,
+        #                           self.allowedByPolicy,
+        #                           self.accessAllowedByPolicy)
+        accessListsLinks = alCache.getLinkList()
 
         # Then, merge clusters that share an item.
         def _clusters(accessLists, links):
@@ -959,10 +973,8 @@ class Policy(object):
                     if not (currentPct % 5) and not quiet:
                         print("\t\t... (%d%% done)" % currentPct)
 
-                policyAllowed = self.allowedByPolicy(f, app)
-
                 # File allowed by the policy
-                if policyAllowed:
+                if self.allowedByPolicy(f, app):
                     wasAllowed = True
                     allowedApps.append(app)
                     self.incrementOverEntitlement(f, app, False, uDoc)
@@ -987,7 +999,6 @@ class Policy(object):
             print("\tBuilding security clusters...")
         (self.clusters, self.clustersInst, self.accessLists) = \
             self.buildSecurityClusters(engine,
-                                       userDocumentsOnly=True,
                                        quiet=quiet)
 
         # Calculate exclusion list violations in clusters and apps.

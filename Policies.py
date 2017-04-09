@@ -297,8 +297,7 @@ class OneFolderPolicy(FolderPolicy):
                                composed: bool,
                                data):
         """Calculate condition for DESIGNATION_ACCESS to be returned."""
-        return not self.appHasFolderCached(acc.actor) and \
-            (acc.evflags & EventFileFlags.designation)
+        return acc.isByDesignation() and not self.appHasFolderCached(acc.actor)
 
     def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Add the file's folder to the correct folder cache."""
