@@ -45,6 +45,10 @@ class ApplicationStore(object):
             for app in self.pidStore[pid]:
                 yield app
 
+    def getAppCount(self):
+        """Return the number of desktop ids in the ApplicationStore."""
+        return len(self.nameStore)
+
     def clear(self):
         """Empty the ApplicationStore."""
         self.pidStore = dict()   # type: dict

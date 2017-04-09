@@ -202,6 +202,11 @@ def main(argv):
         tprnt("Checking for missing application identities...")
         sql.listMissingActors()
     sql.loadDb(store)
+    # TODO write to file
+    sqlAppCount = sql.getAppCount()
+    sqlInstCount = sql.getInstCount()
+    SqlEvCount = sql.getEventCount()
+    SqlValidEvCount = sql.getValidEventCount()
     tprnt("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
@@ -211,6 +216,11 @@ def main(argv):
         tprnt("Checking for missing application identities...")
         pll.listMissingActors()
     pll.loadDb(store)
+    # TODO write to file
+    pllAppCount = pll.getAppCount()
+    pllInstCount = pll.getInstCount()
+    pllEvCount = pll.getEventCount()
+    pllValidEvCount = pll.getValidEventCount()
     tprnt("Loaded the PreloadLogger logs.")
 
     # Resolve actor ids in all apps' events
@@ -226,7 +236,9 @@ def main(argv):
     tprnt("\nInserting and sorting all events...")
     store.sendEventsToStore()
     evStore.sort()
-    tprnt("Sorted all %d events in the event store." % evStore.getEventCount())
+    # TODO write to file
+    evCount = evStore.getEventCount()
+    tprnt("Sorted all %d events in the event store." % evCount)
 
     # Simulate the events to build a file model
     tprnt("\nSimulating all events to build a file model...")
@@ -235,6 +247,11 @@ def main(argv):
     del pll
     evStore.sort()
     tprnt("Simulated all events. %d files initialised." % len(fileStore))
+
+    # TODO write to file
+    appCount = store.getAppCount()
+    instCount = len(store)
+    fileCount = len(fileStore)
     
     if printExtensions():
         exts = set()
