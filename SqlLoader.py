@@ -161,6 +161,7 @@ class SqlLoader(object):
         eventsPerPid = dict()  # Storage for our events
         count = len(eventsMerged)  # Counter of fetched events, for stats
         instanceCount = 0      # Count of distinct app instances in the dataset
+        actors = set()
 
         for event in eventsMerged.items():
             pid = event[1].pid
@@ -192,6 +193,7 @@ class SqlLoader(object):
                                              pid=int(pkey),
                                              tstart=ev.timestamp,
                                              tend=ev.timestamp)
+                    actors.add(currentApp.desktopid)
                     apps.append(currentApp)
                 else:
                     currentApp.setTimeOfStart(min(ev.timestamp,

@@ -203,10 +203,10 @@ def main(argv):
         sql.listMissingActors()
     sql.loadDb(store)
     # TODO write to file
-    sqlAppCount = sql.getAppCount()
-    sqlInstCount = sql.getInstCount()
-    SqlEvCount = sql.getEventCount()
-    SqlValidEvCount = sql.getValidEventCount()
+    sqlAppCount = sql.appCount
+    sqlInstCount = sql.instCount
+    sqlEvCount = sql.eventCount
+    sqlValidEventRatio = sql.validEventRatio
     tprnt("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
@@ -217,10 +217,10 @@ def main(argv):
         pll.listMissingActors()
     pll.loadDb(store)
     # TODO write to file
-    pllAppCount = pll.getAppCount()
-    pllInstCount = pll.getInstCount()
-    pllEvCount = pll.getEventCount()
-    pllValidEvCount = pll.getValidEventCount()
+    pllAppCount = pll.appCount
+    pllInstCount = pll.instCount
+    pllEvCount = pll.eventCount
+    pllValidEvCount = pll.validEventRatio
     tprnt("Loaded the PreloadLogger logs.")
 
     # Resolve actor ids in all apps' events
