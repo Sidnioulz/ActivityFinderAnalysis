@@ -115,7 +115,7 @@ class TestSimulator(unittest.TestCase):
     def test_attack_memory(self):
         pol = UnsecurePolicy()
 
-        attack = Attack(1999, self.a1)
+        attack = Attack(time=1999, source=self.a1)
         counts = self.sim._runAttackRound(attack, pol)
         self.assertEqual(counts, (2, 3))
 
@@ -129,12 +129,12 @@ class TestSimulator(unittest.TestCase):
         pol = UnsecurePolicy()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
-        attack = Attack(11, f001)
+        attack = Attack(time=11, source=f001)
         counts = self.sim._runAttackRound(attack, pol)
         self.assertEqual(counts, (0, 1))
         
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
-        attack = Attack(10, f001)
+        attack = Attack(time=10, source=f001)
         counts = self.sim._runAttackRound(attack, pol)
         self.assertEqual(counts, (1, 1))
         FileFactory.reset()
@@ -143,15 +143,20 @@ class TestSimulator(unittest.TestCase):
         pol = OneFolderPolicy()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
-        attack = Attack(11, f001)
+        attack = Attack(time=11, source=f001)
         counts = self.sim._runAttackRound(attack, pol)
         self.assertEqual(counts, (0, 1))
         
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
-        attack = Attack(10, f001)
+        attack = Attack(time=10, source=f001)
         counts = self.sim._runAttackRound(attack, pol)
         self.assertEqual(counts, (1, 1))
 
+        FileFactory.reset()
+
+    def test_run_attacks(self):
+        pol = OneFolderPolicy()
+        self.sim.runAttacks(policy=pol, outputDir="/tmp")
         FileFactory.reset()
 
     def tearDown(self):

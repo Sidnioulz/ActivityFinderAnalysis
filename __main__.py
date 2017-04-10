@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from ApplicationStore import ApplicationStore
+from AttackSimulator import AttackSimulator
 from Event import dbgPrintExcludedEvents
 from EventStore import EventStore
 from FileStore import FileStore
@@ -33,7 +34,7 @@ import mimetypes
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
                '--check-missing --score\n\t\t--skip=<Policy,Policy,\'graphs' \
                '\'> --clusters --graph --extensions\n\t\t--disable-plotting ' \
-               '--output=<DIR> --debug] ' \
+               '--attacks --output=<DIR> --debug] ' \
                '\n\nor:     __main__.py --inode=<INODE> [--user=<NAME> ' \
                '--debug]' \
                '\n\nor:     __main__.py --post-analysis=<DIR,DIR,DIR> ' \
@@ -46,11 +47,13 @@ USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
 def main(argv):
     __opt_inode_query = None
     __opt_post_analysis = None
+    __opt_attack = False
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "ha:cedf:skrpgGi:u:x",
+        (opts, args) = getopt.getopt(argv, "hta:cedf:skrpgGi:u:x",
                                      ["help",
+                                      "attacks",
                                       "post-analysis=",
                                       "check-missing",
                                       "check-excluded-files",
@@ -75,6 +78,8 @@ def main(argv):
             if opt in ('-h', '--help'):
                 print(USAGE_STRING + "\n\n\n\n")
 
+                print("--attacks:\n\tSimulates attacks and reports "
+                      "on proportions of infected files and apps.\n")
                 print("--check-excluded-files:\n\tPrints the lists of files "
                       "accessed by apps that also wrote to excluded\n\tfiles,"
                       " then aborts execution of the program.\n")
@@ -127,6 +132,8 @@ def main(argv):
                 __setPrintClusters(True)
             elif opt in ('-g', '--graph-clusters', '--graph'):
                 __setGraph(True)
+            elif opt in ('-t', '--attacks'):
+                __opt_attack = True
             elif opt in ('-G', '--disable-plotting'):
                 __setPlottingDisabled(True)
             elif opt in ('-f', '--output-fs', '--output'):
@@ -351,6 +358,11 @@ def main(argv):
 
             if pol.name == "FileTypePolicy" and checkMissingEnabled():
                 pol.abortIfUnsupportedExtensions()
+
+            if __opt_attack:
+                tprnt("Simulating attacks on %s..." % pol.name)
+                sim = AttackSimulator(seed=0)
+                sim.runAttacks(pol, outputDir=outputFsEnabled() or "/tmp/")
 
             del pol
 
