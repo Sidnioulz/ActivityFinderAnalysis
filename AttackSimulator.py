@@ -65,7 +65,7 @@ class AttackSimulator(object):
 
         # As long as there are reachable targets, loop.
         while toSpread:
-            current = toSpread.pop()
+            current = toSpread.popleft()
             currentTime = spreadTimes[current]
 
             # When the attack spreads to a File.
@@ -78,12 +78,14 @@ class AttackSimulator(object):
                 for f in current.follow:
                     if f.time > currentTime:
                         follower = fileStore.getFile(f.inode)
-                        toSpread.append(follower)
-                        spreadTimes[follower] = f.time
+                        if follower not in seen:
+                            toSpread.append(follower)
+                            spreadTimes[follower] = f.time
 
                 # Add future accesses.
                 for acc in current.accesses:
                     if acc.time > currentTime and \
+                            acc.actor not in seen and \
                             (policy.accessAllowedByPolicy(current, acc) or
                              policy.fileOwnedByApp(current, acc) or
                              policy.allowedByPolicy(current, acc.actor)):
@@ -100,6 +102,7 @@ class AttackSimulator(object):
                 for accFile in acListInst.get(current.uid()) or []:
                     for acc in accFile.accesses:
                         if acc.actor == current and \
+                                acc.actor not in seen and \
                                 (policy.accessAllowedByPolicy(accFile, acc) or
                                  policy.fileOwnedByApp(accFile, acc) or
                                  policy.allowedByPolicy(accFile, current)) \
@@ -110,7 +113,7 @@ class AttackSimulator(object):
                 # Add future versions of the app.
                 if attack.appMemory:
                       for app in appStore.lookupDesktopId(current.desktopid):
-                          if app.tstart > currentTime:
+                          if app.tstart > currentTime and app not in seen:
                                   toSpread.append(app)
                                   spreadTimes[app] = app.tstart
 
@@ -139,13 +142,17 @@ class AttackSimulator(object):
 
         # Case where an app is at the origin of an attack.
         if startingApps:
-            msg += ("Simulating attack starting from an app among %s.\n" %
-                    startingApps)
-            tprnt("Simulating '%s' attack starting from an app among %s." %
-                  (attackName, startingApps))
+            consideredApps = []
             for did in startingApps:
-                for app in appStore.lookupDesktopId(did):
+                apps = appStore.lookupDesktopId(did)
+                for app in apps:
                     startingPoints.append(app)
+                if apps:
+                    consideredApps.append(did)
+            msg += ("Simulating attack starting from an app among %s.\n" %
+                    consideredApps)
+            tprnt("Simulating '%s' attack starting from an app among %s." %
+                  (attackName, consideredApps))
 
             if not startingPoints:
                 tprnt("No such app found, aborting attack simulation.")
@@ -165,10 +172,11 @@ class AttackSimulator(object):
             user = userConf.getSetting("Username") or "user"
             host = userConf.getSetting("Hostname") or "localhost"
             filePattern = filePattern.replace('@XDG_DESKTOP_DIR@', desk)
-            filePattern = filePattern.replace('@XDG_DOWNLOADS_DIR@', desk)
+            filePattern = filePattern.replace('@XDG_DOWNLOADS_DIR@', down)
             filePattern = filePattern.replace('@USER@', user)
             filePattern = filePattern.replace('@HOSTNAME@', host)
             filePattern = filePattern.replace('~', home)
+            tprnt("\tfinal pattern: %s." % filePattern)
             fileRe = re.compile(filePattern)
 
             for f in fileStore:
@@ -194,21 +202,24 @@ class AttackSimulator(object):
         for i in range(0, AttackSimulator.passCount):
             source = startingPoints[random.randrange(0, len(startingPoints))]
             # Files corrupt from the start, apps become corrupt randomly.
-            time = source.tstart if isinstance(source, File) else \
-                random.randrange(source.tstart, source.tend)
+            try:
+                time = source.tstart if isinstance(source, File) else \
+                    random.randrange(source.tstart, source.tend)
+            except(ValueError):  # occurs when tstart == tend
+                time = source.tstart
             attack = Attack(source=source, time=time, appMem=True)
-            print(attack.source)
-            (appCount, fileCount) = self._runAttackRound(attack, policy)
-            
-            msg += ("Pass %d:\tattack on %s at time %s %s app memory.\n"
-                    "        \t%d apps infected; %d files infected.\n\n" %
+
+            msg += ("Pass %d:\tattack on %s at time %s %s app memory.\n" %
                     (i + 1,
                      attack.source if isinstance(attack.source, File) else
                      attack.source.uid(),
                      time2Str(attack.time),
-                     "with" if attack.appMemory else "without",
-                     appCount,
-                     fileCount))
+                     "with" if attack.appMemory else "without"))
+
+            (appCount, fileCount) = self._runAttackRound(attack, policy)
+
+            msg += ("        \t%d apps infected; %d files infected.\n\n" %
+                    (appCount, fileCount))
             tprnt("Pass %d: %d apps infected; %d files infected" % (i+1,
                                                                     appCount,
                                                                     fileCount))
@@ -231,10 +242,10 @@ class AttackSimulator(object):
         avgFiles = sum(files) / len(files)
         avgApps = sum(apps) / len(apps)
 
-        minIdx = min(sums)
+        minIdx = sums.index(min(sums))
         minFiles = files[minIdx]
         minApps = apps[minIdx]
-        maxIdx = max(sums)
+        maxIdx = sums.index(max(sums))
         maxFiles = files[maxIdx]
         maxApps = apps[maxIdx]
 
@@ -258,22 +269,90 @@ class AttackSimulator(object):
 
         msg = ""
 
-        # Downloaded virus in movie via torrent app.
-        msg += self.performAttack(policy,
-                                  "virus-photo",
-                                  filePattern="^.*?\.jpg$")
-        
-        # Downloaded virus in movie via torrent app.
+        # Used for testing.
+        # msg += self.performAttack(policy,
+        #                           "virus-photo",
+        #                           filePattern="^.*?\.jpg$")
+
+        # p6 downloaded a fake movie that contained a virus, through a Torrent
+        # app. We test virus-containing movies, and corrupted torrent apps.
+        movies = "^.*?@XDG_DOWNLOADS_DIR@.*?\.(mov|flv|avi|wav|mp4|qt|asf|" \
+                 "swf|mpg|wmv|h264|webm|mkv|3gp|mpg4)$"
         msg += self.performAttack(policy,
                                   "torrent-virus-movie",
-                                  filePattern="^.*?\.(mov|flv|avi|wav|mp4|qt|asf|swf|mpg|wmv|h264|webm|mkv|3gp|mpg4)$")
+                                  filePattern=movies)
+        torrents = ["qbittorrent", "transmission-gtk"]
+        msg += self.performAttack(policy,
+                                  "torrent-virus-app",
+                                  startingApps=torrents)
 
-        # TODO
-        msg += self.performAttack(policy, "NAME HERE", filePattern="/tmp/.*")
-        
-        # TODO
-        msg += self.performAttack(policy, "NAME HERE", filePattern="/tmp/.*")
+        # Used a bogus document editor: P7 downloaded apps to unencrypt an
+        # office document sent by a teacher, and ran a bogus app.
+        docs = ["abiword", "gnumeric", "libreoffice4.2-calc",
+                "libreoffice4.2-draw", "libreoffice4.2-impress",
+                "libreoffice4.2-writer", "libreoffice4.2-xsltfilter",
+                "libreoffice-base", "libreoffice-calc", "libreoffice",
+                "libreoffice-draw", "libreoffice-impress", "libreoffice-math",
+                "libreoffice-startcenter", "libreoffice-writer",
+                "libreoffice-xsltfilter", "oosplash", "soffice.bin", "soffice"]
+        msg += self.performAttack(policy,
+                                  "bogus-document-editor",
+                                  startingApps=docs)
 
+        # p9 occasionally wanting to run application) but will not do so
+        # if not understanding them and not trusting source. Test apps with
+        # binary files outside write-protected standard locations, and obtained
+        # from outside app stores.
+        wildApps = ["telegram", "android", "ruby", "eclipse", "python",
+                    "cargo", "dropbox", "wine", "skype"]
+        msg += self.performAttack(policy,
+                                  "non-standard-apps",
+                                  startingApps=wildApps)
+
+        # p4 forum story about being worried when he runs games downloaded
+        # illegally. Wine, games and emulator invocations.
+        emus = ["dolphin-emu", "fceux", "PCSX2", "pcsx", "playonlinux",
+                "ppsspp", "steam", "wine"]
+        msg += self.performAttack(policy,
+                                  "game-emulators",
+                                  startingApps=emus)
+
+        # p12 ransomware scenario: take any connected app at random.
+        conn = ["acroread", "addatude", "banshee", "bash", "brackets", "bvnc",
+                "cairo-dock", "calibre", "cargo", "chrome", "chromium-browser",
+                "chromium", "collect2", "conky", "dolphin-emu", "eclipse",
+                "emacs24", "empathy", "evince", "evolution", "exaile",
+                "filezilla", "firefox", "fzsftp", "gigolo", "git",
+                "gmusicbrowser", "gradle", "hexchat", "hg", "iceweasel",
+                "intellij", "irssi", "keepassx2", "keepassx", "kodi",
+                "libreoffice", "livestreamer", "mathematica", "midori",
+                "mps-youtube", "mumble", "mysql", "mysql-workbench",
+                "nxclient", "nxplayer", "nxproxy", "octave", "okular",
+                "eclipse", "pcsx2", "pcsx", "pidgin", "playonlinux",
+                "popcorn-time", "ppsspp", "pragha", "qbittorrent", "rhythmbox",
+                "shutter", "skype", "soffice", "spotify", "staruml", "steam",
+                "svn", "teamspeak3", "teamviewer", "telegram", "thunderbird",
+                "torbrowser", "totem", "transmission-gtk", "vlc",
+                "webbrowser-app", "weechat", "wget", "wine", "xchat",
+                "youtube-dl", "zotero"]
+        msg += self.performAttack(policy,
+                                  "ransomware-internet-exploit",
+                                  startingApps=conn)
+
+        # p12 ransomware file scenario: take any Downloaded file at random.
+        dls = "^.*?@XDG_DOWNLOADS_DIR@.*?$"
+        msg += self.performAttack(policy,
+                                  "ransomware-downloaded-file",
+                                  filePattern=dls)
+
+        # p2 : permanent compromise of browser via browser plugins.
+        browsers = ["chromium", "firefox", "midori", "torbrowser",
+                    "webbrowser-app"]
+        msg += self.performAttack(policy,
+                                  "browser-extensions",
+                                  filePattern=browsers)
+
+        # Save attack results.
         path = outputDir + "/attacks.out"
         os.makedirs(File.getParentNameFromName(path), exist_ok=True)
         with open(path, "w") as f:
