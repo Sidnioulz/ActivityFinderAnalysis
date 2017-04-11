@@ -44,6 +44,7 @@ class AttackSimulator(object):
         fileStore = FileStore.get()
         appStore = ApplicationStore.get()
         (acListApp, acListInst) = acCache.getAccessListFromPolicy(policy)
+        del acListApp
 
         seen = set()  # Already seen targets.
         spreadTimes = dict()  # Times from which the attack can spread.
@@ -53,7 +54,7 @@ class AttackSimulator(object):
         spreadTimes[attack.source] = attack.time
 
         # Statistics counters.
-        appCount = 0
+        appSet = set()
         fileCount = 0
 
         if debugEnabled():
@@ -94,7 +95,7 @@ class AttackSimulator(object):
 
             # When the attack spreads to an app instance.
             elif isinstance(current, Application):
-                appCount += 1
+                appSet.add(current.desktopid)
                 if debugEnabled():
                     tprnt("App added @%d: %s" % (currentTime, current.uid()))
 
@@ -123,7 +124,7 @@ class AttackSimulator(object):
             
             seen.add(current)
             
-        return (appCount, fileCount)
+        return (appSet, fileCount)
     
     
     def performAttack(self,
@@ -216,10 +217,11 @@ class AttackSimulator(object):
                      time2Str(attack.time),
                      "with" if attack.appMemory else "without"))
 
-            (appCount, fileCount) = self._runAttackRound(attack, policy)
+            (appSet, fileCount) = self._runAttackRound(attack, policy)
+            appCount = len(appSet)
 
-            msg += ("        \t%d apps infected; %d files infected.\n\n" %
-                    (appCount, fileCount))
+            msg += ("        \t%d apps infected (%s); %d files infected.\n\n" %
+                    (appCount, appSet, fileCount))
             tprnt("Pass %d: %d apps infected; %d files infected" % (i+1,
                                                                     appCount,
                                                                     fileCount))
