@@ -9,7 +9,7 @@ from UserConfigLoader import UserConfigLoader
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, OWNED_PATH_ACCESS, \
                       ILLEGAL_ACCESS
 from utils import debugEnabled, graphEnabled, hasIntersection, pyre, \
-                  printClustersEnabled
+                  printClustersEnabled, scoreEnabled
 from blist import sortedlist
 import os
 import statistics
@@ -1100,6 +1100,11 @@ class PolicyEngine(object):
             print("Carrying config costs over to app instances...")
         if policy.globalConfigCost():
             policy.configCostCarryover()
+
+        # We were only running the access function to prepare for attack
+        # simulation (which requires allowedByPolicy to be initialised).
+        if not scoreEnabled():
+            return
 
         # And security scores of each app
         if not quiet:

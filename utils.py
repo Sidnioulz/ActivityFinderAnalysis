@@ -23,6 +23,13 @@ __opt_graph = False
 __opt_plotting_disabled = False
 __opt_clusters = False
 __opt_user = None
+__opt_attack = False
+
+
+def __setAttacks(opt):
+    """Set the return value of :AttacksEnabled():."""
+    global __opt_attack
+    __opt_attack = opt
 
 
 def __setCheckMissing(opt):
@@ -96,6 +103,12 @@ def __setUser(opt):
     """Set the return value of :userEnabled():."""
     global __opt_user
     __opt_user = opt
+
+
+def attacksEnabled():
+    """Return True if the --attacks flag was passed, False otherwise."""
+    global __opt_attack
+    return __opt_attack
 
 
 def checkMissingEnabled():

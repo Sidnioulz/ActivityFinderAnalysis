@@ -19,13 +19,13 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FFFSbPolicy, OneFFFSbPolicy
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
-                  __setRelatedFiles, __setScore, __setGraph, \
+                  __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
                   __setPrintClusters, __setUser, __setCheckExcludedFiles, \
                   __setPlottingDisabled, __setSkip, __setPrintExtensions, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
                   printClustersEnabled, checkExcludedFilesEnabled, \
-                  skipEnabled, printExtensions, \
+                  skipEnabled, attacksEnabled, printExtensions, \
                   initMimeTypes, getDataPath, registerTimePrint, tprnt
 import getopt
 import sys
@@ -47,7 +47,6 @@ USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
 def main(argv):
     __opt_inode_query = None
     __opt_post_analysis = None
-    __opt_attack = False
 
     # Parse command-line parameters
     try:
@@ -133,7 +132,7 @@ def main(argv):
             elif opt in ('-g', '--graph-clusters', '--graph'):
                 __setGraph(True)
             elif opt in ('-t', '--attacks'):
-                __opt_attack = True
+                __setAttacks(True)
             elif opt in ('-G', '--disable-plotting'):
                 __setPlottingDisabled(True)
             elif opt in ('-f', '--output-fs', '--output'):
@@ -317,7 +316,7 @@ def main(argv):
             engine.runGraph(policy=None)
 
     # Policy engine. Create a policy and run a simulation to score it.
-    if scoreEnabled():
+    if scoreEnabled() or attacksEnabled():
         engine = PolicyEngine()
 
         # policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
@@ -359,7 +358,7 @@ def main(argv):
             if pol.name == "FileTypePolicy" and checkMissingEnabled():
                 pol.abortIfUnsupportedExtensions()
 
-            if __opt_attack:
+            if attacksEnabled():
                 tprnt("Simulating attacks on %s..." % pol.name)
                 sim = AttackSimulator(seed=0)
                 sim.runAttacks(pol, outputDir=outputFsEnabled() or "/tmp/")
