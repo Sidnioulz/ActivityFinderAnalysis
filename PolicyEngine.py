@@ -446,7 +446,7 @@ class Policy(object):
 
             Policy.fileOwnedCache[(f, acc)] = decision
 
-        return decision
+        return Policy.fileOwnedCache[(f, acc)]
 
     def generateOwnedPaths(self, actor: Application):
         """Return the paths where an Application can fully write Files."""
