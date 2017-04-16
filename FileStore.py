@@ -205,6 +205,14 @@ class FileStore(object):
                                 os.utime(outpath+"/.ucl-metadata", None)
                                 last.writeStatistics(f)
 
+    def getUserDocumentCount(self, userHome: str):
+        """Return the number of user documents in the FileStore."""
+        count = 0
+        for f in self:
+            if f.isUserDocument(userHome):
+                count += 1
+        return count
+
     def getFilesForName(self, name: str):
         """Return all Files that have the given name as a path."""
         try:

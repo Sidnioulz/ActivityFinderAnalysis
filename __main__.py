@@ -29,6 +29,7 @@ from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   initMimeTypes, getDataPath, registerTimePrint, tprnt
 import getopt
 import sys
+import os
 import mimetypes
 
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
@@ -208,11 +209,10 @@ def main(argv):
         tprnt("Checking for missing application identities...")
         sql.listMissingActors()
     sql.loadDb(store)
-    # TODO write to file
     sqlAppCount = sql.appCount
     sqlInstCount = sql.instCount
     sqlEvCount = sql.eventCount
-    sqlValidEventRatio = sql.validEventRatio
+    sqlValidEvCount = sql.validEventRatio
     tprnt("Loaded the SQLite database.")
 
     # Load up the PreloadLogger file parser
@@ -222,7 +222,6 @@ def main(argv):
         tprnt("Checking for missing application identities...")
         pll.listMissingActors()
     pll.loadDb(store)
-    # TODO write to file
     pllAppCount = pll.appCount
     pllInstCount = pll.instCount
     pllEvCount = pll.eventCount
@@ -242,7 +241,6 @@ def main(argv):
     tprnt("\nInserting and sorting all events...")
     store.sendEventsToStore()
     evStore.sort()
-    # TODO write to file
     evCount = evStore.getEventCount()
     tprnt("Sorted all %d events in the event store." % evCount)
 
@@ -254,10 +252,10 @@ def main(argv):
     evStore.sort()
     tprnt("Simulated all events. %d files initialised." % len(fileStore))
 
-    # TODO write to file
     appCount = store.getAppCount()
     instCount = len(store)
     fileCount = len(fileStore)
+    docCount = fileStore.getUserDocumentCount(userConf.getSetting("HomeDir"))
     
     if printExtensions():
         exts = set()
@@ -305,6 +303,17 @@ def main(argv):
                             showDocumentsOnly=False,
                             userHome=userConf.getSetting("HomeDir"),
                             showDesignatedOnly=False)
+
+        with open(os.path.join(outputFsEnabled(), "statistics.txt"), "w") as f:
+            msg = "SQL: %d apps; %d instances; %d events; %d%% valid\n" % \
+                  (sqlAppCount, sqlInstCount, sqlEvCount, sqlValidEvCount)
+            msg += "PreloadLogger: %d apps; %d instances; %d events; " \
+                   "%d%% valid\n" % \
+                  (pllAppCount, pllInstCount, pllEvCount, pllValidEvCount)
+            msg += "Simulated: %d apps; %d instances; %d events; %d files" \
+                   "; %d user documents\n" % \
+                  (appCount, instCount, evCount, fileCount, docCount)
+            print(msg, file=f)
 
     # Build a general access graph.
     if graphEnabled():
