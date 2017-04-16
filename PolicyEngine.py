@@ -906,11 +906,6 @@ class Policy(object):
 
 
         alCache = AccessListCache.get()
-        # TODO: translate labels to make use of cache...
-        # (accessListsApp, accessListsInst) = \
-        #     alCache.getAccessList(self.name,
-        #                           self.allowedByPolicy,
-        #                           self.accessAllowedByPolicy)
         accessListsLinks = alCache.getLinkList()
 
         # Then, merge clusters that share an item.

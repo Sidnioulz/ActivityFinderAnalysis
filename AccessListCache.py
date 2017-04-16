@@ -55,7 +55,6 @@ class AccessListCache(object):
         """Build access list for a given allowed function and name."""
         if not name in self.cache:
             fileStore = FileStore.get()
-            accessListsApp = dict()
             accessListsInst = dict()
 
             for f in fileStore:
@@ -73,14 +72,11 @@ class AccessListCache(object):
                         continue
 
                     if allowedFn(f, acc.actor) or accessAllowedFn(f, acc):
-                        l = accessListsApp.get(acc.actor.desktopid) or set()
-                        l.add(f)
-                        accessListsApp[acc.actor.desktopid] = l
                         l = accessListsInst.get(acc.actor.uid()) or set()
-                        l.add(f)
+                        l.add((f, acc))
                         accessListsInst[acc.actor.uid()] = l
 
-            self.cache[name] = (accessListsApp, accessListsInst)
+            self.cache[name] = accessListsInst
 
         return self.cache[name]
 

@@ -29,22 +29,25 @@ class Attack(object):
 class AttackSimulator(object):
     """An attack simulator that estimates the propagation of malware."""
 
-    passCount = 100
+    passCount = 10  # FIXME 100
 
     def __init__(self, seed: int=0):
         """Construct an AttackSimulator."""
         super(AttackSimulator, self).__init__()
         random.seed(a=seed)
 
+    @profile
     def _runAttackRound(self,
                         attack: Attack,
-                        policy: Policy):
+                        policy: Policy,
+                        acListInst: dict,
+                        lookUps: dict,
+                        allowedCache: dict):
         """Run an attack round with a set source and time."""
-        acCache = AccessListCache.get()
         fileStore = FileStore.get()
         appStore = ApplicationStore.get()
-        (acListApp, acListInst) = acCache.getAccessListFromPolicy(policy)
-        del acListApp
+        userConf = UserConfigLoader.get()
+        userHome = userConf.getHomeDir()
 
         seen = set()  # Already seen targets.
         spreadTimes = dict()  # Times from which the attack can spread.
@@ -56,6 +59,7 @@ class AttackSimulator(object):
         # Statistics counters.
         appSet = set()
         fileCount = 0
+        docCount = 0
 
         if debugEnabled():
             tprnt("Launching attack on %s at time %s %s app memory." %
@@ -63,6 +67,17 @@ class AttackSimulator(object):
                    attack.source.uid(),
                    time2Str(attack.time),
                    "with" if attack.appMemory else "without"))
+
+        def _allowed(policy, f, acc):
+            k = (policy, f, acc)
+            if k not in allowedCache:
+                v  =  (policy.fileOwnedByApp(f, acc) or
+                       policy.allowedByPolicy(f, acc.actor) or
+                       policy.accessAllowedByPolicy(f, acc))
+                allowedCache[k] = v
+                return v
+            else:
+                return allowedCache[k]
 
         # As long as there are reachable targets, loop.
         while toSpread:
@@ -72,6 +87,8 @@ class AttackSimulator(object):
             # When the attack spreads to a File.
             if isinstance(current, File):
                 fileCount += 1
+                if current.isUserDocument(userHome):
+                    docCount += 1
                 if debugEnabled():
                     tprnt("File added @%d: %s" % (currentTime, current))
 
@@ -86,54 +103,55 @@ class AttackSimulator(object):
                 # Add future accesses.
                 for acc in current.accesses:
                     if acc.time > currentTime and \
-                            acc.actor not in seen and \
-                            (policy.accessAllowedByPolicy(current, acc) or
-                             policy.fileOwnedByApp(current, acc) or
-                             policy.allowedByPolicy(current, acc.actor)):
+                            acc.actor.desktopid not in appSet and \
+                            _allowed(policy, current, acc):
                         toSpread.append(acc.actor)
                         spreadTimes[acc.actor] = acc.time
 
+                seen.add(current)
+
             # When the attack spreads to an app instance.
             elif isinstance(current, Application):
-                appSet.add(current.desktopid)
                 if debugEnabled():
                     tprnt("App added @%d: %s" % (currentTime, current.uid()))
 
                 # Add files accessed by the app.
-                for accFile in acListInst.get(current.uid()) or []:
-                    for acc in accFile.accesses:
-                        if acc.actor == current and \
-                                acc.actor not in seen and \
-                                (policy.accessAllowedByPolicy(accFile, acc) or
-                                 policy.fileOwnedByApp(accFile, acc) or
-                                 policy.allowedByPolicy(accFile, current)) \
-                                 and acc.time > currentTime:
-                            toSpread.append(accFile)
-                            spreadTimes[accFile] = acc.time
+                for (accFile, acc) in acListInst.get(current.uid()) or []:
+                    if acc.time > currentTime and \
+                            accFile not in seen and \
+                            _allowed(policy, accFile, acc):
+                        toSpread.append(accFile)
+                        spreadTimes[accFile] = acc.time
 
                 # Add future versions of the app.
-                if attack.appMemory:
+                if attack.appMemory and current.desktopid not in appSet:
                       for app in appStore.lookupDesktopId(current.desktopid):
-                          if app.tstart > currentTime and app not in seen:
+                          if app.tstart > currentTime:
                                   toSpread.append(app)
                                   spreadTimes[app] = app.tstart
+
+                # We do this last to use appSet as a cache for already seen
+                # apps, so we append all future instances once and for all to
+                # the spread list.
+                appSet.add(current.desktopid)
 
             else:
                 print("Error: attack simulator attempting to parse an unknown"
                       " object (%s)" % type(current), file=sys.stderr)
-            
-            seen.add(current)
-            
-        return (appSet, fileCount)
-    
+
+        return (appSet, fileCount, docCount)
     
     def performAttack(self,
                       policy: Policy,
+                      acListInst: dict,
+                      lookUps: dict,
+                      allowedCache: dict,
                       attackName: str="none",
                       startingApps: list=[],
                       filePattern: str=None):
         fileStore = FileStore.get()
         appStore = ApplicationStore.get()
+        userConf = UserConfigLoader.get()
 
         msg = "\n\n## Performing attack '%s'\n" % attackName
         
@@ -146,9 +164,8 @@ class AttackSimulator(object):
             consideredApps = []
             for did in startingApps:
                 apps = appStore.lookupDesktopId(did)
-                for app in apps:
-                    startingPoints.append(app)
                 if apps:
+                    startingPoints.extend(apps)
                     consideredApps.append(did)
             msg += ("Simulating attack starting from an app among %s.\n" %
                     consideredApps)
@@ -166,7 +183,6 @@ class AttackSimulator(object):
             tprnt("Simulating '%s' attack starting from a file matching %s." % 
                   (attackName, filePattern))
 
-            userConf = UserConfigLoader.get()
             home = userConf.getHomeDir() or "/MISSING-HOME-DIR"
             desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
             down = userConf.getSetting("XdgDownloadsDir") or "~/Downloads"
@@ -199,9 +215,10 @@ class AttackSimulator(object):
 
         apps = []
         files = []
-        sums = []
+        docs = []
+        startingIndexes = random.sample(range(len(startingPoints)), AttackSimulator.passCount)
         for i in range(0, AttackSimulator.passCount):
-            source = startingPoints[random.randrange(0, len(startingPoints))]
+            source = startingPoints[startingIndexes[i]]
             # Files corrupt from the start, apps become corrupt randomly.
             try:
                 time = source.tstart if isinstance(source, File) else \
@@ -217,48 +234,69 @@ class AttackSimulator(object):
                      time2Str(attack.time),
                      "with" if attack.appMemory else "without"))
 
-            (appSet, fileCount) = self._runAttackRound(attack, policy)
+            (appSet, fileCount, docCount) = self._runAttackRound(attack,
+                                                                 policy,
+                                                                 acListInst,
+                                                                 lookUps,
+                                                                 allowedCache)
             appCount = len(appSet)
 
-            msg += ("        \t%d apps infected (%s); %d files infected.\n\n" %
-                    (appCount, appSet, fileCount))
-            tprnt("Pass %d: %d apps infected; %d files infected" % (i+1,
-                                                                    appCount,
-                                                                    fileCount))
+            msg += ("        \t%d apps infected (%s); %d files infected; %d "
+                    "documents infected.\n\n" % (
+                     appCount, appSet, fileCount, docCount))
+            tprnt("Pass %d: %d apps infected; %d files (%d documents)"
+                  " infected" % (i+1, appCount, fileCount, docCount))
             apps.append(appCount)
             files.append(fileCount)
-            sums.append(appCount + fileCount)
+            docs.append(docCount)
 
-        medLocationL = statistics.median_low(sums)
-        medLocationH = statistics.median_high(sums)
-        if medLocationL != medLocationH:
-            idxL = sums.index(medLocationL)
-            idxH = sums.index(medLocationH)
-            medApps = (apps[idxL] + apps[idxH]) / 2
-            medFiles = (files[idxL] + files[idxH]) / 2
-        else:
-            idx = sums.index(medLocationH)
-            medApps = apps[idx]
-            medFiles = files[idx]
-      
-        avgFiles = sum(files) / len(files)
+        medApps = statistics.median(apps)
+        medFiles = statistics.median(files)
+        medDocs = statistics.median(docs)
         avgApps = sum(apps) / len(apps)
+        avgFiles = sum(files) / len(files)
+        avgDocs = sum(docs) / len(docs)
+        minApps = min(apps)
+        minFiles = min(files)
+        minDocs = min(docs)
+        maxApps = max(apps)
+        maxFiles = max(files)
+        maxDocs = max(docs)
 
-        minIdx = sums.index(min(sums))
-        minFiles = files[minIdx]
-        minApps = apps[minIdx]
-        maxIdx = sums.index(max(sums))
-        maxFiles = files[maxIdx]
-        maxApps = apps[maxIdx]
+        # medLocationL = statistics.median_low(sums)
+        # medLocationH = statistics.median_high(sums)
+        # if medLocationL != medLocationH:
+            # idxL = sums.index(medLocationL)
+            # idxH = sums.index(medLocationH)
+            # medApps = (apps[idxL] + apps[idxH]) / 2
+            # medFiles = (files[idxL] + files[idxH]) / 2
+        # else:
+            # idx = sums.index(medLocationH)
+            # medApps = apps[idx]
+            # medFiles = files[idx]
+      
+        # avgFiles = sum(files) / len(files)
+        # avgApps = sum(apps) / len(apps)
 
-        msg += "\nMin: %d apps infected; %d files infected\n" % (
-                minApps, minFiles)
-        msg += "Max: %d apps infected; %d files infected\n" % (
-                maxApps, maxFiles)
-        msg += "Avg: %d apps infected; %d files infected\n" % (
-                avgApps, avgFiles)
-        msg += "Med: %d apps infected; %d files infected\n\n" % (
-                medApps, medFiles)
+        # minIdx = sums.index(min(sums))
+        # minFiles = files[minIdx]
+        # minApps = apps[minIdx]
+        # maxIdx = sums.index(max(sums))
+        # maxFiles = files[maxIdx]
+        # maxApps = apps[maxIdx]
+
+        msg += "\nMin: %d apps infected; %d files infected; %d documents " \
+               "infected\n" % (
+                minApps, minFiles, minDocs)
+        msg += "Max: %d apps infected; %d files infected; %d documents " \
+               "infected\n" % (
+                maxApps, maxFiles, maxDocs)
+        msg += "Avg: %d apps infected; %d files infected; %d documents " \
+               "infected\n" % (
+                avgApps, avgFiles, avgDocs)
+        msg += "Med: %d apps infected; %d files infected; %d documents " \
+               "infected\n" % (
+                medApps, medFiles, medDocs)
 
         return msg
 
@@ -269,10 +307,22 @@ class AttackSimulator(object):
         outputDir = policy.getOutputDir(parent=outputDir) if \
             policy else outputDir
 
+        acCache = AccessListCache.get()
+        acListInst = acCache.getAccessListFromPolicy(policy)
+
+        # App instance lookup cache.
+        lookUps = dict()
+
+        # Policy authorisation cache.
+        allowedCache = dict()
+
         msg = ""
 
         # Used for testing.
         # msg += self.performAttack(policy,
+        #                           acListInst=acListInst,
+        #                           lookUps=lookUps,
+        #                           allowedCache=allowedCache,
         #                           "virus-photo",
         #                           filePattern="^.*?\.jpg$")
 
@@ -281,11 +331,17 @@ class AttackSimulator(object):
         movies = "^.*?@XDG_DOWNLOADS_DIR@.*?\.(mov|flv|avi|wav|mp4|qt|asf|" \
                  "swf|mpg|wmv|h264|webm|mkv|3gp|mpg4)$"
         msg += self.performAttack(policy,
-                                  "torrent-virus-movie",
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="torrent-virus-movie",
                                   filePattern=movies)
         torrents = ["qbittorrent", "transmission-gtk"]
         msg += self.performAttack(policy,
-                                  "torrent-virus-app",
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="torrent-virus-app",
                                   startingApps=torrents)
 
         # Used a bogus document editor: P7 downloaded apps to unencrypt an
@@ -298,25 +354,35 @@ class AttackSimulator(object):
                 "libreoffice-startcenter", "libreoffice-writer",
                 "libreoffice-xsltfilter", "oosplash", "soffice.bin", "soffice"]
         msg += self.performAttack(policy,
-                                  "bogus-document-editor",
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="bogus-document-editor",
                                   startingApps=docs)
+        return  # FIXME TODO FIXME XXX FIXME TODO FIXME
 
         # p9 occasionally wanting to run application) but will not do so
         # if not understanding them and not trusting source. Test apps with
         # binary files outside write-protected standard locations, and obtained
         # from outside app stores.
-        wildApps = ["telegram", "android", "ruby", "eclipse", "python",
-                    "cargo", "dropbox", "wine", "skype"]
-        msg += self.performAttack(policy,
-                                  "non-standard-apps",
-                                  startingApps=wildApps)
+        # wildApps = ["telegram", "android", "ruby", "eclipse", "python",
+        #             "cargo", "dropbox", "wine", "skype"]
+        # msg += self.performAttack(policy,
+        #                           acListInst=acListInst,
+        #                           lookUps=lookUps,
+        #                           allowedCache=allowedCache,
+        #                           "non-standard-apps",
+        #                           startingApps=wildApps)
 
         # p4 forum story about being worried when he runs games downloaded
         # illegally. Wine, games and emulator invocations.
         emus = ["dolphin-emu", "fceux", "PCSX2", "pcsx", "playonlinux",
                 "ppsspp", "steam", "wine"]
         msg += self.performAttack(policy,
-                                  "game-emulators",
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="game-emulators",
                                   startingApps=emus)
 
         # p12 ransomware scenario: take any connected app at random.
@@ -338,21 +404,30 @@ class AttackSimulator(object):
                 "webbrowser-app", "weechat", "wget", "wine", "xchat",
                 "youtube-dl", "zotero"]
         msg += self.performAttack(policy,
-                                  "ransomware-internet-exploit",
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="ransomware-internet-exploit",
                                   startingApps=conn)
 
         # p12 ransomware file scenario: take any Downloaded file at random.
         dls = "^.*?@XDG_DOWNLOADS_DIR@.*?$"
         msg += self.performAttack(policy,
-                                  "ransomware-downloaded-file",
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="ransomware-downloaded-file",
                                   filePattern=dls)
 
         # p2 : permanent compromise of browser via browser plugins.
-        browsers = ["chromium", "firefox", "midori", "torbrowser",
-                    "webbrowser-app"]
-        msg += self.performAttack(policy,
-                                  "browser-extensions",
-                                  filePattern=browsers)
+        # browsers = ["chromium", "firefox", "midori", "torbrowser",
+        #             "webbrowser-app"]
+        # msg += self.performAttack(policy,
+        #                           acListInst=acListInst,
+        #                           lookUps=lookUps,
+        #                           allowedCache=allowedCache,
+        #                           "browser-extensions",
+        #                           startingApps=browsers)
 
         # Save attack results.
         path = outputDir + "/attacks.out"
