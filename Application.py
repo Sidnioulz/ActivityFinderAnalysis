@@ -122,15 +122,17 @@ class Application(object):
             self.desktopid = did
             self.init = True
 
-    def __eq__(self, other):
-        """Tell if an Application is equal to another (same UID)."""
-        if isinstance(other, self.__class__):
-            return self._uid == other._uid
-        return False
+    # def __eq__(self, other):
+    #     """Tell if an Application is equal to another (same UID)."""
+    #     if isinstance(other, self.__class__):
+    #         return self.tstart == other.tstart and \
+    #                 self.pid == other.pid # and \
+    #                 # self.desktopid == other.desktopid
+    #     return False
 
-    def __ne__(self, other):
-        """Tell if an Application differs from another (different UIDs)."""
-        return not self.__eq__(other)
+    # def __ne__(self, other):
+    #     """Tell if an Application differs from another (different UIDs)."""
+    #     return not self.__eq__(other)
 
     def __hash__(self):
         """Tell if an Application differs from another (different UIDs)."""
