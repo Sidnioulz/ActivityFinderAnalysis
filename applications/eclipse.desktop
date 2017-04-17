@@ -8,3 +8,4 @@ Terminal=false
 Categories=Development;IDE;Java;
 LibraryCaps=documents;
 MimeType=application/java;application/x-java-class;text/x-java-source;application/x-java-commerce;application/x-java-archive;
+RWPaths=^~/\.eclipse;^~/\.p2;

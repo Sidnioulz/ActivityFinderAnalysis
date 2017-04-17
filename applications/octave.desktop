@@ -11,3 +11,4 @@ StartupNotify=false
 MimeType=text/x-octave;text/x-matlab;
 Keywords=science;math;matrix;numerical computation;plotting;
 X-Desktop-File-Install-Version=0.23
+RWPaths=^~/\.octave_hist-?;

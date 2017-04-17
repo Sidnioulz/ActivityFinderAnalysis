@@ -11,3 +11,4 @@ Type=Application
 Categories=GTK;AudioVideo
 MimeType=video/mpeg;video/x-mpeg;video/x-avi;application/x-flash-video;application/x-shockwave-flash;video/flv
 LibraryCaps=video;
+RWPaths=^~/\.avidemux;

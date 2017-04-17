@@ -9,3 +9,4 @@ Encoding=UTF-8
 Categories=Network;Application;
 MimeType=x-scheme-handler/skype;
 X-KDE-Protocols=skype
+RWPaths=^~/\.Skype;

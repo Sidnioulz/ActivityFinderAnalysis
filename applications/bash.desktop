@@ -6,4 +6,4 @@ Type=System
 StartupNotify=false
 Categories=System;
 Icon=terminal
-RWPaths=^~/\.bash.*;^/dev/tty;
+RWPaths=^~/\.bash.*;^/dev/tty;^~/\.anacron;

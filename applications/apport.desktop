@@ -11,3 +11,4 @@ NoDisplay=true
 StartupNotify=true
 X-Ubuntu-Gettext-Domain=apport
 ROPaths=^/var/crash;
+RWPaths=^~/\.apport-ignore.xml;

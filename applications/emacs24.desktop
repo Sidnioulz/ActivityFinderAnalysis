@@ -12,3 +12,4 @@ Terminal=false
 Categories=Utility;Development;TextEditor;
 StartupWMClass=Emacs24
 LibraryCaps=documents;
+RWPaths=^~/\.emacs(.d)?;

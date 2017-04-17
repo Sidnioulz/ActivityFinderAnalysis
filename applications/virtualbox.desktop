@@ -19,3 +19,4 @@ Comment[it]=Esegui più macchine virtuali su un singolo computer
 Comment[pl]=Uruchamianie wielu systemów wirtualnych na jednym komputerze gospodarza
 Comment[sv]=Kör flera virtuella system på en enda värddator
 Comment[ko]=가상 머신
+RWPaths=^~/\.vboxclient-.*\.pid;^~/\.VirtualBox;

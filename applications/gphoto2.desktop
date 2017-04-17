@@ -9,4 +9,4 @@ Keywords=Photos;Pictures;
 X-Ubuntu-Gettext-Domain=gnome-photos
 MimeType=image/png;image/gif;image/jpeg;image/bmp;image/x-pixmap;image/tiff;image/svg+xml;image/x-xpixmap;
 LibraryCaps=image;
-
+RWPaths=^~/\.gphoto;

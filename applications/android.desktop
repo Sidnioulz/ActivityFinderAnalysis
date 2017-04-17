@@ -5,3 +5,4 @@ Type=Application
 Name=Android Emulator
 Exec=emulator64
 Categories=Development;
+RWPaths=^~/\.[Aa]ndroid(Studio(Beta|1\.4))?;

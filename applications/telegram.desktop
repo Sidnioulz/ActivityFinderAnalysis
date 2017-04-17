@@ -10,3 +10,4 @@ Icon=/opt/telegram/telegram.svg
 StartupWMClass=telegram-desktop
 Categories=GNOME;GTK;Network;
 MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;
+RWPaths=^~/\.TelegramDesktop;

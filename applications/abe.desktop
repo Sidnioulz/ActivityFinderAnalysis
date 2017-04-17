@@ -9,3 +9,4 @@ Exec=/usr/games/abe
 Categories=Game;AdventureGame;
 Icon=/usr/share/pixmaps/abe.xpm
 MimeType=
+RWPaths=^~/\.abe;

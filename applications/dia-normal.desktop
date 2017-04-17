@@ -6,3 +6,4 @@ Type=Application
 Categories=Development;
 Name=Dia graph editor
 MimeType=application/x-dia-diagram;
+RWPaths=^~/\.dia;

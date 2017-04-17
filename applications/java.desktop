@@ -6,3 +6,4 @@ Type=Application
 Categories=System;
 Name=Java interpreter
 MimeType=application/java;application/x-java-class;text/x-java-source;application/x-java-commerce;application/x-java-archive;
+RWPaths=^~/\.java;

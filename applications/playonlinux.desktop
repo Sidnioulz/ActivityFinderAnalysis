@@ -7,3 +7,4 @@ Icon=playonlinux
 Categories=Game;
 NoDisplay=true
 StartupNotify=true
+RWPaths=^~/\.PlayOnLinux;

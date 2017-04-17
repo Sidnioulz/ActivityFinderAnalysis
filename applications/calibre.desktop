@@ -11,3 +11,4 @@ Icon=calibre-gui
 Categories=Office;Database;FileTools;Viewer;Qt;
 MimeType=x-content/ebook-reader;
 LibraryCaps=documents
+RWPaths=^~/\.calibre_calibre GUI\.lock;

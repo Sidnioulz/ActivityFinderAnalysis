@@ -9,3 +9,4 @@ Icon=dropbox
 Categories=Network;FileTransfer;
 StartupNotify=false
 #TODO: public/dropbox as RWOwned?
+RWPaths=^~/\.dropbox(-dist)?;

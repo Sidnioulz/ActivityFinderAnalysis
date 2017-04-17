@@ -5,3 +5,4 @@ Terminal=false
 Type=Desktop
 Categories=System;
 Name=No Machine NX protocol client
+RWPaths=^~/\.nx;

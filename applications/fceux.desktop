@@ -20,3 +20,4 @@ OnlyShowIn=Unity
 Name=Start With the Default Configuration
 Exec=/usr/games/fceux --no-config 1
 OnlyShowIn=Unity
+RWPaths=^~/\.fceux;

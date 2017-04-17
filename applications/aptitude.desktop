@@ -7,3 +7,4 @@ StartupNotify=false
 Categories=PackageManager;System;
 Icon=package
 MimeType=application/vnd.debian.binary-package;
+RWPaths=^~/\.aptitude;

@@ -5,3 +5,4 @@ Terminal=false
 Type=Desktop
 Categories=System;
 Name=Conky
+RWPaths=^~/\.conkyrc;

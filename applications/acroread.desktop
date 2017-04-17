@@ -13,4 +13,4 @@ InitialPreference=9
 X-Desktop-File-Install-Version=0.23
 LibraryCaps=documents
 #ROPaths=
-#RWPaths=
+RWPaths=^~/\.adobe;
