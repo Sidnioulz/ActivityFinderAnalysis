@@ -658,27 +658,31 @@ class Policy(object):
         # Get, and compile, the exclusion lists from the user.
         self.exclList = self.userConf.getSecurityExclusionLists()
         self.exclRegEx = dict()
-        for list in self.exclList:
+        for (listName, list) in self.exclList.items():
+            eRE = dict()
             for path in list:
-                self.exclRegEx[path] = re.compile('^'+path)
+                eRE[path] = re.compile('^'+path)
+            self.exclRegEx[listName] = eRE
 
-        def _calculate(clusters):
+        def _calculate(clusters, listName, exclList):
             """Calculate the cross-overs for a given cluster."""
             # Each cluster has its own list of scores.
             exclScores = [None] * len(clusters)
 
             for (cIndex, cluster) in enumerate(clusters):
                 # Each list of mutually exclusive patterns has its scores.
-                clusterScores = [dict() for _ in range(len(self.exclList))]
+                clusterScores = [dict() for _ in range(len(exclList))]
 
                 # We check for each file and list which patterns files match.
                 for file in cluster:
                     # Go through each list of patterns.
-                    for (eIndex, excl) in enumerate(self.exclList):
+                    for (eIndex, excl) in enumerate(exclList):
 
                         # Go through each pattern and look for a match.
                         for (pIndex, pattern) in enumerate(excl):
-                            matched = self.matchExclusionPattern(pattern, file)
+                            matched = self.matchExclusionPattern(pattern,
+                                                                 file,
+                                                                 listName)
                             if not matched:
                                 continue
 
@@ -694,19 +698,21 @@ class Policy(object):
 
             return exclScores
 
-        def _calculateApps(lists):
+        def _calculateApps(lists, listName, exclList):
             appExclScores = dict()
             for (app, files) in lists.items():
                 # Each list of mutually exclusive patterns has its scores.
-                clusterScores = [dict() for _ in range(len(self.exclList))]
+                clusterScores = [dict() for _ in range(len(exclList))]
 
                 for file in files:
                     # Go through each list of patterns.
-                    for (eIndex, excl) in enumerate(self.exclList):
+                    for (eIndex, excl) in enumerate(exclList):
 
                         # Go through each pattern and look for a match.
                         for (pIndex, pattern) in enumerate(excl):
-                            matched = self.matchExclusionPattern(pattern, file)
+                            matched = self.matchExclusionPattern(pattern,
+                                                                 file,
+                                                                 listName)
                             if not matched:
                                 continue
 
@@ -722,10 +728,19 @@ class Policy(object):
 
             return appExclScores
 
-        self.exclScores = _calculate(self.clusters)
-        self.exclScoresInst = _calculate(self.clustersInst)
-        self.exclScoresPerApp = _calculateApps(self.accessLists)
-        # TODO: presence of user Secure Files in clusters, and size thereof
+        self.exclScores = dict()
+        self.exclScoresInst = dict()
+        self.exclScoresPerApp = dict()
+        for (listName, exclList) in self.exclList.items():
+            self.exclScores[listName] = _calculate(self.clusters,
+                                                   listName,
+                                                   exclList)
+            self.exclScoresInst[listName] = _calculate(self.clustersInst,
+                                                       listName,
+                                                       exclList)
+            self.exclScoresPerApp[listName] = _calculateApps(self.accessLists,
+                                                             listName,
+                                                             exclList)
 
     def printSecurityClusters(self,
                               outputDir: str=None,
@@ -819,54 +834,58 @@ class Policy(object):
 
             return msg
 
-        def _writeClusters(clusters, scores, forMsg, filename):
+        def _writeClusters(clusters, scoreDict, forMsg, filename):
             """Write the output of the print function to a file and stdout."""
-            msg = ("\nCONNECTED FILE CLUSTERS FOR %s\n" % forMsg)
-            msg += _printClusters(clusters)
-            msg += _printClusterExclViolations(clusters, scores)
+            for (sName, scores) in scoreDict.items():
+                msg = ("\nCONNECTED FILE CLUSTERS FOR %s\n" % forMsg)
+                msg += _printClusters(clusters)
+                msg += _printClusterExclViolations(clusters, scores)
 
-            if not quiet and printClusters:
-                print(msg)
-
-            if outputDir:
-                filename = outputDir + '/' + filename
-                os.makedirs(File.getParentNameFromName(filename),
-                            exist_ok=True)
-                with open(filename, "a") as f:
-                    print(msg, file=f)
-
-        def _writeApps(appExclScores):
-            """Write the output of the print function to a file and stdout."""
-            appStore = ApplicationStore.get()
-            if not quiet:
-                print("\nEXCLUSION LIST SCORES FOR USER APP INSTANCES\n")
-            for (app, exclScores) in sorted(appExclScores.items()):
-                (msg, cnt) = _printExclViolations(exclScores)
-
-                if cnt:
-                    appUid = app[app.find("Instance ")+len("Instance "):
-                                 -len(".score")]
-                    inst = appStore.lookupUid(appUid)
-                    if inst:
-                        self.incrementScore('splittingCost', None, inst, cnt)
-
-                if not quiet:
-                    print("\n%s:" % app)
+                if not quiet and printClusters:
                     print(msg)
 
                 if outputDir:
-                    filename = outputDir + '/' + app + ".exclscore"
+                    filename = outputDir + '/' + filename + "." + sName + \
+                        ".securityscore"
                     os.makedirs(File.getParentNameFromName(filename),
                                 exist_ok=True)
                     with open(filename, "a") as f:
                         print(msg, file=f)
 
+        def _writeApps(appExclScoreDict):
+            """Write the output of the print function to a file and stdout."""
+            appStore = ApplicationStore.get()
+            for (sName, appExclScores) in appExclScoreDict.items():
+                if not quiet:
+                    print("\nEXCLUSION LIST SCORES FOR USER APP INSTANCES\n")
+                for (app, exclScores) in sorted(appExclScores.items()):
+                    (msg, cnt) = _printExclViolations(exclScores)
+
+                    if cnt:
+                        appUid = app[app.find("Instance ")+len("Instance "):
+                                     -len(".score")]
+                        inst = appStore.lookupUid(appUid)
+                        if inst:
+                            self.incrementScore('splittingCost', None, inst, cnt)
+
+                    if not quiet:
+                        print("\n%s:" % app)
+                        print(msg)
+
+                    if outputDir:
+                        filename = outputDir + '/' + app + "." + sName + \
+                            ".exclscore"
+                        os.makedirs(File.getParentNameFromName(filename),
+                                    exist_ok=True)
+                        with open(filename, "a") as f:
+                            print(msg, file=f)
+
         _writeClusters(self.clusters, self.exclScores,
                        "APPLICATIONS AND USER DOCUMENTS",
-                       "clustersPerApp.securityscore")
+                       "clustersPerApp")
         _writeClusters(self.clustersInst, self.exclScoresInst,
                        "APPLICATION INSTANCES AND USER DOCUMENTS",
-                       "clustersPerAppInstance.securityscore")
+                       "clustersPerAppInstance")
         _writeApps(self.exclScoresPerApp)
 
     def buildSecurityClusters(self,

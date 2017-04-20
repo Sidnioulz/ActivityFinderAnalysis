@@ -82,19 +82,30 @@ class UserConfigLoader(object):
     def getSecurityExclusionLists(self):
         """Get the security exclusion lists setting."""
         if not self.ini:
-            return []
+            return dict()
 
-        vals = self.ini.get('SecurityExclusionLists',
-                            group='User Config',
-                            type='string', list=True) or []
+        def _parseVals(key):
+            vals = self.ini.get('SecurityExclusionLists',
+                                group='User Config',
+                                type='string', list=True) or []
 
-        result = []
-        for value in vals:
-            excls = value.strip('|').split('||')
-            if not excls:
-                raise ValueError("Syntax error in user configuration's "
-                                 "SecurityExclusionLists on bit '%s'" % value)
-            else:
-                result.append(excls)
+            result = []
+            for value in vals:
+                excls = value.strip('|').split('||')
+                if not excls:
+                    raise ValueError("Syntax error in user configuration's "
+                                     "SecurityExclusionLists on bit '%s'" %
+                                     value)
+                else:
+                    result.append(excls)
 
-        return result
+            return result
+
+        exclLists = dict()
+        for key in ['ExplicitExclusion',
+                    'WorkPersonalSeparation',
+                    'ProjectSeparation']:
+            exclLists[key] = _parseVals(key)
+
+        return exclLists
+        
