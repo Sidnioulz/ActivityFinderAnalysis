@@ -29,14 +29,13 @@ class Attack(object):
 class AttackSimulator(object):
     """An attack simulator that estimates the propagation of malware."""
 
-    passCount = 10  # FIXME 100
+    passCount = 100
 
     def __init__(self, seed: int=0):
         """Construct an AttackSimulator."""
         super(AttackSimulator, self).__init__()
         random.seed(a=seed)
 
-    @profile
     def _runAttackRound(self,
                         attack: Attack,
                         policy: Policy,
@@ -216,7 +215,15 @@ class AttackSimulator(object):
         apps = []
         files = []
         docs = []
-        startingIndexes = random.sample(range(len(startingPoints)), AttackSimulator.passCount)
+
+        if AttackSimulator.passCount < len(startingPoints):
+            startingIndexes = random.sample(range(len(startingPoints)),
+                                            AttackSimulator.passCount)
+        else:
+            startingIndexes = []
+            for i in range(AttackSimulator.passCount):
+                startingIndexes.append(random.randrange(len(startingPoints)))
+
         for i in range(0, AttackSimulator.passCount):
             source = startingPoints[startingIndexes[i]]
             # Files corrupt from the start, apps become corrupt randomly.
@@ -359,7 +366,6 @@ class AttackSimulator(object):
                                   allowedCache=allowedCache,
                                   attackName="bogus-document-editor",
                                   startingApps=docs)
-        return  # FIXME TODO FIXME XXX FIXME TODO FIXME
 
         # p9 occasionally wanting to run application) but will not do so
         # if not understanding them and not trusting source. Test apps with
