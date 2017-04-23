@@ -85,7 +85,7 @@ class UserConfigLoader(object):
             return dict()
 
         def _parseVals(key):
-            vals = self.ini.get('SecurityExclusionLists',
+            vals = self.ini.get(key,
                                 group='User Config',
                                 type='string', list=True) or []
 
