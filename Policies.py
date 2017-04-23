@@ -3,6 +3,7 @@
 from File import File, FileAccess, EventFileFlags
 from Application import Application
 from PolicyEngine import Policy
+from LibraryManager import LibraryManager
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
                       OWNED_PATH_ACCESS
 import sys
@@ -14,59 +15,41 @@ class OneLibraryPolicy(Policy):
 
     def __init__(self,
                  supportedLibraries=['documents', 'image', 'music', 'video'],
-                 name: str='OneLibraryPolicy'):
+                 name: str='OneLibraryPolicy',
+                 libMode: int=LibraryManager.Default):
         """Construct a OneLibraryPolicy."""
         super(OneLibraryPolicy, self).__init__(name)
 
-        self.appPolicyCache = dict()
+        self.mgr = LibraryManager.get()
+        self.libMode = libMode
         self.supportedLibraries = supportedLibraries
+        self.incrementConfigCost()
 
-        self.documentsLibrary = dict()
-        self.imageLibrary = dict()
-        self.musicLibrary = dict()
-        self.videoLibrary = dict()
-        self.removableMediaLibrary = dict()
-
-        self.loadUserLibraryPreferences()
-
-    def loadUserLibraryPreferences(self):
-        """Load user's library and folder names."""
-        self.documentsLibrary[self.userConf.getSetting('XdgDocumentsDir')] = 0
-        self.imageLibrary[self.userConf.getSetting('XdgImageDir')] = 0
-        self.musicLibrary[self.userConf.getSetting('XdgMusicDir')] = 0
-        self.videoLibrary[self.userConf.getSetting('XdgVideoDir')] = 0
-
-        for d in self.userConf.getSetting('RemovableMediaDirs',
-                                          defaultValue=[],
-                                          type='string list'):
-            self.removableMediaLibrary[d] = 1
-
-    def getAppPolicy(self, actor: Application):
-        """Return the library capabilities policy for one Application."""
-        if actor.desktopid not in self.appPolicyCache:
-            policies = actor.getSetting('LibraryCaps',
-                                        type='string list') or []
-            self.appPolicyCache[actor.desktopid] = policies
-
-        return self.appPolicyCache[actor.desktopid]
+    def incrementConfigCost(self):
+        """Increment the configuration cost of this library policy."""
+        cost = self.mgr.configCosts[self.libMode]
+        if cost:
+            self.incrementScore('configCost', None, None, increment=cost)
 
     def allowedByPolicy(self, file: File, actor: Application):
         """Tell if a File is allowed to be accessed by a Policy."""
-        policies = self.getAppPolicy(actor)
-        for pol in policies:
-            if pol not in self.supportedLibraries:
-                continue
+        policies = self.mgr.getAppPolicy(actor)
+        lib = self.mgr.getLibraryForFile(file, libMod=self.libMode)
 
-            try:
-                attr = self.__getattribute__(pol+"Library")
-            except (AttributeError):
-                pass
-            else:
-                for (path, cost) in attr.items():
-                    if(file.getName().startswith(path)):
-                        return True
+        if not lib:
+            return False
 
-        return False
+        if lib not in self.supportedLibraries:
+            return False
+
+        if lib not in policies:
+            return False
+
+        return True
+
+    def globalConfigCost(self):
+        """Return True if the Policy has a global config cost for all apps."""
+        return True
 
 
 class CompoundLibraryPolicy(OneLibraryPolicy):
@@ -76,51 +59,19 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
                  supportedLibraries=['documents', 'image', 'music', 'video'],
                  name: str='CompoundLibraryPolicy'):
         """Construct a CompoundLibraryPolicy."""
-        super(CompoundLibraryPolicy, self).__init__(supportedLibraries, name)
+        super(CompoundLibraryPolicy, self).__init__(supportedLibraries,
+                                                    name,
+                                                    LibraryManager.Compound)
 
-    def loadUserLibraryPreferences(self):
-        super(CompoundLibraryPolicy, self).loadUserLibraryPreferences()
-
-        """Load user's extra libraries."""
-        confCost = 0
-        for d in self.userConf.getSetting('ExtraDocumentsDirs',
-                                          defaultValue=[],
-                                          type='string list'):
-            self.documentsLibrary[d] = 1
-            confCost += 1
-        for d in self.userConf.getSetting('ExtraImageDirs',
-                                          defaultValue=[],
-                                          type='string list'):
-            self.imageLibrary[d] = 1
-            confCost += 1
-        for d in self.userConf.getSetting('ExtraMusicDirs',
-                                          defaultValue=[],
-                                          type='string list'):
-            self.musicLibrary[d] = 1
-            confCost += 1
-        for d in self.userConf.getSetting('ExtraVideoDirs',
-                                          defaultValue=[],
-                                          type='string list'):
-            self.videoLibrary[d] = 1
-            confCost += 1
-
-        # Record the cost of configuring the policy
-        self.incrementScore('configCost', None, None, increment=confCost)
-
-    def globalConfigCost(self):
-        """Return True if the Policy has a global config cost for all apps."""
-        return True
-
-
-class RemovableMediaPolicy(OneLibraryPolicy):
-    """Grant access to removable media folders."""
-
-    def __init__(self,
-                 name: str='OneLibraryPolicy'):
-        """Construct a OneLibraryPolicy."""
-        rm = ['removableMedia']
-        super(OneLibraryPolicy, self).__init__(supportedLibraries=rm,
-                                               name=name)
+# class RemovableMediaPolicy(OneLibraryPolicy):
+#     """Grant access to removable media folders."""
+# 
+#     def __init__(self,
+#                  name: str='OneLibraryPolicy'):
+#         """Construct a OneLibraryPolicy."""
+#         rm = ['removableMedia']
+#         super(OneLibraryPolicy, self).__init__(supportedLibraries=rm,
+#                                                name=name)
 
 
 class FileTypePolicy(Policy):

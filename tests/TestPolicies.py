@@ -7,6 +7,7 @@ from EventStore import EventStore
 from FileStore import FileStore
 from File import File, EventFileFlags
 from FileFactory import FileFactory
+from LibraryManager import LibraryManager
 from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FileTypePolicy, FolderPolicy, OneFolderPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
@@ -20,16 +21,6 @@ class TestOneLibraryPolicy(unittest.TestCase):
         self.fileStore = FileStore.get()
         self.fileFactory = FileFactory.get()
         self.userConf = UserConfigLoader.get("user.ini")
-
-    def test_pol_load_app_conf(self):
-        app = Application("ristretto.desktop", pid=21, tstart=0, tend=300)
-        file = File("/home/user/Images/sample.jpg", 140, 0, "image/jpeg")
-        file.addAccess(app, 140, EventFileFlags.create | EventFileFlags.read)
-
-        self.appStore.insert(app)
-        res = OneLibraryPolicy().getAppPolicy(app)
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0], "image")
 
     def test_access_recording(self):
         app = Application("firefox.desktop", pid=21, tstart=1, tend=200000)
