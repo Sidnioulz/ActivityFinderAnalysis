@@ -658,11 +658,10 @@ class Policy(object):
         # Get, and compile, the exclusion lists from the user.
         self.exclList = self.userConf.getSecurityExclusionLists()
         self.exclRegEx = dict()
-        for (listName, list) in self.exclList.items():
-            eRE = dict()
-            for path in list:
-                eRE[path] = re.compile('^'+path)
-            self.exclRegEx[listName] = eRE
+        for (listName, exclList) in self.exclList.items():
+            for pathList in exclList:
+                for path in pathList:
+                    self.exclRegEx[path] = re.compile('^'+path)
 
         def _calculate(clusters, listName, exclList):
             """Calculate the cross-overs for a given cluster."""
@@ -681,8 +680,7 @@ class Policy(object):
                         # Go through each pattern and look for a match.
                         for (pIndex, pattern) in enumerate(excl):
                             matched = self.matchExclusionPattern(pattern,
-                                                                 file,
-                                                                 listName)
+                                                                 file)
                             if not matched:
                                 continue
 
@@ -711,8 +709,7 @@ class Policy(object):
                         # Go through each pattern and look for a match.
                         for (pIndex, pattern) in enumerate(excl):
                             matched = self.matchExclusionPattern(pattern,
-                                                                 file,
-                                                                 listName)
+                                                                 file)
                             if not matched:
                                 continue
 
