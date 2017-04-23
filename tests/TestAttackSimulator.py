@@ -1,4 +1,5 @@
 import unittest
+from AccessListCache import AccessListCache
 from AttackSimulator import AttackSimulator, Attack
 from Application import Application
 from ApplicationStore import ApplicationStore
@@ -112,45 +113,83 @@ class TestSimulator(unittest.TestCase):
 
         self.eventStore.simulateAllEvents()
 
+        self.acCache = AccessListCache.get()
+        self.lookUps = dict()
+        self.allowedCache = dict()
+
     def test_attack_memory(self):
         pol = UnsecurePolicy()
+        acListInst = self.acCache.getAccessListFromPolicy(pol)
 
         attack = Attack(time=1999, source=self.a1)
-        counts = self.sim._runAttackRound(attack, pol)
-        self.assertEqual(counts, (2, 3))
+        counts = self.sim._runAttackRound(attack=attack,
+                                          policy=pol,
+                                          acListInst=acListInst,
+                                          lookUps=self.lookUps,
+                                          allowedCache=self.allowedCache)
+        self.assertEqual(len(counts[0]), 1)
+        self.assertEqual(counts[1], 3)
 
         attack.appMemory = False
-        counts = self.sim._runAttackRound(attack, pol)
-        self.assertEqual(counts, (1, 0))
+        counts = self.sim._runAttackRound(attack=attack,
+                                          policy=pol,
+                                          acListInst=acListInst,
+                                          lookUps=self.lookUps,
+                                          allowedCache=self.allowedCache)
+        self.assertEqual(len(counts[0]), 1)
+        self.assertEqual(counts[1], 0)
         
         FileFactory.reset()
 
     def test_pol_unsecure(self):
         pol = UnsecurePolicy()
+        acListInst = self.acCache.getAccessListFromPolicy(pol)
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         attack = Attack(time=11, source=f001)
-        counts = self.sim._runAttackRound(attack, pol)
-        self.assertEqual(counts, (0, 1))
+        counts = self.sim._runAttackRound(attack=attack,
+                                          policy=pol,
+                                          acListInst=acListInst,
+                                          lookUps=self.lookUps,
+                                          allowedCache=self.allowedCache)
+        self.assertEqual(len(counts[0]), 0)
+        self.assertEqual(counts[1], 1)
+
         
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         attack = Attack(time=10, source=f001)
-        counts = self.sim._runAttackRound(attack, pol)
-        self.assertEqual(counts, (1, 1))
+        counts = self.sim._runAttackRound(attack=attack,
+                                          policy=pol,
+                                          acListInst=acListInst,
+                                          lookUps=self.lookUps,
+                                          allowedCache=self.allowedCache)
+        self.assertEqual(len(counts[0]), 1)
+        self.assertEqual(counts[1], 1)
         FileFactory.reset()
 
     def test_pol_onefolder(self):
         pol = OneFolderPolicy()
+        acListInst = self.acCache.getAccessListFromPolicy(pol)
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         attack = Attack(time=11, source=f001)
-        counts = self.sim._runAttackRound(attack, pol)
-        self.assertEqual(counts, (0, 1))
+        counts = self.sim._runAttackRound(attack=attack,
+                                          policy=pol,
+                                          acListInst=acListInst,
+                                          lookUps=self.lookUps,
+                                          allowedCache=self.allowedCache)
+        self.assertEqual(len(counts[0]), 0)
+        self.assertEqual(counts[1], 1)
         
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         attack = Attack(time=10, source=f001)
-        counts = self.sim._runAttackRound(attack, pol)
-        self.assertEqual(counts, (1, 1))
+        counts = self.sim._runAttackRound(attack=attack,
+                                          policy=pol,
+                                          acListInst=acListInst,
+                                          lookUps=self.lookUps,
+                                          allowedCache=self.allowedCache)
+        self.assertEqual(len(counts[0]), 1)
+        self.assertEqual(counts[1], 1)
 
         FileFactory.reset()
 

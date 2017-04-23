@@ -9,6 +9,10 @@ from FileStore import FileStore
 from FileFactory import FileFactory
 from Policies import OneLibraryPolicy, FolderPolicy
 from PolicyEngine import PolicyEngine, PolicyScores
+from utils import __setScore
+
+
+__setScore(True)
 
 
 class TestSecurityScores(unittest.TestCase):
@@ -18,7 +22,6 @@ class TestSecurityScores(unittest.TestCase):
         self.fileFactory = FileFactory.get()
         self.userConf = UserConfigLoader.get("user.ini")
         self.engine = PolicyEngine()
-
         self.ar1 = Application("ristretto.desktop", pid=21, tstart=1,
                                tend=2000)
         self.ar2 = Application("ristretto.desktop", pid=22, tstart=2600,
@@ -230,8 +233,12 @@ class TestSecurityScores(unittest.TestCase):
                 self.assertEqual(matchSum, 1)
             pass
 
-        _ctfn(pol.clusters, pol.exclScores, _assertPerApp)
-        _ctfn(pol.clustersInst, pol.exclScoresInst, _assertPerInstance)
+        _ctfn(pol.clusters,
+              pol.exclScores['ExplicitExclusion'],
+              _assertPerApp)
+        _ctfn(pol.clustersInst,
+              pol.exclScoresInst['ExplicitExclusion'],
+              _assertPerInstance)
 
     def test_exclusion_list_aorb(self):
         self.eventStore.reset()
@@ -273,8 +280,8 @@ class TestSecurityScores(unittest.TestCase):
                         self.assertNotEqual(seenA, seenC)
                     self.assertIn(len(matchSum), (0, 2))
 
-        _ctfn(pol.clusters, pol.exclScores)
-        _ctfn(pol.clustersInst, pol.exclScoresInst)
+        _ctfn(pol.clusters, pol.exclScores['ExplicitExclusion'])
+        _ctfn(pol.clustersInst, pol.exclScoresInst['ExplicitExclusion'])
 
     def test_overentitlement(self):
         self.eventStore.reset()

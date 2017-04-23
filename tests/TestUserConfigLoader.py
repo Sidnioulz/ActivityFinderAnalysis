@@ -12,7 +12,7 @@ class TestUserConfigLoader(unittest.TestCase):
             ['/home/user/Images/Clients/.*?/'],
             ['/home/user/Images/(A|B)', '/home/user/Images/C']]
         lists = self.userConf.getSecurityExclusionLists()
-        self.assertEqual(lists, expectedList)
+        self.assertEqual(lists['ExplicitExclusion'], expectedList)
 
     def test_get_home(self):
         home = self.userConf.getSetting("HomeDir")
