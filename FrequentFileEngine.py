@@ -1,5 +1,5 @@
 """An engine to mine patterns of frequently co-accessed Files."""
-from utils import outputFsEnabled, tprnt
+from utils import outputFsEnabled, tprnt, frequency
 import mimetypes
 
 
@@ -130,7 +130,7 @@ class FrequentFileEngine(object):
 
         # Compute itemsets from transactions.
         tprnt("\nComputing frequent itemsets.")
-        itemsets = frequent_itemsets(transactions, 40)
+        itemsets = frequent_itemsets(transactions, frequency())
         tprnt("Done.")
 
         # Functions to sort itemsets.

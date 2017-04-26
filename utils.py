@@ -15,6 +15,7 @@ __opt_check = False
 __opt_check_exclfiles = False
 __opt_debug = False
 __opt_ext = False
+__opt_freq = 40
 __opt_output_fs = None
 __opt_related_files = False
 __opt_score = False
@@ -54,6 +55,12 @@ def __setPrintExtensions(opt):
     """Set the return value of :printExtensions():."""
     global __opt_ext
     __opt_ext = opt
+
+
+def __setFrequency(opt):
+    """Set the return value of :frequency():."""
+    global __opt_freq
+    __opt_freq = int(opt)
 
 
 def __setOutputFs(opt):
@@ -133,6 +140,12 @@ def printExtensions():
     """Return True if the --extensions flag was passed, False otherwise."""
     global __opt_ext
     return __opt_ext
+
+
+def frequency():
+    """Return the value passed to the --frequency flag (default 40)."""
+    global __opt_freq
+    return __opt_freq
 
 
 def outputFsEnabled():
@@ -350,7 +363,8 @@ def initMimeTypes():
     mimetypes.add_type("application/x-sqlite3", ".sqlite", strict=False)
     mimetypes.add_type("application/x-sqlite3", ".db", strict=False)
 
-    mimetypes.add_type("text/x-tex", ".aux", strict=False)
+    mimetypes.add_type("text/x-tex-aux", ".aux", strict=False)
+    mimetypes.add_type("text/x-bibtex", ".bib", strict=False)
     mimetypes.add_type("text/x-tex", ".tex", strict=False)
 
     mimetypes.add_type("application/java-archive", ".aar", strict=False)
@@ -374,6 +388,16 @@ def initMimeTypes():
     mimetypes.add_type("text/plain", ".bb", strict=False)
     mimetypes.add_type("application/octet-stream", ".bc", strict=False)
     mimetypes.add_type("application/blender", ".blend", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend1", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend2", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend3", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend4", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend5", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend6", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend7", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend8", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend9", strict=False)
+    mimetypes.add_type("application/blender-backup", ".blend10", strict=False)
     mimetypes.add_type("application/octet-stream", ".bnk", strict=False)
     mimetypes.add_type("application/octet-stream", ".bor", strict=False)
     mimetypes.add_type("image/x-sgi", ".bw", strict=False)

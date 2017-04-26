@@ -22,6 +22,7 @@ from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
                   __setPrintClusters, __setUser, __setCheckExcludedFiles, \
                   __setPlottingDisabled, __setSkip, __setPrintExtensions, \
+                  __setFrequency, \
                   checkMissingEnabled, debugEnabled, outputFsEnabled, \
                   relatedFilesEnabled, scoreEnabled, graphEnabled, \
                   printClustersEnabled, checkExcludedFilesEnabled, \
@@ -35,11 +36,12 @@ import mimetypes
 USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
                '--check-missing --score\n\t\t--skip=<Policy,Policy,\'graphs' \
                '\'> --clusters --graph --extensions\n\t\t--disable-plotting ' \
-               '--attacks --output=<DIR> --debug] ' \
+               '--attacks --related-files --frequency\n\t\t--output=<DIR> ' \
+               '--debug] ' \
                '\n\nor:     __main__.py --inode=<INODE> [--user=<NAME> ' \
                '--debug]' \
                '\n\nor:     __main__.py --post-analysis=<DIR,DIR,DIR> ' \
-               '[--debug]'\
+               '[--related-files --debug]'\
                '\n\nor:     __main__.py --help'
 
 
@@ -51,13 +53,14 @@ def main(argv):
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hta:cedf:skrpgGi:u:x",
+        (opts, args) = getopt.getopt(argv, "hta:cedf:o:skrpgGi:u:x",
                                      ["help",
                                       "attacks",
                                       "post-analysis=",
                                       "check-missing",
                                       "check-excluded-files",
                                       "debug",
+                                      "frequency",
                                       "inode",
                                       "extensions",
                                       "related-files",
@@ -95,6 +98,9 @@ def main(argv):
                       "the --graph option.\n")
                 print("--extensions:\n\tPrints file extensions and MIME type "
                       "associations for this user.\n")
+                print("--frequency:\n\tSets the frequency used by the "
+                      "frequent-itemsets algorithm in the\n\t--related-files "
+                      "post-analysis. Requires the --related-files option.\n")
                 print("--graph:\n\tFind communities in file/app "
                       "accesses using graph theory methods.\n\tRequires the "
                       "--score and --cluster options for per-policy graphs.\n")
@@ -107,7 +113,9 @@ def main(argv):
                       " by --output in order to produce graphs and\n\t"
                       "statistics.\n")
                 print("--related-files:\n\tMines for files that are frequently"
-                      " accessed together by apps. WORK IN\n\tPROGRESS!\n")
+                      " accessed together by apps. Produces\n\toutput files in"
+                      " scoring mode, and an analysis output in post-analysis"
+                      "\n\tmode. See also --frequency.\n")
                 print("--score:\n\tCalculates the usability and security "
                       "scores of a number of file access\n\tcontrol policies"
                       ", replayed over the simulated accesses. Prints results"
@@ -136,7 +144,12 @@ def main(argv):
                 __setAttacks(True)
             elif opt in ('-G', '--disable-plotting'):
                 __setPlottingDisabled(True)
-            elif opt in ('-f', '--output-fs', '--output'):
+            elif opt in ('-f', '--frequency'):
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                __setFrequency(arg[1:] if arg[0] == '=' else arg)
+            elif opt in ('-o', '--output-fs', '--output'):
                 if not arg:
                     print(USAGE_STRING)
                     sys.exit(2)
