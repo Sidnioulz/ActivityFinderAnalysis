@@ -56,12 +56,25 @@ class CompoundLibraryPolicy(OneLibraryPolicy):
     """Libraries made up of compound locations. One library set per app."""
 
     def __init__(self,
-                 supportedLibraries=['documents', 'image', 'music', 'video'],
+                 supportedLibraries=LibraryManager.CompoundList,
                  name: str='CompoundLibraryPolicy'):
         """Construct a CompoundLibraryPolicy."""
         super(CompoundLibraryPolicy, self).__init__(supportedLibraries,
                                                     name,
                                                     LibraryManager.Compound)
+
+
+class CustomLibraryPolicy(OneLibraryPolicy):
+    """A policy with custom libraries."""
+
+    def __init__(self,
+                 supportedLibraries=LibraryManager.CustomList,
+                 name: str='CustomLibraryPolicy'):
+        """Construct a CustomLibraryPolicy."""
+        super(CustomLibraryPolicy, self).__init__(supportedLibraries,
+                                                  name,
+                                                  LibraryManager.Custom)
+
 
 # class RemovableMediaPolicy(OneLibraryPolicy):
 #     """Grant access to removable media folders."""
