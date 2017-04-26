@@ -59,6 +59,7 @@ class LibraryManager(object):
 
         # Loading default libraries.
         userConf = UserConfigLoader.get()
+        self.userHome = userConf.getHomeDir()
         for lib in LibraryManager.DefaultList:
             fD = dict()
             fD[userConf.getSetting('Xdg%sDir' % lib.capitalize())] = 0
@@ -134,3 +135,32 @@ class LibraryManager(object):
 
         return fileCache[f]
 
+    def getAllLibraryRoots(self, libMod: int, addXdgRoots: bool=True):
+        """Return all the root folders for libraries, and for XDG folders."""
+        if libMod == LibraryManager.Default:
+            libraries = self.defaults
+        elif libMod == LibraryManager.Compound:
+            libraries = self.compounds
+        elif libMod == LibraryManager.Custom:
+            libraries = self.customs
+        else:
+            raise AttributeError("Invalid library mode '%d'." % libMod)
+
+        userConf = UserConfigLoader.get()
+        rootSet = set()
+
+        for (libName, lib) in libraries.items():
+            for (path, cost) in lib.items():
+                rootSet.add(path)
+
+        if addXdgRoots:
+            desk = userConf.getSetting('XdgDesktopDir') or \
+                '%s/Desktop' % self.userHome
+            down = userConf.getSetting('XdgDownloadsDir') or \
+                '%s/Downloads' % self.userHome
+            medias = userConf.getSetting('RemovableMediaDirs',
+                                         type='string list') or []
+
+            rootSet = rootSet.union(*[medias, [desk, down]])
+
+        return rootSet
