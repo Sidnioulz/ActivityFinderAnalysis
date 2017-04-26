@@ -47,7 +47,13 @@ class FrequentFileEngine(object):
                 # in the output file.
                 for acc in doc.getAccesses():
                     actor = acc.getActor()
+
+                    # Ignore system utilities.
                     if not actor.isUserlandApp():
+                        continue
+
+                    # Ignore file-searching or listing apps.
+                    if actor.desktopid in ('catfish', 'dropbox'):
                         continue
 
                     apps.add(actor)
@@ -188,12 +194,7 @@ class FrequentFileEngine(object):
               "patterns.")
         uniques = []
         patterns = dict()
-        i = 0
         for item in itemsets:
-            i += 1
-            if i % 100 == 0:
-                print ("... %d done." % i)
-
             if _hasPath(item):
                 pass
             elif _uniqueType(item):
