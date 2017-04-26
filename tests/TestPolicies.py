@@ -12,7 +12,8 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FileTypePolicy, FolderPolicy, OneFolderPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
-                     FilenamePolicy, ProtectedFolderPolicy, FFFPolicy
+                     FilenamePolicy, ProtectedFolderPolicy, FFFPolicy, \
+                     DistantFolderPolicy
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
@@ -178,6 +179,30 @@ class TestPolicies(unittest.TestCase):
         e011 = Event(actor=self.a3, time=3020, syscallStr=s011)
         e011.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e011)
+
+        self.p012 = "/home/user/Images/Scotland/index.txt"
+        s012 = "open64|%s|fd 10: with flag 524288, e0|" % self.p012
+        e012 = Event(actor=self.a1, time=10, syscallStr=s012)
+        e012.evflags |= EventFileFlags.designation  # this event by designation
+        self.eventStore.append(e012)
+
+        self.p013 = "/home/user/Images/Scotland/DSC13.jpg"
+        s013 = "open64|%s|fd 10: with flag 524288, e0|" % self.p013
+        e013 = Event(actor=self.a1, time=11, syscallStr=s013)
+        e013.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e013)
+
+        self.p014 = "/home/user/Images/Scotland/Edinburgh/DSC14.jpg"
+        s014 = "open64|%s|fd 10: with flag 524288, e0|" % self.p014
+        e014 = Event(actor=self.a1, time=12, syscallStr=s014)
+        e014.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e014)
+
+        self.p015 = "/home/user/Images/Ireland/DSC15.jpg"
+        s015 = "open64|%s|fd 10: with flag 524288, e0|" % self.p015
+        e015 = Event(actor=self.a1, time=13, syscallStr=s015)
+        e015.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e015)
 
         self.eventStore.simulateAllEvents()
         self._reset()
@@ -417,6 +442,33 @@ class TestPolicies(unittest.TestCase):
         accs = f003b.getAccesses()
         next(accs)  # pass accs[0]
         pol.accessFunc(None, f003b, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+    def test_distant_folder(self):
+        pol = DistantFolderPolicy()
+
+        f012 = self.fileFactory.getFile(name=self.p012, time=20)
+        accs = f012.getAccesses()
+        pol.accessFunc(None, f012, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f013 = self.fileFactory.getFile(name=self.p013, time=20)
+        accs = f013.getAccesses()
+        pol.accessFunc(None, f013, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f014 = self.fileFactory.getFile(name=self.p014, time=20)
+        accs = f014.getAccesses()
+        pol.accessFunc(None, f014, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f015 = self.fileFactory.getFile(name=self.p015, time=20)
+        accs = f015.getAccesses()
+        pol.accessFunc(None, f015, next(accs))
         self.illegal += 1
         self._assert(pol)
 

@@ -161,11 +161,15 @@ class FolderPolicy(Policy):
         self.desigCache = dict()
         self.illegalCache = dict()
 
+    def _computeFolder(self, f: File):
+        """Return the folder used for a given file."""
+        return f.getParentName()
+
     def _accFunPreCompute(self,
                           f: File,
                           acc: FileAccess):
         """Precompute a data structure about the file or access."""
-        return f.getParentName()
+        return self._computeFolder(f)
 
     def _accFunCondPolicy(self,
                           f: File,
@@ -219,7 +223,7 @@ class FolderPolicy(Policy):
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
-        folder = f.getParentName()
+        folder = self._computeFolder(f)
         if self.dataInCache(self.desigCache, folder, app):
             return True
         else:
@@ -262,6 +266,44 @@ class OneFolderPolicy(FolderPolicy):
         return False
 
 
+class DistantFolderPolicy(FolderPolicy):
+    """Policy where apps access files in the same distant parent folders."""
+
+    def __init__(self,
+                 name: str='DistantFolderPolicy'):
+        """Construct a DistantFolderPolicy."""
+        super(DistantFolderPolicy, self).__init__(name)
+        self.desigCache = dict()
+        self.illegalCache = dict()
+        self.rootCache = dict()
+        self.roots = \
+          LibraryManager.get().getAllLibraryRoots(libMod=LibraryManager.Custom)
+
+    def _computeFolder(self, f: File):
+        """Return the folder used for a given file."""
+        parent = f.getParentName()
+
+        if parent not in self.rootCache:
+            # Find a matching root, and calculate the largest folder we can use
+            # to grant access to files based on that.
+            for root in self.roots:
+                if parent.startswith(root):
+                    nextSlash = parent.find('/', len(root) + 1)
+
+                    if nextSlash == -1:
+                        self.rootCache[parent] = parent
+                    else:
+                        self.rootCache[parent] = parent[:nextSlash]
+
+                    break
+
+            # No root folder among ~, /media and various libraries.
+            else:
+                self.rootCache[parent] = parent
+
+        return self.rootCache[parent]
+
+
 class FutureAccessListPolicy(FolderPolicy):
     """Policy where files can be accessed by future instances indefinitely."""
 
@@ -293,12 +335,27 @@ class UnsecurePolicy(Policy):
 
     def __init__(self,
                  name: str='UnsecurePolicy'):
-        """Construct a UnsecurePolicy."""
+        """Construct an UnsecurePolicy."""
         super(UnsecurePolicy, self).__init__(name)
 
     def allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         return True
+
+
+class RestrictedAppsPolicy(Policy):
+    """Policy where some apps cannot access files other than by designation."""
+
+    def __init__(self,
+                 name: str='RestrictedAppsPolicy',
+                 apps: list=[]):
+        """Construct a RestrictedAppsPolicy."""
+        super(RestrictedAppsPolicy, self).__init__(name)
+        self.apps = apps
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        return app.desktopid not in self.apps
 
 
 class CompositionalPolicy(Policy):
