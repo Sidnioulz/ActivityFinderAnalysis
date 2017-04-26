@@ -1,5 +1,6 @@
 """An engine for running algorithms that implement an access control policy."""
 from AccessListCache import AccessListCache
+from LibraryManager import LibraryManager
 from File import File, FileAccess, EventFileFlags
 from FileStore import FileStore
 from FileFactory import FileFactory
@@ -170,6 +171,7 @@ class Policy(object):
         super(Policy, self).__init__()
         self.name = name
         self.userConf = UserConfigLoader.get()
+        self.libMgr = LibraryManager.get()
         self.clearScores()
 
     def clearScores(self):
@@ -183,6 +185,9 @@ class Policy(object):
 
         # Scores for each individual File
         self.perFileScores = dict()
+
+        # Scores for libraries
+        self.perLibScores = dict()
 
         # Security clusters
         self.clusters = None
@@ -339,6 +344,12 @@ class Policy(object):
         print("\nALL SYSTEM FILES")
         systemF.printScores(outputDir=self.scoreDir,
                             filename="SystemFiles.score")
+        print("\nMEDIA LIBRARY SCORES")
+        for (libName, libScore) in self.perLibScores.items():
+            libScore.printScores(outputDir=self.scoreDir,
+                                 filename="Library%s.score" % (
+                                  libName.capitalize() if libName
+                                  else "Unclassified"))
         print("\nALL USER DOCUMENTS")
         userDocF.printScores(outputDir=self.scoreDir,
                              filename="UserDocFiles.score")
@@ -412,6 +423,16 @@ class Policy(object):
             attr += increment
             fScore.__setattr__(score, attr)
             self.perFileScores[file.inode] = fScore
+
+            # Library score
+            libName = self.libMgr.getLibraryForFile(file,
+                                                    LibraryManager.Custom)
+            lScore = self.perLibScores.get(libName) or PolicyScores()
+            attr = lScore.__getattribute__(score)
+            attr += increment
+            lScore.__setattr__(score, attr)
+            self.perLibScores[libName] = lScore
+
 
     def incrementOverEntitlement(self,
                                  file: File,
@@ -661,6 +682,7 @@ class Policy(object):
         for (listName, exclList) in self.exclList.items():
             for pathList in exclList:
                 for path in pathList:
+                    print(pathList, path)
                     self.exclRegEx[path] = re.compile('^'+path)
 
         def _calculate(clusters, listName, exclList):
@@ -1051,6 +1073,10 @@ class Policy(object):
         for (key, score) in self.perFileScores.items():
             score.configCost = gbScore
             self.perFileScores[key] = score
+
+        for (key, score) in self.perLibScores.items():
+            score.configCost = gbScore
+            self.perLibScores[key] = score
 
 
 class PolicyEngine(object):
