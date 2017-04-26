@@ -174,7 +174,14 @@ class LibraryManager(object):
                 '%s/Downloads' % self.userHome
             medias = userConf.getSetting('RemovableMediaDirs',
                                          type='string list') or []
+            cfg = '%s/.config/' % self.userHome
+            cache = '%s/.cache/' % self.userHome
+            data = '%s/.local/share/' % self.userHome
 
-            rootSet = rootSet.union(*[medias, [desk, down]])
+            rootSet = rootSet.union(*[medias,
+                                     [desk, down, self.userHome,
+                                      cfg, cache, data]])
 
-        return rootSet
+        rootList = list(rootSet)
+        rootList.sort(key=len, reverse=True)
+        return rootList
