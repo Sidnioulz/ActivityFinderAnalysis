@@ -16,7 +16,8 @@ class LibraryManager(object):
     # Lists of libraries supported in each library mode.
     DefaultList = ['documents', 'image', 'music', 'video']
     CompoundList = DefaultList
-    CustomList = ['documents', 'image', 'music', 'video', 'downloads',
+    CustomList = ['documents', 'image', 'music', 'video',
+                  'downloads', 'desktop',
                   'scores', '3d', 'programming', 'health', 'ebooks']
 
     # Supported library modes.
@@ -83,13 +84,19 @@ class LibraryManager(object):
         confCost = 0
         for lib in LibraryManager.CustomList:
             fD = dict()
-            fD[userConf.getSetting('Xdg%sDir' % lib.capitalize())] = 0
+
+            defaultKey = userConf.getSetting('Xdg%sDir' % lib.capitalize())
+            if defaultKey:
+              fD[defaultKey] = 0
+
             for d in userConf.getSetting('Extra%sDirs' % lib.capitalize(),
                                           defaultValue=[],
                                           type='string list'):
                 fD[d] = 1
                 confCost += 1
-            self.customs[lib] = fD
+
+            if fD:
+                self.customs[lib] = fD
         self.configCosts[LibraryManager.Custom] = confCost
 
         # for d in self.userConf.getSetting('RemovableMediaDirs',
@@ -124,13 +131,20 @@ class LibraryManager(object):
             val = None
             
             for (libName, lib) in libraries.items():
-                if val:
+                if val or not lib:
                     break
                 for (path, cost) in lib.items():
                     if(f.path.startswith(path)):
                         val = libName
                         break
 
+            # Non-library file, distinguish user documents.
+            if not val:
+              if f.isUserDocument(userHome=self.userHome,
+                                  allowHiddenFiles=True):
+                val = "UnclassifiedUserDocument"
+              else:
+                val = "Unclassified"
             fileCache[f] = val
 
         return fileCache[f]
