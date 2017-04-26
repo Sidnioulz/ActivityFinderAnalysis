@@ -8,3 +8,4 @@ Categories=Development;
 StartupNotify=true
 Keywords=IDE;development;programming;
 LibraryCaps=documents;
+LibraryCapsCustom=programming;

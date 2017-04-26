@@ -19,6 +19,7 @@ Actions=new-window;new-document;
 Keywords=Text;Editor;Plaintext;Write;
 X-Ubuntu-Gettext-Domain=gedit
 LibraryCaps=documents;
+LibraryCapsCustom=programming;
 ROPaths=^/usr/include/gedit\-3\.14;
 MimeType=text/plain;
 

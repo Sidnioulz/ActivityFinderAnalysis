@@ -10,3 +10,4 @@ Categories=GNOME;GTK;Utility;TextEditor;Development;
 MimeType=text/plain;
 RWPaths=^~/\.atom;^~/\.config/Atom;
 LibraryCaps=documents;
+LibraryCapsCustom=programming;

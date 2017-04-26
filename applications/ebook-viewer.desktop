@@ -8,3 +8,4 @@ Icon=calibre
 MimeType=application/x-mobipocket-ebook;application/epub+zip;
 Categories=Office;Graphics;Viewer;
 LibraryCaps=documents;
+LibraryCapsCustom=ebooks;

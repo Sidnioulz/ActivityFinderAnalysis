@@ -6,3 +6,4 @@ Type=Application
 StartupNotify=false
 Categories=Utility;
 RWPaths=^~/\.gdb_history;
+LibraryCapsCustom=programming;

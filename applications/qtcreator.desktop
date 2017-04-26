@@ -9,3 +9,4 @@ MimeType=text/x-c++src;text/x-c++hdr;text/x-xsrc;application/x-designer;applicat
 Categories=Qt;Development;IDE;
 InitialPreference=9
 LibraryCaps=documents;
+LibraryCapsCustom=programming;

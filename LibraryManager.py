@@ -17,8 +17,7 @@ class LibraryManager(object):
     DefaultList = ['documents', 'image', 'music', 'video']
     CompoundList = DefaultList
     CustomList = ['documents', 'image', 'music', 'video',
-                  'downloads', 'desktop',
-                  'scores', '3d', 'programming', 'health', 'ebooks']
+                  'downloads', 'desktop', 'programming', 'ebooks', 'scores']
 
     # Supported library modes.
     Default = 0
@@ -52,6 +51,7 @@ class LibraryManager(object):
 
         # Cache for application policies.
         self.appPolicyCache = dict()
+        appPolicyCacheCustom = dict()
 
         # Cache for files.
         self.fileCacheDefault = dict()
@@ -104,14 +104,26 @@ class LibraryManager(object):
         #                                   type='string list'):
         #     self.removableMediaLibrary[d] = 1
 
-    def getAppPolicy(self, actor: Application):
+    def getAppPolicy(self, actor: Application, libMod: int):
         """Return the library capabilities policy for one Application."""
-        if actor.desktopid not in self.appPolicyCache:
-            policies = actor.getSetting('LibraryCaps',
-                                        type='string list') or []
-            self.appPolicyCache[actor.desktopid] = policies
+        if libMod == LibraryManager.Custom:
+            if actor.desktopid not in self.appPolicyCacheCustom:
+                policies = actor.getSetting('LibraryCapsCustom',
+                                            type='string list') or \
+                    self.getAppPolicy(actor, LibraryManager.Default)
 
-        return self.appPolicyCache[actor.desktopid]
+                self.appPolicyCacheCustom[actor.desktopid] = policies
+
+            return self.appPolicyCacheCustom[actor.desktopid]
+
+        else:
+            if actor.desktopid not in self.appPolicyCache:
+                policies = actor.getSetting('LibraryCaps',
+                                            type='string list') or []
+
+                self.appPolicyCache[actor.desktopid] = policies
+
+            return self.appPolicyCache[actor.desktopid]
 
     def getLibraryForFile(self, f: File, libMod: int):
         """Return the name of the library a File belongs to."""

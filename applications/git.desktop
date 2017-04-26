@@ -7,3 +7,4 @@ StartupNotify=false
 Categories=System;
 Icon=terminal
 RWPaths=^~/\.gitconfig;
+LibraryCapsCustom=programming;

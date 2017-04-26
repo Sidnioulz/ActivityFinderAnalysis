@@ -6,3 +6,4 @@ Exec=electron %u
 Categories=Development;GTK;
 StartupNotify=true
 LibraryCaps=documents;
+LibraryCapsCustom=programming;

@@ -4,6 +4,6 @@ Version=1.0
 Name=BibTeX
 Icon=bibtex
 Exec=bibtex %F
-MimeType=text/x-tex;application/x-latex;text/x-bibtex;
+MimeType=text/x-tex;application/x-latex;text/x-bibtex;text/x-tex-aux;text/x-tex-mf;
 Categories=Office;
 LibraryCaps=documents;

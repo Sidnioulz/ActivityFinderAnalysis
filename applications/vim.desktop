@@ -8,3 +8,5 @@ Categories=System;
 Icon=terminal
 MimeType=text/x-script.python;application/python/;text/plain;application/java;application/x-java-class;text/x-java-source;application/x-java-commerce;application/x-javascript;application/javascript;text/javascript;text/html;text/xml;application/xhtml+xml;text/mml;text/x-c++src;text/x-c++hdr;text/x-xsrc;text/x-csrc;text/x-chdr;text/x-xsrc;text/css;
 RWPaths=^~/\.vim(inf.*|rc)?;
+LibraryCaps=documents;
+LibraryCapsCustom=programming;

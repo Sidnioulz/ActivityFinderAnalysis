@@ -10,6 +10,7 @@ Terminal=false
 Type=Application
 StartupNotify=false
 StartupWMClass=qbittorrent
+LibraryCapsCustom=downloads;
 
 # Translations
 Comment[ar]=نزّل وشارك الملفات عبر كيوبت‎تورنت
@@ -126,3 +127,4 @@ Name[zh_TW]=qBittorrent
 Comment[en_AU]=Download and share files over BitTorrent
 GenericName[en_AU]=BitTorrent client
 Name[en_AU]=qBittorrent
+

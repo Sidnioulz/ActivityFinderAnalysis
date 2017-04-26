@@ -12,3 +12,4 @@ Icon=filezilla
 Type=Application
 Categories=Network;FileTransfer;
 Version=1.0
+LibraryCapsCustom=downloads;

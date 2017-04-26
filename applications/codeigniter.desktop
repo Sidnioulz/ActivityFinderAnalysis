@@ -7,4 +7,5 @@ Icon=codeigniter
 Categories=Utility;TextEditor;
 Terminal=false
 LibraryCaps=documents;
+LibraryCapsCustom=programming;
 MimeType=text/plain;application/x-javascript;application/javascript;text/javascript;text/html;text/xml;application/xhtml+xml;text/php;text/x-xsrc;text/css;

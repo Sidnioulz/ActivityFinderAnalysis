@@ -4,6 +4,6 @@ Version=1.0
 Name=LaTeX
 Icon=latex
 Exec=latex %F
-MimeType=text/x-tex;application/postscript;application/x-latex;text/x-bibtex;
+MimeType=text/x-tex;text/x-tex-aux;application/postscript;application/x-latex;text/x-bibtex;text/x-tex-mf;
 Categories=Office;
 LibraryCaps=documents;

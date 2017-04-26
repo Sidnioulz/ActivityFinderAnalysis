@@ -84,4 +84,5 @@ Icon=blender
 Terminal=false
 Type=Application
 Categories=Graphics;3DGraphics;
-MimeType=application/x-blender;application/blender;
+MimeType=application/x-blender;application/blender;application/blender-backup;
+LibraryCapsCustom=3d;

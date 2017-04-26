@@ -44,6 +44,6 @@ Comment[tr]=TeXworks, TeX belgelerini düzenleme, dizme ve önizleme için basit
 Comment[zh_CN]=一个用于编辑、排版和预览 TeX 文档的简洁集成环境
 Icon=TeXworks
 Exec=texworks %F
-MimeType=text/x-tex;application/pdf;application/x-latex;
+MimeType=text/x-tex;application/pdf;application/x-latex;text/x-tex-aux;text/x-tex-mf;text/x-bibtex;
 Categories=Office;Qt;
 LibraryCaps=documents;

@@ -12,5 +12,5 @@ Name[fr]=Texmaker
 StartupNotify=false
 Terminal=false
 Type=Application
-MimeType=text/x-tex;application/pdf;
+MimeType=text/x-tex;application/pdf;text/x-tex-aux;text/x-bibtex;text/x-tex-mf;
 LibraryCaps=documents;
