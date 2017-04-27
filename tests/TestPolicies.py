@@ -13,7 +13,7 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
                      FilenamePolicy, ProtectedFolderPolicy, FFFPolicy, \
-                     DistantFolderPolicy
+                     DistantFolderPolicy, ProjectsPolicy
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
@@ -173,6 +173,9 @@ class TestPolicies(unittest.TestCase):
         e010 = Event(actor=self.a1, time=20, syscallStr=s010)
         e010.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e010)
+        e010b = Event(actor=self.a3, time=20, syscallStr=s010)
+        e010b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e010b)
 
         self.p011 = "/home/user/Dropbox/Photos/holidays.evenmoremetadata"
         s011 = "open64|%s|fd 11: with flag 524288, e0|" % self.p011
@@ -203,6 +206,9 @@ class TestPolicies(unittest.TestCase):
         e015 = Event(actor=self.a1, time=13, syscallStr=s015)
         e015.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e015)
+        e015b = Event(actor=self.a3, time=14, syscallStr=s015)
+        e015b.evflags |= EventFileFlags.designation  # this by designation
+        self.eventStore.append(e015b)
 
         self.eventStore.simulateAllEvents()
         self._reset()
@@ -470,6 +476,46 @@ class TestPolicies(unittest.TestCase):
         accs = f015.getAccesses()
         pol.accessFunc(None, f015, next(accs))
         self.illegal += 1
+        self._assert(pol)
+
+    def test_projects(self):
+        pol = ProjectsPolicy()
+
+        f012 = self.fileFactory.getFile(name=self.p012, time=20)
+        accs = f012.getAccesses()
+        pol.accessFunc(None, f012, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f013 = self.fileFactory.getFile(name=self.p013, time=20)
+        accs = f013.getAccesses()
+        pol.accessFunc(None, f013, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f014 = self.fileFactory.getFile(name=self.p014, time=20)
+        accs = f014.getAccesses()
+        pol.accessFunc(None, f014, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f015 = self.fileFactory.getFile(name=self.p015, time=20)
+        accs = f015.getAccesses()
+        pol.accessFunc(None, f015, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        # Now test a3 designation access to ireland, and that the other project
+        # files are subsequently allowed.
+        pol.accessFunc(None, f015, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f010 = self.fileFactory.getFile(name=self.p010, time=20)
+        accs = f010.getAccesses()
+        next(accs)
+        pol.accessFunc(None, f010, next(accs))
+        self.policy += 1
         self._assert(pol)
 
     def test_one_folder(self):

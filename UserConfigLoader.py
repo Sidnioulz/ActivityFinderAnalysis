@@ -108,4 +108,20 @@ class UserConfigLoader(object):
             exclLists[key] = _parseVals(key)
 
         return exclLists
-        
+
+    def getProjects(self):
+        """Get the projects of a participant."""
+        if not self.ini:
+            return list()
+
+        projs = self.ini.get('Projects',
+                             group='User Config',
+                             type='string', list=True) or ''
+
+        result = []
+        for project in projs:
+            projectLocations = project.split('|')
+            result.append(projectLocations)
+
+        return result
+

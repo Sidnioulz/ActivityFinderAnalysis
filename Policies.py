@@ -317,6 +317,47 @@ class DistantFolderPolicy(FolderPolicy):
         return self.rootCache[parent]
 
 
+class ProjectsPolicy(FolderPolicy):
+    """Policy where apps access files in the same project folders."""
+
+    def __init__(self,
+                 name: str='ProjectsPolicy'):
+        """Construct a ProjectsPolicy."""
+        super(ProjectsPolicy, self).__init__(name)
+        self.desigCache = dict()
+        self.illegalCache = dict()
+        self.projectsCache = dict()
+        self.projects = self.userConf.getProjects()
+
+        self.projectNames = dict()
+        for proj in self.projects:
+            projName = '|'.join(proj)
+            for path in proj:
+                self.projectNames[path] = projName
+
+    def _computeFolder(self, f: File):
+        """Return the folder used for a given file."""
+        parent = f.getParentName()
+
+        if parent not in self.projectsCache:
+            found = False
+            # Find a matching project.
+            for proj in self.projects:
+                for path in proj:
+                    if parent.startswith(path):
+                        self.projectsCache[parent] = self.projectNames[path]
+                        found = True
+                        break
+                if found:
+                    break
+
+            # No matching project.
+            else:
+                self.projectsCache[parent] = None
+
+        return self.projectsCache[parent]
+
+
 class FutureAccessListPolicy(FolderPolicy):
     """Policy where files can be accessed by future instances indefinitely."""
 
