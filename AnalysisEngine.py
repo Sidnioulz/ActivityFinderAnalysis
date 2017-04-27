@@ -7,6 +7,7 @@ import shutil
 import pygal
 from pygal.style import Style
 from utils import debugEnabled
+from LibraryManager import LibraryManager
 
 plottingBlacklist = ['apt-get', 'cairo-dock', 'dbus-send', 'dpkg', 'gdb',
                      'gst-plugin-scanner', 'helper-dialog', 'indicator-applet',
@@ -683,12 +684,37 @@ class AnalysisEngine(object):
         for (name, folders) in sorted(self.foldersPerName.items()):
             print("\t%d/%d: %s" % (i, policyCount, name))
             i += 1
+
             p = list(os.path.join(f, "UserlandApps.score") for f in folders)
             userlandScores[name] = self.parseUsabilityScores(p)
 
         self.genUsabilityCostTable(userlandScores,
                                    "UserlandApps.UsabScores.tex",
                                    "all user applications")
+        print("Done.\n")
+
+        # Get usability scores for each library separately.
+        print("Generating table of usability scores for each library...")
+        libScores = dict()
+        libraries = (lib.capitalize() for lib in LibraryManager.CustomList)
+        # FIXME FIXME FIXME: DELETE
+        libraries = ['Documents', 'Music', 'Video', 'Downloads', 'Image',
+                     'Unclassified', 'Unclassifieduserdocument']
+        # FIXME FIXME FIXME: END DELETE
+        lpCount = policyCount * len(libraries)
+        i = 1
+        for lib in libraries:
+            libFile = "Library%s.score" % lib
+            for (name, folders) in sorted(self.foldersPerName.items()):
+                print("\t%d/%d: %s for %s" % (i, lpCount, name, lib))
+                i += 1
+
+                p = list(os.path.join(f, libFile) for f in folders)
+                libScores[name] = self.parseUsabilityScores(p)
+
+            self.genUsabilityCostTable(libScores,
+                                       "Library%s.UsabScores.tex" % lib,
+                                       "all user applications")
         print("Done.\n")
 
         print("Plotting cost distribution for all userland apps...")
