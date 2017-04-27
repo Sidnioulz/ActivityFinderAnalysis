@@ -33,7 +33,7 @@ class OneLibraryPolicy(Policy):
 
     def allowedByPolicy(self, file: File, actor: Application):
         """Tell if a File is allowed to be accessed by a Policy."""
-        policies = self.mgr.getAppPolicy(actor)
+        policies = self.mgr.getAppPolicy(actor, libMod=self.libMode)
         lib = self.mgr.getLibraryForFile(file, libMod=self.libMode)
 
         if not lib:
