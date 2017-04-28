@@ -47,6 +47,16 @@ class LibraryManager(object):
         self.compounds = dict()
         self.customs = dict()
 
+        # Roots of all libraries, reverse-sorted by length.
+        self.defaultRoots = list()
+        self.compoundRoots = list()
+        self.customRoots = list()
+
+        # Map of paths to library names, to use with sorted root lists.
+        self.defaultMap = dict()
+        self.compoundMap = dict()
+        self.customMap = dict()
+
         self.configCosts = dict()
 
         # Cache for application policies.
@@ -99,6 +109,16 @@ class LibraryManager(object):
                 self.customs[lib] = fD
         self.configCosts[LibraryManager.Custom] = confCost
 
+        self.defaultRoots = self.getAllLibraryRoots(LibraryManager.Default,
+                                                    addXdgRoots=False,
+                                                    mapToFill=self.defaultMap)
+        self.compoundRoots = self.getAllLibraryRoots(LibraryManager.Compound,
+                                                    addXdgRoots=False,
+                                                    mapToFill=self.compoundMap)
+        self.customRoots = self.getAllLibraryRoots(LibraryManager.Custom,
+                                                    addXdgRoots=False,
+                                                    mapToFill=self.customMap)
+
         # for d in self.userConf.getSetting('RemovableMediaDirs',
         #                                   defaultValue=[],
         #                                   type='string list'):
@@ -129,26 +149,26 @@ class LibraryManager(object):
         """Return the name of the library a File belongs to."""
         if libMod == LibraryManager.Default:
             fileCache = self.fileCacheDefault
-            libraries = self.defaults
+            roots = self.defaultRoots
+            libMap = self.defaultMap
         elif libMod == LibraryManager.Compound:
             fileCache = self.fileCacheCompound
-            libraries = self.compounds
+            roots = self.compoundRoots
+            libMap = self.compoundMap
         elif libMod == LibraryManager.Custom:
             fileCache = self.fileCacheCustom
-            libraries = self.customs
+            roots = self.customRoots
+            libMap = self.customMap
         else:
             raise AttributeError("Invalid library mode '%d'." % libMod)
 
         if f not in fileCache:
             val = None
             
-            for (libName, lib) in libraries.items():
-                if val or not lib:
+            for path in roots:
+                if(f.path.startswith(path)):
+                    val = libMap[path]
                     break
-                for (path, cost) in lib.items():
-                    if(f.path.startswith(path)):
-                        val = libName
-                        break
 
             # Non-library file, distinguish user documents.
             if not val:
@@ -161,7 +181,9 @@ class LibraryManager(object):
 
         return fileCache[f]
 
-    def getAllLibraryRoots(self, libMod: int, addXdgRoots: bool=True):
+    def getAllLibraryRoots(self, libMod: int,
+                           addXdgRoots: bool=True,
+                           mapToFill: dict=None):
         """Return all the root folders for libraries, and for XDG folders."""
         if libMod == LibraryManager.Default:
             libraries = self.defaults
@@ -178,6 +200,8 @@ class LibraryManager(object):
         for (libName, lib) in libraries.items():
             for (path, cost) in lib.items():
                 rootSet.add(path)
+                if mapToFill is not None:
+                    mapToFill[path] = libName
 
         if addXdgRoots:
             desk = userConf.getSetting('XdgDesktopDir') or \
@@ -186,9 +210,9 @@ class LibraryManager(object):
                 '%s/Downloads' % self.userHome
             medias = userConf.getSetting('RemovableMediaDirs',
                                          type='string list') or []
-            cfg = '%s/.config/' % self.userHome
-            cache = '%s/.cache/' % self.userHome
-            data = '%s/.local/share/' % self.userHome
+            cfg = '%s/.config' % self.userHome
+            cache = '%s/.cache' % self.userHome
+            data = '%s/.local/share' % self.userHome
 
             rootSet = rootSet.union(*[medias,
                                      [desk, down, self.userHome,

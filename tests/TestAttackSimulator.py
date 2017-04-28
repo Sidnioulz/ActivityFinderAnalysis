@@ -12,7 +12,7 @@ from FileFactory import FileFactory
 from Policies import UnsecurePolicy, OneFolderPolicy
 
 
-class TestSimulator(unittest.TestCase):
+class TestAttackSimulator(unittest.TestCase):
     def setUp(self):
         self.userConf = UserConfigLoader.get("user.ini")
         self.appStore = ApplicationStore.get()
