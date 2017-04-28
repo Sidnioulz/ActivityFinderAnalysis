@@ -803,8 +803,7 @@ class FFFSbPolicy(CompositionalPolicy):
         policies = [FolderPolicy, FileTypePolicy, FutureAccessListPolicy,
                     StickyBitPolicy]
         polArgs = [None, None, None,
-                   dict(folders=["@XDG_DOWNLOADS_DIR@", "@XDG_DESKTOP_DIR@",
-                                 "/tmp"]),]
+                   dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),]
         super(FFFSbPolicy, self).__init__(policies, polArgs, name)
 
 
@@ -817,6 +816,5 @@ class OneFFFSbPolicy(CompositionalPolicy):
         policies = [OneFolderPolicy, FileTypePolicy, FutureAccessListPolicy,
                     StickyBitPolicy]
         polArgs = [None, None, None,
-                   dict(folders=["@XDG_DOWNLOADS_DIR@", "@XDG_DESKTOP_DIR@",
-                                 "/tmp"]),]
+                   dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),]
         super(OneFFFSbPolicy, self).__init__(policies, polArgs, name)
