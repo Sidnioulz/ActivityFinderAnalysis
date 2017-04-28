@@ -14,9 +14,9 @@ class LibraryManager(object):
     __lib_mgr = None
 
     # Lists of libraries supported in each library mode.
-    DefaultList = ['documents', 'image', 'music', 'video']
+    DefaultList = ['documents', 'image', 'music', 'video', 'removable']
     CompoundList = DefaultList
-    CustomList = ['documents', 'image', 'music', 'video',
+    CustomList = ['documents', 'image', 'music', 'video', 'removable',
                   'downloads', 'desktop', 'programming', 'ebooks', 'scores']
 
     # Supported library modes.
@@ -119,11 +119,6 @@ class LibraryManager(object):
                                                     addXdgRoots=False,
                                                     mapToFill=self.customMap)
 
-        # for d in self.userConf.getSetting('RemovableMediaDirs',
-        #                                   defaultValue=[],
-        #                                   type='string list'):
-        #     self.removableMediaLibrary[d] = 1
-
     def getAppPolicy(self, actor: Application, libMod: int):
         """Return the library capabilities policy for one Application."""
         if libMod == LibraryManager.Custom:
@@ -181,6 +176,19 @@ class LibraryManager(object):
 
         return fileCache[f]
 
+    def getRemovableMediaDir(self, libMod: int):
+        """Return the root directory for the user's removable media."""
+        if libMod == LibraryManager.Default:
+            libraries = self.defaults
+        elif libMod == LibraryManager.Compound:
+            libraries = self.compounds
+        elif libMod == LibraryManager.Custom:
+            libraries = self.customs
+        else:
+            raise AttributeError("Invalid library mode '%d'." % libMod)
+
+        return libraries['removable']
+
     def getAllLibraryRoots(self, libMod: int,
                            addXdgRoots: bool=True,
                            mapToFill: dict=None):
@@ -208,15 +216,12 @@ class LibraryManager(object):
                 '%s/Desktop' % self.userHome
             down = userConf.getSetting('XdgDownloadsDir') or \
                 '%s/Downloads' % self.userHome
-            medias = userConf.getSetting('RemovableMediaDirs',
-                                         type='string list') or []
             cfg = '%s/.config' % self.userHome
             cache = '%s/.cache' % self.userHome
             data = '%s/.local/share' % self.userHome
 
-            rootSet = rootSet.union(*[medias,
-                                     [desk, down, self.userHome,
-                                      cfg, cache, data]])
+            rootSet = rootSet.union([desk, down, self.userHome,
+                                      cfg, cache, data])
 
         rootList = list(rootSet)
         rootList.sort(key=len, reverse=True)

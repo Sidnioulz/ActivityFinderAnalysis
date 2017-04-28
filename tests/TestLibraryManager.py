@@ -37,7 +37,8 @@ class TestLibraryManager(unittest.TestCase):
 
         roots = self.mgr.getAllLibraryRoots(libMod=LibraryManager.Custom,
                                             addXdgRoots=False)
-        self.assertEqual(len(roots), 6)
+        self.assertEqual(len(roots), 7)
+        self.assertIn("/media/user", roots)
         self.assertIn("/home/user/Desktop", roots)
         self.assertIn("/home/user/Downloads", roots)
         self.assertIn("/home/user/Documents", roots)
@@ -47,7 +48,8 @@ class TestLibraryManager(unittest.TestCase):
 
         roots = self.mgr.getAllLibraryRoots(libMod=LibraryManager.Default,
                                             addXdgRoots=False)
-        self.assertEqual(len(roots), 4)
+        self.assertEqual(len(roots), 5)
+        self.assertIn("/media/user", roots)
         self.assertIn("/home/user/Documents", roots)
         self.assertIn("/home/user/Images", roots)
         self.assertIn("/home/user/Music", roots)
