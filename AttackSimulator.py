@@ -168,19 +168,20 @@ class AttackSimulator(object):
                     consideredApps.append(did)
             msg += ("Simulating attack starting from an app among %s.\n" %
                     consideredApps)
-            tprnt("Simulating '%s' attack starting from an app among %s." %
-                  (attackName, consideredApps))
+            # tprnt("Simulating '%s' attack starting from an app among %s." %
+            #       (attackName, consideredApps))
 
             if not startingPoints:
-                tprnt("No such app found, aborting attack simulation.")
+                msg += ("No such app found, aborting attack simulation.")
+                # tprnt("No such app found, aborting attack simulation.")
                 return msg
 
         # Case where a file is at the origin of the attack.
         elif filePattern:
             msg += ("Simulating attack starting from a file matching %s.\n" % 
                     filePattern)
-            tprnt("Simulating '%s' attack starting from a file matching %s." % 
-                  (attackName, filePattern))
+            # tprnt("Simulating '%s' attack starting from a file matching %s." % 
+            #       (attackName, filePattern))
 
             home = userConf.getHomeDir() or "/MISSING-HOME-DIR"
             desk = userConf.getSetting("XdgDesktopDir") or "~/Desktop"
@@ -192,7 +193,7 @@ class AttackSimulator(object):
             filePattern = filePattern.replace('@USER@', user)
             filePattern = filePattern.replace('@HOSTNAME@', host)
             filePattern = filePattern.replace('~', home)
-            tprnt("\tfinal pattern: %s." % filePattern)
+            # tprnt("\tfinal pattern: %s." % filePattern)
             fileRe = re.compile(filePattern)
 
             for f in fileStore:
@@ -200,17 +201,19 @@ class AttackSimulator(object):
                     startingPoints.append(f)
 
             if not startingPoints:
-                tprnt("No such file found, aborting attack simulation.")
+                msg += ("No such file found, aborting attack simulation.")
+                # tprnt("No such file found, aborting attack simulation.")
                 return msg
         else:
-            tprnt("No starting point defined, aborting attack simulation.")
+            msg += ("No starting point defined, aborting attack simulation.")
+            # tprnt("No starting point defined, aborting attack simulation.")
             return msg
 
         # Now, roll the attack.
         msg += ("%d starting points found. Performing %d rounds of attacks."
                 "\n\n" % (len(startingPoints), AttackSimulator.passCount))
-        tprnt("%d starting points found. Performing %d rounds of attacks." %
-              (len(startingPoints), AttackSimulator.passCount))
+        # tprnt("%d starting points found. Performing %d rounds of attacks." %
+        #       (len(startingPoints), AttackSimulator.passCount))
 
         apps = []
         files = []
@@ -251,8 +254,8 @@ class AttackSimulator(object):
             msg += ("        \t%d apps infected (%s); %d files infected; %d "
                     "documents infected.\n\n" % (
                      appCount, appSet, fileCount, docCount))
-            tprnt("Pass %d: %d apps infected; %d files (%d documents)"
-                  " infected" % (i+1, appCount, fileCount, docCount))
+            # tprnt("Pass %d: %d apps infected; %d files (%d documents)"
+            #       " infected" % (i+1, appCount, fileCount, docCount))
             apps.append(appCount)
             files.append(fileCount)
             docs.append(docCount)
