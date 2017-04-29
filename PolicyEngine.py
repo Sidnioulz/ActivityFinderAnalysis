@@ -682,7 +682,6 @@ class Policy(object):
         for (listName, exclList) in self.exclList.items():
             for pathList in exclList:
                 for path in pathList:
-                    print(pathList, path)
                     self.exclRegEx[path] = re.compile('^'+path)
 
         def _calculate(clusters, listName, exclList):
