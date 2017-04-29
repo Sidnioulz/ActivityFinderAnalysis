@@ -168,7 +168,6 @@ class EventStore(object):
                                    time=event.time,
                                    ftype=ftype)
         file.setTimeOfStart(event.time)
-        file.setType(ftype)
 
         res = self.desigcache.checkForDesignation(event, [file])
         file.addAccess(actor=event.actor,
