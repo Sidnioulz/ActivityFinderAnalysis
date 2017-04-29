@@ -8,6 +8,7 @@ from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
                       OWNED_PATH_ACCESS
 import sys
 import math
+import re
 
 
 class OneLibraryPolicy(Policy):
@@ -818,3 +819,137 @@ class OneFFFSbPolicy(CompositionalPolicy):
         polArgs = [None, None, None,
                    dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),]
         super(OneFFFSbPolicy, self).__init__(policies, polArgs, name)
+
+
+class ExclusionPolicy(Policy):
+    """Policy that prevents reading files from multiple locations."""
+
+    def __init__(self,
+                 exclusionList: list,
+                 excludeOutsideLists: bool=False,
+                 countConfigCosts: bool=True,
+                 name: str='ExclusionPolicy'):
+        """Construct a ExclusionPolicy."""
+        super(ExclusionPolicy, self).__init__(name)
+        self.excludeOutsideLists = excludeOutsideLists
+        self.currentPath = dict()
+        self.matchCache = dict()
+        self.illegalCache = dict()
+
+        self.exclusionList = []
+        self.exclusionREs = dict()
+        self.cost = 0
+        self.exclusionList = exclusionList
+        for path in exclusionList:
+            if countConfigCosts:
+                self.cost += 1
+            self.exclusionREs[path] = re.compile(path)
+
+    def _match(self, f: File):
+        """Precompute a data structure about the file."""
+        matched = None
+
+        if f not in self.matchCache:
+            for path in self.exclusionList:
+                pattern = self.exclusionREs[path]
+                res = pattern.match(f.path)
+                matched = res.group(0) if res else None
+                if matched:
+                    self.matchCache[f] = path
+                    break
+            else:
+                self.matchCache[f] = []  # Differentiate from None.
+
+        return self.matchCache[f]
+
+
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        return self._match(f)
+
+    def _accFunCondDesignation(self,
+                               f: File,
+                               acc: FileAccess,
+                               composed: bool,
+                               data):
+        """Calculate condition for DESIGNATION_ACCESS to be returned."""
+        if not acc.evflags & EventFileFlags.designation:
+            return False
+
+        key = acc.actor.desktopid if self.appWideRecords() else acc.actor.uid()
+
+        if key in self.currentPath:
+            if data is None:
+                data = self._match(f)
+            return data == self.currentPath[key]
+        else:
+            return True
+
+    def allowedByPolicy(self, file: File, actor: Application):
+        """Tell if a File is allowed to be accessed by a Policy."""
+        data = self._match(file)
+
+        # Do we allow files outside any exclusion list?
+        if not self.excludeOutsideLists and data == []:
+            return True
+
+        # If there is a list and our file belongs to a list, is it the same?
+        key = actor.desktopid if self.appWideRecords() else actor.uid()
+        if key in self.currentPath:
+            return data == self.currentPath[key]
+
+        # Scenario where file belongs to a different exclusion list, deny.
+        return False
+
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on DESIGNATION_ACCESS."""
+        if data is None:
+            data = self._match(f)
+
+        key = acc.actor.desktopid if self.appWideRecords() else acc.actor.uid()
+        if key not in self.currentPath and data:
+            self.currentPath[key] = data
+
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on POLICY_ACCESS."""
+        self.updateDesignationState(f, acc, data)
+
+    def updateIllegalState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on ILLEGAL_ACCESS."""
+        if not data:
+            data = self._accFunPreCompute(f, acc)
+        self.addToCache(data, acc.actor)
+
+    def dataInCache(self, data: str, app: Application):
+        """Tell if data has been previously accessed by an app."""
+        if data is None:
+            return False
+        key = app.desktopid if self.appWideRecords() else app.uid()
+        s = self.illegalCache.get(key)
+        return data in s if s else False
+
+    def _accFunSimilarAccessCond(self,
+                                 f: File,
+                                 acc: FileAccess,
+                                 composed: bool,
+                                 data):
+        """Calculate condition for grantingCost to be incremented."""
+        return not self.dataInCache(data, acc.actor) and \
+            not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
+                                       appWide=self.appWideRecords())
+
+    def addToCache(self, data: str, app: Application):
+        """Record that data has been previously accessed by an app."""
+        if not data:
+            return
+        key = app.desktopid if self.appWideRecords() else app.uid()
+        s = self.illegalCache.get(key) or set()
+        s.add(data)
+        self.illegalCache[key] = s
+
+
+# TODO removablemedia vs .* exclusion policy
+
+

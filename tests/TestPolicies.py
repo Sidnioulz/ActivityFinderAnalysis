@@ -13,7 +13,7 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
                      FilenamePolicy, ProtectedFolderPolicy, FFFPolicy, \
-                     DistantFolderPolicy, ProjectsPolicy
+                     DistantFolderPolicy, ProjectsPolicy, ExclusionPolicy
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
@@ -280,6 +280,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_designation(self):
         pol = DesignationPolicy()
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -333,6 +334,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_filetype(self):
         pol = FileTypePolicy()
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -395,6 +397,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_folder(self):
         pol = FolderPolicy()
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -453,6 +456,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_distant_folder(self):
         pol = DistantFolderPolicy()
+        self._reset()
 
         f012 = self.fileFactory.getFile(name=self.p012, time=20)
         accs = f012.getAccesses()
@@ -480,6 +484,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_projects(self):
         pol = ProjectsPolicy()
+        self._reset()
 
         f012 = self.fileFactory.getFile(name=self.p012, time=20)
         accs = f012.getAccesses()
@@ -520,6 +525,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_one_folder(self):
         pol = OneFolderPolicy()
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -581,6 +587,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_future_access(self):
         pol = FutureAccessListPolicy()
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -640,6 +647,7 @@ class TestPolicies(unittest.TestCase):
     def test_compositional(self):
         pol = CompositionalPolicy(policies=[FileTypePolicy, OneLibraryPolicy],
                                   polArgs=[None, None])
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -700,6 +708,7 @@ class TestPolicies(unittest.TestCase):
         pol = StrictCompositionalPolicy(policies=[FileTypePolicy,
                                                   OneLibraryPolicy],
                                         polArgs=[None, None])
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -761,6 +770,7 @@ class TestPolicies(unittest.TestCase):
                                             FutureAccessListPolicy],
                                   polArgs=[dict(supportedLibraries=["image"]),
                                            None])
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -821,6 +831,7 @@ class TestPolicies(unittest.TestCase):
         pol = StickyBitPolicy(folders=["/tmp",
                                        "~/Desktop",
                                        "~/Downloads"])
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -879,6 +890,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_filename(self):
         pol = FilenamePolicy()
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -939,6 +951,7 @@ class TestPolicies(unittest.TestCase):
         pol = StickyBitPolicy(folders=["/tmp",
                                        "~/Desktop",
                                        "~/Downloads"])
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -997,6 +1010,7 @@ class TestPolicies(unittest.TestCase):
 
     def test_protected_folder(self):
         pol = ProtectedFolderPolicy(folders=["~/Downloads", "~/Dropbox"])
+        self._reset()
 
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
@@ -1133,15 +1147,18 @@ class TestPolicies(unittest.TestCase):
 
     def test_folder_granting_costs(self):
         pol = FolderPolicy()
+        self._reset()
         self._test_folder_costs(pol)
 
     def test_compositional_granting_costs(self):
         pol = CompositionalPolicy(policies=[FolderPolicy, DesignationPolicy],
                                   polArgs=[None, None])
+        self._reset()
         self._test_folder_costs(pol)
 
     def test_fff_granting_costs(self):
         pol = FFFPolicy()
+        self._reset()
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         accs = f001.getAccesses()
         pol.accessFunc(None, f001, next(accs))
@@ -1208,6 +1225,109 @@ class TestPolicies(unittest.TestCase):
         self.grantingCost += 1
         self.cumulGrantingCost += 1  # f003b authorised folder
         self._assertCosts(pol)
+
+    def test_exclusion(self):
+        excl = ['^/home/user/Downloads/.*', '^/home/user/Dropbox/.*']
+        pol = ExclusionPolicy(exclusionList=excl,
+                              excludeOutsideLists=False,
+                              countConfigCosts=False)
+        self._reset()
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+        pol.accessFunc(None, f005, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f009 = self.fileFactory.getFile(name=self.p009, time=3010)
+        accs = f009.getAccesses()
+        pol.accessFunc(None, f009, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f010 = self.fileFactory.getFile(name=self.p010, time=20)
+        accs = f010.getAccesses()
+        pol.accessFunc(None, f010, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f011 = self.fileFactory.getFile(name=self.p011, time=20)
+        accs = f011.getAccesses()
+        pol.accessFunc(None, f011, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        pol = ExclusionPolicy(exclusionList=excl,
+                              excludeOutsideLists=True,
+                              countConfigCosts=False)
+        self._reset()
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+        pol.accessFunc(None, f005, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f009 = self.fileFactory.getFile(name=self.p009, time=3010)
+        accs = f009.getAccesses()
+        pol.accessFunc(None, f009, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f010 = self.fileFactory.getFile(name=self.p010, time=20)
+        accs = f010.getAccesses()
+        pol.accessFunc(None, f010, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f011 = self.fileFactory.getFile(name=self.p011, time=20)
+        accs = f011.getAccesses()
+        pol.accessFunc(None, f011, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
 
     def tearDown(self):
         self.userConf = None
