@@ -42,17 +42,21 @@ class FileStore(object):
         self.inodeStore = dict()  # type: dict
 
     def getChildren(self, f: File, time: int):
-        parent = f.getName() + '/'
+        """Get a File's direct children."""
+        return self.getChildrenFromPath(f.path + '/', time)
+
+    def getChildrenFromPath(self, path: str, time: int):
+        """Get the Files whose direct parent is :path:."""
         children = []
         for item in [k for k in self.nameStore.items()
-                     if k[0].startswith(parent)]:
+                     if k[0].startswith(path)]:
             # Only direct children
-            if item[0][len(parent)+1:].find('/') == -1:
+            if item[0][len(path)+1:].find('/') == -1:
                     for file in item[1]:
                         tstart = file.getTimeOfStart()
                         tend = file.getTimeOfEnd()
 
-                        if time < tstart:
+                        if time != -1 and time < tstart:
                             break
                         elif not tend or tend >= time:
                             children.append(file)
