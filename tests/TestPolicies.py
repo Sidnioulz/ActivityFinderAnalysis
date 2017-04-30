@@ -1348,7 +1348,6 @@ class TestPolicies(unittest.TestCase):
         f002 = self.fileFactory.getFile(name=self.p002, time=20)
         accs = f002.getAccesses()
         pol.accessFunc(None, f002, next(accs))
-        print(pol.exclusionList, pol.currentPath)
         self.policy += 1
         self._assert(pol)
 
