@@ -3,6 +3,7 @@
 from File import File, FileAccess, EventFileFlags
 from Application import Application
 from PolicyEngine import Policy
+from FileStore import FileStore
 from LibraryManager import LibraryManager
 from constants import DESIGNATION_ACCESS, POLICY_ACCESS, ILLEGAL_ACCESS, \
                       OWNED_PATH_ACCESS
@@ -879,29 +880,28 @@ class ExclusionPolicy(Policy):
             return False
 
         key = acc.actor.desktopid if self.appWideRecords() else acc.actor.uid()
+        data = data or self._match(f)
 
         if key in self.currentPath:
-            if data is None:
-                data = self._match(f)
-            return data == self.currentPath[key]
+            if not self.excludeOutsideLists and data == []:
+                return True
+            else:
+                return data == self.currentPath[key]
         else:
-            return True
+            return data != [] or not self.excludeOutsideLists
 
     def allowedByPolicy(self, file: File, actor: Application):
         """Tell if a File is allowed to be accessed by a Policy."""
         data = self._match(file)
-
-        # Do we allow files outside any exclusion list?
-        if not self.excludeOutsideLists and data == []:
-            return True
-
-        # If there is a list and our file belongs to a list, is it the same?
         key = actor.desktopid if self.appWideRecords() else actor.uid()
-        if key in self.currentPath:
-            return data == self.currentPath[key]
 
-        # Scenario where file belongs to a different exclusion list, deny.
-        return False
+        # The list is not set yet.
+        if key not in self.currentPath:
+            return data != [] or not self.excludeOutsideLists
+        # If there is a list, our file must belong to no other list.
+        else:
+            return data == self.currentPath[key] or \
+                (data == [] and not self.excludeOutsideLists)
 
     def updateDesignationState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on DESIGNATION_ACCESS."""
@@ -950,6 +950,27 @@ class ExclusionPolicy(Policy):
         self.illegalCache[key] = s
 
 
-# TODO removablemedia vs .* exclusion policy
+class RemovableMediaPolicy(ExclusionPolicy):
+    """Policy that prevents reading files from multiple locations."""
+
+    def __init__(self,
+                 name: str='RemovableMediaPolicy'):
+        """Construct a RemovableMediaPolicy."""
+        fs = FileStore.get()
+        mgr = LibraryManager.get()
+
+        exclusionList = []
+
+        mediaLib = mgr.getRemovableMediaDir(LibraryManager.Default)
+        mediaPath = list(mediaLib.keys())[0] + '/'
+        children = fs.getChildrenFromPath(mediaPath, -1)
+        for child in children:
+            exclusionList.append('^%s' % re.escape(child.path))
+        exclusionList.append("^/.*")
+
+        super(RemovableMediaPolicy, self).__init__(name=name,
+                                                   exclusionList=exclusionList,
+                                                   excludeOutsideLists=True,
+                                                   countConfigCosts=False)
 
 

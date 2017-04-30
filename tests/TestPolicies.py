@@ -13,7 +13,8 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
                      FilenamePolicy, ProtectedFolderPolicy, FFFPolicy, \
-                     DistantFolderPolicy, ProjectsPolicy, ExclusionPolicy
+                     DistantFolderPolicy, ProjectsPolicy, ExclusionPolicy, \
+                     RemovableMediaPolicy
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
@@ -209,6 +210,18 @@ class TestPolicies(unittest.TestCase):
         e015b = Event(actor=self.a3, time=14, syscallStr=s015)
         e015b.evflags |= EventFileFlags.designation  # this by designation
         self.eventStore.append(e015b)
+
+        self.p016 = "/media/user/USB_A/document.png"
+        s016 = "open64|%s|fd 10: with flag 524288, e0|" % self.p016
+        e016 = Event(actor=self.a1, time=16, syscallStr=s016)
+        e016.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e016)
+
+        self.p017 = "/media/user/USB_B/report.doc"
+        s017 = "open64|%s|fd 10: with flag 524288, e0|" % self.p017
+        e017 = Event(actor=self.a1, time=17, syscallStr=s017)
+        e017.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e017)
 
         self.eventStore.simulateAllEvents()
         self._reset()
@@ -1263,7 +1276,7 @@ class TestPolicies(unittest.TestCase):
         f009 = self.fileFactory.getFile(name=self.p009, time=3010)
         accs = f009.getAccesses()
         pol.accessFunc(None, f009, next(accs))
-        self.illegal += 1
+        self.policy += 1
         self._assert(pol)
 
         f010 = self.fileFactory.getFile(name=self.p010, time=20)
@@ -1313,7 +1326,7 @@ class TestPolicies(unittest.TestCase):
         f009 = self.fileFactory.getFile(name=self.p009, time=3010)
         accs = f009.getAccesses()
         pol.accessFunc(None, f009, next(accs))
-        self.illegal += 1
+        self.policy += 1
         self._assert(pol)
 
         f010 = self.fileFactory.getFile(name=self.p010, time=20)
@@ -1328,6 +1341,45 @@ class TestPolicies(unittest.TestCase):
         self.illegal += 1
         self._assert(pol)
 
+    def test_removable(self):
+        pol = RemovableMediaPolicy()
+        self._reset()
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        print(pol.exclusionList, pol.currentPath)
+        self.policy += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        # Get the files before, so the policy gets properly initialised.
+        f016 = self.fileFactory.getFile(name=self.p016, time=20)
+        f017 = self.fileFactory.getFile(name=self.p017, time=20)
+
+        pol = RemovableMediaPolicy()
+        self._reset()
+
+        accs = f016.getAccesses()
+        pol.accessFunc(None, f016, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        accs = f017.getAccesses()
+        pol.accessFunc(None, f017, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f010 = self.fileFactory.getFile(name=self.p010, time=21)
+        accs = f010.getAccesses()
+        pol.accessFunc(None, f010, next(accs))
+        self.illegal += 1
+        self._assert(pol)
 
     def tearDown(self):
         self.userConf = None
