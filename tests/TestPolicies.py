@@ -960,6 +960,128 @@ class TestPolicies(unittest.TestCase):
         self.illegal += 1
         self._assert(pol)
 
+    def test_filename_scoped(self):
+        pol = FilenamePolicy()
+        pol.scope = ('/home/user/Images',)
+        self._reset()
+
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        pol = FilenamePolicy()
+        pol.scope = ('/home/user/Dropbox',)
+        pol.unscopedDefDesignated = False
+        pol.unscopedDefAllowed = False
+        self._reset()
+
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+
     def test_sticky_bit(self):
         pol = StickyBitPolicy(folders=["/tmp",
                                        "~/Desktop",
@@ -1019,6 +1141,68 @@ class TestPolicies(unittest.TestCase):
         next(accs)  # pass accs[0]
         pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
+        self._assert(pol)
+
+    def test_sticky_bit_scoped(self):
+        pol = StickyBitPolicy(folders=["/tmp",
+                                       "~/Desktop",
+                                       "~/Downloads"])
+        pol.scope = ('/home/user/Images',)
+        self._reset()
+
+        f001 = self.fileFactory.getFile(name=self.p001, time=20)
+        accs = f001.getAccesses()
+        pol.accessFunc(None, f001, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=20)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f005 = self.fileFactory.getFile(name=self.p005, time=20)
+        accs = f005.getAccesses()
+        pol.accessFunc(None, f005, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f006 = self.fileFactory.getFile(name=self.p006, time=20)
+        accs = f006.getAccesses()
+        pol.accessFunc(None, f006, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f007 = self.fileFactory.getFile(name=self.p007, time=20)
+        accs = f007.getAccesses()
+        pol.accessFunc(None, f007, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f008 = self.fileFactory.getFile(name=self.p008, time=20)
+        accs = f008.getAccesses()
+        pol.accessFunc(None, f008, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
+        accs = f003b.getAccesses()
+        next(accs)  # pass accs[0]
+        pol.accessFunc(None, f003b, next(accs))
+        self.policy += 1
         self._assert(pol)
 
     def test_protected_folder(self):

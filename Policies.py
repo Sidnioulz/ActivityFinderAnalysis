@@ -33,7 +33,7 @@ class OneLibraryPolicy(Policy):
         if cost:
             self.incrementScore('configCost', None, None, increment=cost)
 
-    def allowedByPolicy(self, file: File, actor: Application):
+    def _allowedByPolicy(self, file: File, actor: Application):
         """Tell if a File is allowed to be accessed by a Policy."""
         policies = self.mgr.getAppPolicy(actor, libMod=self.libMode)
         lib = self.mgr.getLibraryForFile(file, libMod=self.libMode)
@@ -120,7 +120,7 @@ class FileTypePolicy(Policy):
 
         return self.appMimeTypesCache[app.desktopid]
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         allowedTypes = self.getAppAllowedTypes(app)
 
@@ -161,7 +161,7 @@ class DesignationPolicy(Policy):
         """Construct a DesignationPolicy."""
         super(DesignationPolicy, self).__init__(name)
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         return False
 
@@ -186,11 +186,11 @@ class FolderPolicy(Policy):
         """Precompute a data structure about the file or access."""
         return self._computeFolder(f)
 
-    def _accFunCondPolicy(self,
-                          f: File,
-                          acc: FileAccess,
-                          composed: bool,
-                          data):
+    def _uaccFunCondPolicy(self,
+                           f: File,
+                           acc: FileAccess,
+                           composed: bool,
+                           data):
         """Calculate condition for POLICY_ACCESS to be returned."""
         return self.dataInCache(self.desigCache, data, acc.actor)
 
@@ -236,7 +236,7 @@ class FolderPolicy(Policy):
         s = cache.get(app.desktopid if self.appWideRecords() else app.uid())
         return data in s if s else False
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         folder = self._computeFolder(f)
         if self.dataInCache(self.desigCache, folder, app):
@@ -261,11 +261,11 @@ class OneFolderPolicy(FolderPolicy):
                                 app.uid())
         return s is not None
 
-    def _accFunCondDesignation(self,
-                               f: File,
-                               acc: FileAccess,
-                               composed: bool,
-                               data):
+    def _uaccFunCondDesignation(self,
+                                f: File,
+                                acc: FileAccess,
+                                composed: bool,
+                                data):
         """Calculate condition for DESIGNATION_ACCESS to be returned."""
         return acc.isByDesignation() and not self.appHasFolderCached(acc.actor)
 
@@ -282,6 +282,44 @@ class OneFolderPolicy(FolderPolicy):
 
 
 class DistantFolderPolicy(FolderPolicy):
+    """Policy where apps access files in the same distant parent folders."""
+
+    def __init__(self,
+                 name: str='DistantFolderPolicy'):
+        """Construct a DistantFolderPolicy."""
+        super(DistantFolderPolicy, self).__init__(name)
+        self.desigCache = dict()
+        self.illegalCache = dict()
+        self.rootCache = dict()
+        self.roots = \
+          LibraryManager.get().getAllLibraryRoots(libMod=LibraryManager.Custom)
+
+    def _computeFolder(self, f: File):
+        """Return the folder used for a given file."""
+        parent = f.getParentName()
+
+        if parent not in self.rootCache:
+            # Find a matching root, and calculate the largest folder we can use
+            # to grant access to files based on that.
+            for root in self.roots:
+                if parent.startswith(root):
+                    nextSlash = parent.find('/', len(root) + 1)
+
+                    if nextSlash == -1:
+                        self.rootCache[parent] = parent
+                    else:
+                        self.rootCache[parent] = parent[:nextSlash]
+
+                    break
+
+            # No root folder among ~, /media and various libraries.
+            else:
+                self.rootCache[parent] = parent
+
+        return self.rootCache[parent]
+
+
+class RestrictedFolderPolicy(DistantFolderPolicy):
     """Policy where apps access files in the same distant parent folders."""
 
     def __init__(self,
@@ -378,7 +416,7 @@ class FutureAccessListPolicy(FolderPolicy):
         """Return True if access records are across instances, False else."""
         return True
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         if self.dataInCache(self.desigCache, f.inode, app):
             return True
@@ -394,7 +432,7 @@ class UnsecurePolicy(Policy):
         """Construct an UnsecurePolicy."""
         super(UnsecurePolicy, self).__init__(name)
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         return True
 
@@ -409,7 +447,7 @@ class RestrictedAppsPolicy(Policy):
         super(RestrictedAppsPolicy, self).__init__(name)
         self.apps = apps
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         return app.desktopid not in self.apps
 
@@ -529,7 +567,7 @@ class CompositionalPolicy(Policy):
         else:
             return False
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         for policy in self.policies:
             if policy.allowedByPolicy(f, app):
@@ -582,7 +620,7 @@ class StrictCompositionalPolicy(CompositionalPolicy):
         else:
             return False
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         for policy in self.policies:
             if not policy.allowedByPolicy(f, app):
@@ -628,11 +666,11 @@ class StickyBitPolicy(Policy):
 
         return (fileJustCreated, fileAmongCreated)
 
-    def _accFunCondPolicy(self,
-                          f: File,
-                          acc: FileAccess,
-                          composed: bool,
-                          data):
+    def _uaccFunCondPolicy(self,
+                           f: File,
+                           acc: FileAccess,
+                           composed: bool,
+                           data):
         """Calculate condition for POLICY_ACCESS to be returned."""
         return data[1]
 
@@ -663,7 +701,7 @@ class StickyBitPolicy(Policy):
         """Blob for policies to update their state on POLICY_ACCESS."""
         self.updateDesignationState(f, acc, data)
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         return self.wasCreatedBy(f, app)
 
@@ -703,7 +741,7 @@ class ProtectedFolderPolicy(Policy):
                 return True
         return False
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         return not self.inForbiddenFolder(f)
 
@@ -722,7 +760,7 @@ class FilenamePolicy(FolderPolicy):
         """Precompute a data structure about the file or access."""
         return f.getNameWithoutExtension()
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         if self.dataInCache(self.desigCache, f.getNameWithoutExtension(), app):
             return True
@@ -870,11 +908,11 @@ class ExclusionPolicy(Policy):
         """Precompute a data structure about the file or access."""
         return self._match(f)
 
-    def _accFunCondDesignation(self,
-                               f: File,
-                               acc: FileAccess,
-                               composed: bool,
-                               data):
+    def _uaccFunCondDesignation(self,
+                                f: File,
+                                acc: FileAccess,
+                                composed: bool,
+                                data):
         """Calculate condition for DESIGNATION_ACCESS to be returned."""
         if not acc.evflags & EventFileFlags.designation:
             return False
@@ -890,7 +928,7 @@ class ExclusionPolicy(Policy):
         else:
             return data != [] or not self.excludeOutsideLists
 
-    def allowedByPolicy(self, file: File, actor: Application):
+    def _allowedByPolicy(self, file: File, actor: Application):
         """Tell if a File is allowed to be accessed by a Policy."""
         data = self._match(file)
         key = actor.desktopid if self.appWideRecords() else actor.uid()

@@ -164,6 +164,7 @@ class Policy(object):
 
     appPathCache = dict()
     fileOwnedCache = dict()
+    scopeCache = dict()
 
     def __init__(self,
                  name: str):
@@ -172,6 +173,9 @@ class Policy(object):
         self.name = name
         self.userConf = UserConfigLoader.get()
         self.libMgr = LibraryManager.get()
+        self.scope = None
+        self.unscopedDefDesignated = True
+        self.unscopedDefAllowed = True
         self.clearScores()
 
     def clearScores(self):
@@ -570,11 +574,35 @@ class Policy(object):
 
         return Policy.appPathCache[actor]
 
+    def inScope(self, f: File):
+        """Check if a File is in scope for this Policy."""
+        key = (f, self.scope)
+
+        if key not in Policy.scopeCache:
+            dec = False
+            for s in self.scope:
+                if f.path.startswith(s):
+                    dec = True
+                    break
+            Policy.scopeCache[key] = dec
+            return dec
+
+        else:
+            return Policy.scopeCache[key]
+
     def _accFunPreCompute(self,
                           f: File,
                           acc: FileAccess):
         """Precompute a data structure about the file or access."""
         return None
+
+    def _uaccFunCondDesignation(self,
+                                f: File,
+                                acc: FileAccess,
+                                composed: bool,
+                                data):
+        """Calculate condition for DESIGNATION_ACCESS to be returned."""
+        return acc.evflags & EventFileFlags.designation
 
     def _accFunCondDesignation(self,
                                f: File,
@@ -582,7 +610,18 @@ class Policy(object):
                                composed: bool,
                                data):
         """Calculate condition for DESIGNATION_ACCESS to be returned."""
-        return acc.evflags & EventFileFlags.designation
+        if self.scope is None or self.inScope(f) or self.unscopedDefDesignated:
+            return self._uaccFunCondDesignation(f, acc, composed, data)
+        else:
+            return False
+
+    def _uaccFunCondPolicy(self,
+                           f: File,
+                           acc: FileAccess,
+                           composed: bool,
+                           data):
+        """Calculate condition for POLICY_ACCESS to be returned."""
+        return self.allowedByPolicy(f, acc.actor)
 
     def _accFunCondPolicy(self,
                           f: File,
@@ -590,7 +629,10 @@ class Policy(object):
                           composed: bool,
                           data):
         """Calculate condition for POLICY_ACCESS to be returned."""
-        return self.allowedByPolicy(f, acc.actor)
+        if self.scope is None or self.inScope(f):
+            return self._uaccFunCondPolicy(f, acc, composed, data)
+        else:
+            return self.unscopedDefAllowed
 
     def _accFunSimilarAccessCond(self,
                                  f: File,
@@ -641,9 +683,16 @@ class Policy(object):
             self.updateIllegalState(f, acc, data)
         return ILLEGAL_ACCESS
 
-    def allowedByPolicy(self, f: File, app: Application):
+    def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
         raise NotImplementedError
+
+    def allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        if self.scope is None or self.inScope(f):
+            return self._allowedByPolicy(f, app)
+        else:
+            return self.unscopedDefAllowed
 
     def accessAllowedByPolicy(self, f: File, acc: FileAccess):
         """Tell if a File can be accessed by an Application."""
