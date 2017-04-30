@@ -319,18 +319,22 @@ class DistantFolderPolicy(FolderPolicy):
         return self.rootCache[parent]
 
 
-class RestrictedFolderPolicy(DistantFolderPolicy):
-    """Policy where apps access files in the same distant parent folders."""
+class LibraryFolderPolicy(DistantFolderPolicy):
+    """Policy where apps access files in root folders of a library."""
 
     def __init__(self,
-                 name: str='DistantFolderPolicy'):
-        """Construct a DistantFolderPolicy."""
-        super(DistantFolderPolicy, self).__init__(name)
+                 supportedLibraries=['downloads', 'desktop'],
+                 name: str='LibraryFolderPolicy'):
+        """Construct a LibraryFolderPolicy."""
+        super(LibraryFolderPolicy, self).__init__(name)
         self.desigCache = dict()
         self.illegalCache = dict()
         self.rootCache = dict()
         self.roots = \
-          LibraryManager.get().getAllLibraryRoots(libMod=LibraryManager.Custom)
+          LibraryManager.get().getLibraryRoots(supportedLibraries,
+                                               libMod=LibraryManager.Custom)
+        self.scope = tuple(self.roots)
+        self.ftp = FileTypePolicy()
 
     def _computeFolder(self, f: File):
         """Return the folder used for a given file."""
@@ -344,7 +348,8 @@ class RestrictedFolderPolicy(DistantFolderPolicy):
                     nextSlash = parent.find('/', len(root) + 1)
 
                     if nextSlash == -1:
-                        self.rootCache[parent] = parent
+                        self.rootCache[parent] = parent if len(parent) != \
+                            len(root) else "FILETYPE"
                     else:
                         self.rootCache[parent] = parent[:nextSlash]
 
@@ -355,6 +360,85 @@ class RestrictedFolderPolicy(DistantFolderPolicy):
                 self.rootCache[parent] = parent
 
         return self.rootCache[parent]
+
+    def _accFunPreCompute(self,
+                          f: File,
+                          acc: FileAccess):
+        """Precompute a data structure about the file or access."""
+        return self._computeFolder(f)
+
+    def _uaccFunCondPolicy(self,
+                           f: File,
+                           acc: FileAccess,
+                           composed: bool,
+                           data):
+        """Calculate condition for POLICY_ACCESS to be returned."""
+        if data == "FILETYPE":
+            return self.ftp._uaccFunCondPolicy(f, acc, True, data)
+        else:
+            return self.dataInCache(self.desigCache, data, acc.actor)
+
+    def _accFunSimilarAccessCond(self,
+                                 f: File,
+                                 acc: FileAccess,
+                                 composed: bool,
+                                 data):
+        """Calculate condition for grantingCost to be incremented."""
+        if data == "FILETYPE":
+            return self.ftp._accFunSimilarAccessCond(f, acc, True, data)
+        else:
+            return not self.dataInCache(self.illegalCache, data, acc.actor) \
+                and not f.hadPastSimilarAccess(acc, ILLEGAL_ACCESS,
+                                               appWide=self.appWideRecords())
+
+    def updateDesignationState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on DESIGNATION_ACCESS."""
+        if not data:
+            data = self._accFunPreCompute(f, acc)
+        if data == "FILETYPE":
+            self.ftp.updateDesignationState(f, acc, data)
+        else:
+            self.addToCache(self.desigCache, data, acc.actor)
+
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on POLICY_ACCESS."""
+        self.updateDesignationState(f, acc, data)
+
+    def updateIllegalState(self, f: File, acc: FileAccess, data=None):
+        """Blob for policies to update their state on ILLEGAL_ACCESS."""
+        if not data:
+            data = self._accFunPreCompute(f, acc)
+        if data == "FILETYPE":
+            self.ftp.updateIllegalState(f, acc, data)
+        else:
+            self.addToCache(self.illegalCache, data, acc.actor)
+
+    def addToCache(self, cache: dict, data: str, app: Application):
+        """Record that data has been previously accessed by an app."""
+        if not data:
+            return
+        key = app.desktopid if self.appWideRecords() else app.uid()
+        s = cache.get(key) or set()
+        s.add(data)
+        cache[key] = s
+
+    def dataInCache(self, cache: dict, data: str, app: Application):
+        """Tell if data has been previously accessed by an app."""
+        if not data:
+            return False
+        s = cache.get(app.desktopid if self.appWideRecords() else app.uid())
+        return data in s if s else False
+
+    def _allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        folder = self._computeFolder(f)
+        if folder == "FILETYPE":
+            return self.ftp._allowedByPolicy(f, app)
+        else:
+            if self.dataInCache(self.desigCache, folder, app):
+                return True
+            else:
+                return False
 
 
 class ProjectsPolicy(FolderPolicy):

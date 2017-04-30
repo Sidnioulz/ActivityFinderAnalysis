@@ -226,3 +226,48 @@ class LibraryManager(object):
         rootList = list(rootSet)
         rootList.sort(key=len, reverse=True)
         return rootList
+
+    def getLibraryRoots(self,
+                        supportedLibraries: list,
+                        libMod: int,
+                        addXdgRoots: bool=True,
+                        mapToFill: dict=None):
+        """Return all the root folders for libraries, and for XDG folders."""
+        if libMod == LibraryManager.Default:
+            libraries = self.defaults
+        elif libMod == LibraryManager.Compound:
+            libraries = self.compounds
+        elif libMod == LibraryManager.Custom:
+            libraries = self.customs
+        else:
+            raise AttributeError("Invalid library mode '%d'." % libMod)
+
+        userConf = UserConfigLoader.get()
+        rootSet = set()
+
+        for libName in supportedLibraries:
+            if libName in libraries:
+                for (path, cost) in libraries[libName].items():
+                    rootSet.add(path)
+                    if mapToFill is not None:
+                        mapToFill[path] = libName
+
+        if addXdgRoots:
+            if 'desktop' in supportedLibraries:
+              rootSet.add(userConf.getSetting('XdgDesktopDir') or \
+                '%s/Desktop' % self.userHome)
+            if 'downloads' in supportedLibraries:
+              rootSet.add(userConf.getSetting('XdgDownloadsDir') or \
+                '%s/Downloads' % self.userHome)
+            if 'config' in supportedLibraries:
+              rootSet.add('%s/.config' % self.userHome)
+            if 'cache' in supportedLibraries:
+              rootSet.add('%s/.cache' % self.userHome)
+            if 'data' in supportedLibraries:
+              rootSet.add('%s/.local/share' % self.userHome)
+            if 'home' in supportedLibraries:
+              rootSet.add(self.userHome)
+
+        rootList = list(rootSet)
+        rootList.sort(key=len, reverse=True)
+        return rootList

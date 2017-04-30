@@ -14,7 +14,7 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
                      FilenamePolicy, ProtectedFolderPolicy, FFFPolicy, \
                      DistantFolderPolicy, ProjectsPolicy, ExclusionPolicy, \
-                     RemovableMediaPolicy
+                     RemovableMediaPolicy, LibraryFolderPolicy
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
@@ -222,6 +222,24 @@ class TestPolicies(unittest.TestCase):
         e017 = Event(actor=self.a1, time=17, syscallStr=s017)
         e017.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e017)
+
+        self.p018 = "/home/user/Desktop/Folder_A/any.file"
+        s018 = "open64|%s|fd 10: with flag 524288, e0|" % self.p018
+        e018 = Event(actor=self.a1, time=18, syscallStr=s018)
+        e018.evflags |= EventFileFlags.designation  # this by designation
+        self.eventStore.append(e018)
+
+        self.p019 = "/home/user/Desktop/Folder_A/other.file"
+        s019 = "open64|%s|fd 10: with flag 524288, e0|" % self.p019
+        e019 = Event(actor=self.a1, time=19, syscallStr=s019)
+        e019.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e019)
+
+        self.p020 = "/home/user/Desktop/Folder_B/other.file"
+        s020 = "open64|%s|fd 10: with flag 524288, e0|" % self.p020
+        e020 = Event(actor=self.a1, time=20, syscallStr=s020)
+        e020.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e020)
 
         self.eventStore.simulateAllEvents()
         self._reset()
@@ -1081,7 +1099,6 @@ class TestPolicies(unittest.TestCase):
         self.illegal += 1
         self._assert(pol)
 
-
     def test_sticky_bit(self):
         pol = StickyBitPolicy(folders=["/tmp",
                                        "~/Desktop",
@@ -1263,6 +1280,47 @@ class TestPolicies(unittest.TestCase):
         pol.accessFunc(None, f003b, next(accs))
         self.illegal += 1
         self._assert(pol)
+
+    def test_library_folder(self):
+        pol = LibraryFolderPolicy()
+        self._reset()
+
+        f003 = self.fileFactory.getFile(name=self.p003, time=20)
+        accs = f003.getAccesses()
+        pol.accessFunc(None, f003, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f004 = self.fileFactory.getFile(name=self.p004, time=20)
+        accs = f004.getAccesses()
+        pol.accessFunc(None, f004, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f009 = self.fileFactory.getFile(name=self.p009, time=3010)
+        accs = f009.getAccesses()
+        pol.accessFunc(None, f009, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f018 = self.fileFactory.getFile(name=self.p018, time=3010)
+        accs = f018.getAccesses()
+        pol.accessFunc(None, f018, next(accs))
+        self.desig += 1
+        self._assert(pol)
+
+        f019 = self.fileFactory.getFile(name=self.p019, time=3010)
+        accs = f019.getAccesses()
+        pol.accessFunc(None, f019, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f020 = self.fileFactory.getFile(name=self.p020, time=3010)
+        accs = f020.getAccesses()
+        pol.accessFunc(None, f020, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
 
     def _test_folder_costs(self, pol):
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
