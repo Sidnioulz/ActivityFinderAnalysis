@@ -266,7 +266,9 @@ def main(argv):
     tprnt("Simulated all events. %d files initialised." % len(fileStore))
 
     appCount = store.getAppCount()
+    userAppCount = store.getUserAppCount()
     instCount = len(store)
+    userInstCount = store.getUserInstCount()
     fileCount = len(fileStore)
     docCount = fileStore.getUserDocumentCount(userConf.getSetting("HomeDir"))
     
@@ -323,9 +325,10 @@ def main(argv):
             msg += "PreloadLogger: %d apps; %d instances; %d events; " \
                    "%d%% valid\n" % \
                   (pllAppCount, pllInstCount, pllEvCount, pllValidEvCount)
-            msg += "Simulated: %d apps; %d instances; %d events; %d files" \
-                   "; %d user documents\n" % \
-                  (appCount, instCount, evCount, fileCount, docCount)
+            msg += "Simulated: %d apps; %d instances; %d user apps; %d user" \
+                   " instances; %d events; %d files; %d user documents\n" % \
+                  (appCount, instCount, userAppCount, userInstCount,
+                   evCount, fileCount, docCount)
             print(msg, file=f)
 
     # Build a general access graph.
