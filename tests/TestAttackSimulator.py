@@ -128,7 +128,7 @@ class TestAttackSimulator(unittest.TestCase):
                                           lookUps=self.lookUps,
                                           allowedCache=self.allowedCache)
         self.assertEqual(len(counts[0]), 1)
-        self.assertEqual(counts[1], 3)
+        self.assertEqual(counts[2], 3)
 
         attack.appMemory = False
         counts = self.sim._runAttackRound(attack=attack,
@@ -137,7 +137,7 @@ class TestAttackSimulator(unittest.TestCase):
                                           lookUps=self.lookUps,
                                           allowedCache=self.allowedCache)
         self.assertEqual(len(counts[0]), 1)
-        self.assertEqual(counts[1], 0)
+        self.assertEqual(counts[2], 0)
         
         FileFactory.reset()
 
@@ -153,7 +153,7 @@ class TestAttackSimulator(unittest.TestCase):
                                           lookUps=self.lookUps,
                                           allowedCache=self.allowedCache)
         self.assertEqual(len(counts[0]), 0)
-        self.assertEqual(counts[1], 1)
+        self.assertEqual(counts[2], 1)
 
         
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
@@ -164,7 +164,7 @@ class TestAttackSimulator(unittest.TestCase):
                                           lookUps=self.lookUps,
                                           allowedCache=self.allowedCache)
         self.assertEqual(len(counts[0]), 1)
-        self.assertEqual(counts[1], 1)
+        self.assertEqual(counts[2], 1)
         FileFactory.reset()
 
     def test_pol_onefolder(self):
@@ -179,7 +179,7 @@ class TestAttackSimulator(unittest.TestCase):
                                           lookUps=self.lookUps,
                                           allowedCache=self.allowedCache)
         self.assertEqual(len(counts[0]), 0)
-        self.assertEqual(counts[1], 1)
+        self.assertEqual(counts[2], 1)
         
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
         attack = Attack(time=10, source=f001)
@@ -189,7 +189,7 @@ class TestAttackSimulator(unittest.TestCase):
                                           lookUps=self.lookUps,
                                           allowedCache=self.allowedCache)
         self.assertEqual(len(counts[0]), 1)
-        self.assertEqual(counts[1], 1)
+        self.assertEqual(counts[2], 1)
 
         FileFactory.reset()
 

@@ -57,6 +57,7 @@ class AttackSimulator(object):
 
         # Statistics counters.
         appSet = set()
+        userAppSet = set()
         fileCount = 0
         docCount = 0
 
@@ -97,6 +98,7 @@ class AttackSimulator(object):
                         follower = fileStore.getFile(f.inode)
                         if follower not in seen:
                             toSpread.append(follower)
+                            seen.add(follower)
                             spreadTimes[follower] = f.time
 
                 # Add future accesses.
@@ -106,8 +108,6 @@ class AttackSimulator(object):
                             _allowed(policy, current, acc):
                         toSpread.append(acc.actor)
                         spreadTimes[acc.actor] = acc.time
-
-                seen.add(current)
 
             # When the attack spreads to an app instance.
             elif isinstance(current, Application):
@@ -120,6 +120,7 @@ class AttackSimulator(object):
                             accFile not in seen and \
                             _allowed(policy, accFile, acc):
                         toSpread.append(accFile)
+                        seen.add(accFile)
                         spreadTimes[accFile] = acc.time
 
                 # Add future versions of the app.
@@ -133,12 +134,14 @@ class AttackSimulator(object):
                 # apps, so we append all future instances once and for all to
                 # the spread list.
                 appSet.add(current.desktopid)
+                if current.isUserlandApp():
+                    userAppSet.add(current.desktopid)
 
             else:
                 print("Error: attack simulator attempting to parse an unknown"
                       " object (%s)" % type(current), file=sys.stderr)
 
-        return (appSet, fileCount, docCount)
+        return (appSet, userAppSet, fileCount, docCount)
     
     def performAttack(self,
                       policy: Policy,
@@ -216,6 +219,7 @@ class AttackSimulator(object):
         #       (len(startingPoints), AttackSimulator.passCount))
 
         apps = []
+        uapps = []
         files = []
         docs = []
 
@@ -244,32 +248,39 @@ class AttackSimulator(object):
                      time2Str(attack.time),
                      "with" if attack.appMemory else "without"))
 
-            (appSet, fileCount, docCount) = self._runAttackRound(attack,
-                                                                 policy,
-                                                                 acListInst,
-                                                                 lookUps,
-                                                                 allowedCache)
+            (appSet, userAppSet, fileCount, docCount) = \
+              self._runAttackRound(attack,
+                                   policy,
+                                   acListInst,
+                                   lookUps,
+                                   allowedCache)
             appCount = len(appSet)
+            userAppCount = len(userAppSet)
 
             msg += ("        \t%d apps infected (%s); %d files infected; %d "
-                    "documents infected.\n\n" % (
-                     appCount, appSet, fileCount, docCount))
+                    "user apps infected; %d documents infected.\n\n" % (
+                     appCount, appSet, fileCount, userAppCount, docCount))
             # tprnt("Pass %d: %d apps infected; %d files (%d documents)"
             #       " infected" % (i+1, appCount, fileCount, docCount))
             apps.append(appCount)
+            uapps.append(userAppCount)
             files.append(fileCount)
             docs.append(docCount)
 
         medApps = statistics.median(apps)
+        medUApps = statistics.median(uapps)
         medFiles = statistics.median(files)
         medDocs = statistics.median(docs)
         avgApps = sum(apps) / len(apps)
+        avgUApps = sum(uapps) / len(uapps)
         avgFiles = sum(files) / len(files)
         avgDocs = sum(docs) / len(docs)
         minApps = min(apps)
+        minUApps = min(uapps)
         minFiles = min(files)
         minDocs = min(docs)
         maxApps = max(apps)
+        maxUApps = max(uapps)
         maxFiles = max(files)
         maxDocs = max(docs)
 
@@ -294,19 +305,46 @@ class AttackSimulator(object):
         # maxIdx = sums.index(max(sums))
         # maxFiles = files[maxIdx]
         # maxApps = apps[maxIdx]
+        appCount = appStore.getAppCount()
+        userAppCount = appStore.getUserAppCount()
+        instCount = len(appStore)
+        userInstCount = appStore.getUserInstCount()
+        fileCount = len(fileStore)
+        docCount = fileStore.getUserDocumentCount(userConf.getHomeDir())
 
-        msg += "\nMin: %d apps infected; %d files infected; %d documents " \
-               "infected\n" % (
-                minApps, minFiles, minDocs)
-        msg += "Max: %d apps infected; %d files infected; %d documents " \
-               "infected\n" % (
-                maxApps, maxFiles, maxDocs)
-        msg += "Avg: %d apps infected; %d files infected; %d documents " \
-               "infected\n" % (
-                avgApps, avgFiles, avgDocs)
-        msg += "Med: %d apps infected; %d files infected; %d documents " \
-               "infected\n" % (
-                medApps, medFiles, medDocs)
+        # FIXME use floats.
+        msg += "\nMin: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) files infected; " \
+               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) documents infected\n" % (
+                minApps, 100* minApps / appCount,
+                minFiles, 100* minFiles / fileCount,
+                minUApps, 100* minUApps / userAppCount,
+                minDocs, 100* minDocs / docCount)
+        msg += "Max: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) files infected; " \
+               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) documents infected\n" % (
+                maxApps, 100* maxApps / appCount,
+                maxFiles, 100* maxFiles / fileCount,
+                maxUApps, 100* maxUApps / userAppCount,
+                maxDocs, 100* maxDocs / docCount)
+        msg += "Avg: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) files infected; " \
+               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) documents infected\n" % (
+                avgApps, 100* avgApps / appCount,
+                avgFiles, 100* avgFiles / fileCount,
+                avgUApps, 100* avgUApps / userAppCount,
+                avgDocs, 100* avgDocs / docCount)
+        msg += "Med: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) files infected; " \
+               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) documents infected\n" % (
+                medApps, 100* medApps / appCount,
+                medFiles, 100* medFiles / fileCount,
+                medUApps, 100* medUApps / userAppCount,
+                medDocs, 100* medDocs / docCount)
 
         return msg
 
