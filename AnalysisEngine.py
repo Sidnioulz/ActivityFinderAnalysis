@@ -505,18 +505,16 @@ class AnalysisEngine(object):
     def plotMostUsableDots(self,
                            scores: dict,
                            maxes: dict,
+                           xLabelSource: list,
                            title: str=None,
                            tag: str=None):
         """TODO."""
         dotPlot = pygal.Dot()
         dotPlotN = pygal.Dot()
-        dotPlot.x_labels = sorted(self.inputDir)
+        dotPlot.x_labels = sorted(xLabelSource)
         dotPlotN.x_labels = dotPlot.x_labels
 
-        if title:
-            dotPlot.title = "Costs of each policy per participant, %s" % title
-        else:
-            dotPlot.title = "Costs of each policy per participant"
+        dotPlot.title = "Costs of each policy %s" % title
         dotPlotN.title = dotPlot.title + ", normalised"
 
         for (polName, pScores) in sorted(scores.items()):
@@ -671,9 +669,14 @@ class AnalysisEngine(object):
                 print("Participant '%s': Policy %s scoring %d" % (iD, name, s))
 
             # Plot dots for all costs with graphs, and without.
-            self.plotMostUsableDots(sums, leastUsable)
-            self.plotMostUsableDots(sumsNoG, leastUsableNoG,
-                                    "without graph optimisation costs",
+            self.plotMostUsableDots(sums,
+                                    leastUsable,
+                                    self.inputDir,
+                                    "per participant")
+            self.plotMostUsableDots(sumsNoG,
+                                    leastUsableNoG,
+                                    "per participant, without graph"
+                                    " optimisation costs",
                                     "nograph")
             print("Done.\n")
 
@@ -695,7 +698,6 @@ class AnalysisEngine(object):
 
         # Get usability scores for each library separately.
         print("Generating table of usability scores for each library...")
-        libScores = dict()
         libraries = (lib.capitalize() for lib in LibraryManager.CustomList)
         # FIXME FIXME FIXME: DELETE
         libraries = ['Documents', 'Music', 'Video', 'Downloads', 'Image',
@@ -705,6 +707,7 @@ class AnalysisEngine(object):
         i = 1
         for lib in libraries:
             libFile = "Library%s.score" % lib
+            libScores = dict()
             for (name, folders) in sorted(self.foldersPerName.items()):
                 print("\t%d/%d: %s for %s" % (i, lpCount, name, lib))
                 i += 1
@@ -715,6 +718,70 @@ class AnalysisEngine(object):
             self.genUsabilityCostTable(libScores,
                                        "Library%s.UsabScores.tex" % lib,
                                        "all user applications")
+        print("Done.\n")
+ 
+        # Plot dot graph of usability scores per library/policy.
+        print("Generating table of usability scores for each library...")
+        mostUsable = dict()
+        leastUsable = dict()
+        leastUsableNoG = dict()
+        sums = dict()
+        sumsNoG = dict()
+
+        i = 1
+        for lib in libraries:
+            libScores = dict()
+            libFile = "Library%s.score" % lib
+            for (name, folders) in sorted(self.foldersPerName.items()):
+                print("\t%d/%d: %s for %s" % (i, lpCount, name, lib))
+                i += 1
+
+                p = list(os.path.join(f, libFile) for f in folders)
+                libScores[name] = self.parseUsabilityScores(p)
+
+            best = None
+            bestScore = math.inf
+            worstScore = 0
+            worstScoreNoG = 0
+            for (name, s) in libScores.items():
+                sumScore = sum([s[key] for key in costKeys])
+                sumScoreNoG = sum([s[key] for key in costKeysNoG])
+
+                sumsForPol = sums.get(name) or dict()
+                sumsForPol[lib] = sumScore
+                sums[name] = sumsForPol
+
+                sumsForPol = sumsNoG.get(name) or dict()
+                sumsForPol[lib] = sumScoreNoG
+                sumsNoG[name] = sumsForPol
+
+                if sumScore < bestScore:
+                    best = name
+                    bestScore = sumScore
+                if sumScore > worstScore:
+                    worstScore = sumScore
+                if sumScoreNoG > worstScoreNoG:
+                    worstScoreNoG = sumScoreNoG
+
+            mostUsable[lib] = (best, bestScore)
+            leastUsable[lib] = worstScore
+            leastUsableNoG[lib] = worstScoreNoG
+
+        for (libName, (name, s)) in mostUsable.items():
+            print("Library '%s': Policy %s scoring %d" % (libName, name, s))
+
+        # Plot dots for all costs with graphs, and without.
+        self.plotMostUsableDots(sums,
+                                leastUsable,
+                                libraries,
+                                "for each library",
+                                "lib")
+        self.plotMostUsableDots(sumsNoG,
+                                leastUsableNoG,
+                                libraries,
+                                "for each library, without graph optimisation"
+                                " costs",
+                                "lib-nograph")
         print("Done.\n")
 
         print("Plotting cost distribution for all userland apps...")
