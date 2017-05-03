@@ -47,7 +47,37 @@ class ApplicationStore(object):
 
     def getAppCount(self):
         """Return the number of desktop ids in the ApplicationStore."""
+        if not self.nameStoreClean:
+            self._regenNameStore()
+
         return len(self.nameStore)
+
+    def getUserAppCount(self):
+        """Return the number of userland desktopids in the ApplicationStore."""
+        if not self.nameStoreClean:
+            self._regenNameStore()
+
+        count = 0
+        for (n, apps) in self.nameStore.items():
+            if apps:
+              if apps[0].isUserlandApp():
+                  count += 1
+
+        return count
+
+    def getUserInstCount(self):
+        """Return the number of userland desktopids in the ApplicationStore."""
+        if not self.nameStoreClean:
+            self._regenNameStore()
+
+        count = 0
+
+        for (n, apps) in self.nameStore.items():
+            if apps:
+              if apps[0].isUserlandApp():
+                  count += len(apps)
+
+        return count
 
     def clear(self):
         """Empty the ApplicationStore."""
