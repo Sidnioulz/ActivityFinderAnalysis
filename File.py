@@ -261,15 +261,41 @@ class File(object):
         else:
             return self.path[:dot]
 
-    def getExtension(self):
+    @staticmethod
+    def getNameWithoutExtensionFromPath(path: str):
+        """Return the path of the file without its ending extension."""
+        dot = path.rfind(".")
+        slash = path.rfind("/")
+
+        if dot <= slash+1:
+            return path
+        else:
+            return path[:dot]
+
+    @staticmethod
+    def _getExtension(path: str):
         """Return the File's extension."""
-        dot = self.path.rfind(".")
-        slash = self.path.rfind("/")
+        dot = path.rfind(".")
+        slash = path.rfind("/")
 
         if dot <= slash+1:
             return None
         else:
-            return self.path[dot+1:]
+            return path[dot+1:]
+
+    def getExtension(self):
+        """Return the File's extension."""
+        return File._getExtension(self.path)
+
+    @staticmethod
+    def getExtensionFromPath(path: str, filterInvalid: bool=False):
+        """Return the File's extension."""
+        if filterInvalid:
+            fileType = mimetypes.guess_type(path, strict=False)
+            if not fileType or not fileType[0]:
+                return None
+
+        return File._getExtension(path)
 
     def getFileName(self, folderEnd: bool=False):
         """Return the file name (last end of the path) of the file."""
@@ -283,6 +309,12 @@ class File(object):
             name = self.path
 
         return name + ('/' if folderEnd and self.isFolder() else '')
+
+    @staticmethod
+    def getFileNameFromPath(path: str):
+        """Return the file name (last end of the path) of the file."""
+        lastDir = path.rfind('/')
+        return path[lastDir+1:]
 
     def getTimeOfStart(self):
         """Return the time at which the file was known to start existing."""
