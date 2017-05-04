@@ -135,6 +135,8 @@ class FileStore(object):
                 os.replace(outputDir, backup)
             os.makedirs(outputDir, exist_ok=False)
 
+        return  # NOTE: Disabled for performance reasons.
+
         for key in sorted(self.nameStore, key=lambda s: s.lower()):
             files = self.nameStore[key]
             lastCnt = 0

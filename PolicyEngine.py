@@ -336,10 +336,11 @@ class Policy(object):
                 if not score:  # File didn't have any legal/valid access.
                     continue
 
+                # NOTE: Disabled for performance reasons.
                 # print("\n\nFile: %s:%s" % (last.inode, outfilename))
-                score.printScores(outputDir=outputDir,
-                                  filename=outfilename,
-                                  quiet=True)
+                # score.printScores(outputDir=outputDir,
+                #                   filename=outfilename,
+                #                   quiet=True)
 
                 if last.isUserDocument(userHome, allowHiddenFiles=True):
                     userDocF += score
