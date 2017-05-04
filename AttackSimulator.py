@@ -177,7 +177,7 @@ class AttackSimulator(object):
             if not startingPoints:
                 msg += ("No such app found, aborting attack simulation.")
                 # tprnt("No such app found, aborting attack simulation.")
-                return msg
+                return (msg, None)
 
         # Case where a file is at the origin of the attack.
         elif filePattern:
@@ -206,11 +206,11 @@ class AttackSimulator(object):
             if not startingPoints:
                 msg += ("No such file found, aborting attack simulation.")
                 # tprnt("No such file found, aborting attack simulation.")
-                return msg
+                return (msg, None)
         else:
             msg += ("No starting point defined, aborting attack simulation.")
             # tprnt("No starting point defined, aborting attack simulation.")
-            return msg
+            return (msg, None)
 
         # Now, roll the attack.
         msg += ("%d starting points found. Performing %d rounds of attacks."
@@ -220,6 +220,8 @@ class AttackSimulator(object):
 
         apps = []
         uapps = []
+        wapps = []
+        wuapps = []
         files = []
         docs = []
 
@@ -267,86 +269,104 @@ class AttackSimulator(object):
             files.append(fileCount)
             docs.append(docCount)
 
+            # Calculate weighted impact on apps and user apps.
+            instCountPerDid = appStore.getInstCountPerApp()
+            weightedAppSum = 0
+            weightedUAppSum = 0
+            for app in appSet:
+                weightedAppSum += instCountPerDid[app]
+            for app in userAppSet:
+                weightedUAppSum += instCountPerDid[app]
+
+            wapps.append(weightedAppSum)
+            wuapps.append(weightedUAppSum)
+
         medApps = statistics.median(apps)
         medUApps = statistics.median(uapps)
+        medWApps = statistics.median(wapps)
+        medWUApps = statistics.median(wuapps)
         medFiles = statistics.median(files)
         medDocs = statistics.median(docs)
         avgApps = sum(apps) / len(apps)
         avgUApps = sum(uapps) / len(uapps)
+        avgWApps = sum(wapps) / len(wapps)
+        avgWUApps = sum(wuapps) / len(wuapps)
         avgFiles = sum(files) / len(files)
         avgDocs = sum(docs) / len(docs)
         minApps = min(apps)
         minUApps = min(uapps)
+        minWApps = min(wapps)
+        minWUApps = min(wuapps)
         minFiles = min(files)
         minDocs = min(docs)
         maxApps = max(apps)
         maxUApps = max(uapps)
+        maxWApps = max(wapps)
+        maxWUApps = max(wuapps)
         maxFiles = max(files)
         maxDocs = max(docs)
 
-        # medLocationL = statistics.median_low(sums)
-        # medLocationH = statistics.median_high(sums)
-        # if medLocationL != medLocationH:
-            # idxL = sums.index(medLocationL)
-            # idxH = sums.index(medLocationH)
-            # medApps = (apps[idxL] + apps[idxH]) / 2
-            # medFiles = (files[idxL] + files[idxH]) / 2
-        # else:
-            # idx = sums.index(medLocationH)
-            # medApps = apps[idx]
-            # medFiles = files[idx]
-      
-        # avgFiles = sum(files) / len(files)
-        # avgApps = sum(apps) / len(apps)
-
-        # minIdx = sums.index(min(sums))
-        # minFiles = files[minIdx]
-        # minApps = apps[minIdx]
-        # maxIdx = sums.index(max(sums))
-        # maxFiles = files[maxIdx]
-        # maxApps = apps[maxIdx]
         appCount = appStore.getAppCount()
         userAppCount = appStore.getUserAppCount()
         instCount = len(appStore)
         userInstCount = appStore.getUserInstCount()
         fileCount = len(fileStore)
         docCount = fileStore.getUserDocumentCount(userConf.getHomeDir())
+        
+        avgPropApps = avgWUApps / userInstCount
+        avgPropFiles = avgDocs / docCount
+        avgOfProportions = (avgPropApps + avgPropFiles) / 2
 
-        # FIXME use floats.
         msg += "\nMin: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) weighted-apps infected; " \
                "%.2f (%f%%) files infected; " \
-               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) user-apps infected; " \
+               "%.2f (%f%%) weighted-user-apps infected; " \
                "%.2f (%f%%) documents infected\n" % (
                 minApps, 100* minApps / appCount,
+                minWApps, 100* minWApps / instCount,
                 minFiles, 100* minFiles / fileCount,
                 minUApps, 100* minUApps / userAppCount,
+                minWUApps, 100* minWUApps / userInstCount,
                 minDocs, 100* minDocs / docCount)
         msg += "Max: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) weighted-apps infected; " \
                "%.2f (%f%%) files infected; " \
-               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) user-apps infected; " \
+               "%.2f (%f%%) weighted-user-apps infected; " \
                "%.2f (%f%%) documents infected\n" % (
                 maxApps, 100* maxApps / appCount,
+                maxWApps, 100* maxWApps / instCount,
                 maxFiles, 100* maxFiles / fileCount,
                 maxUApps, 100* maxUApps / userAppCount,
+                maxWUApps, 100* maxWUApps / userInstCount,
                 maxDocs, 100* maxDocs / docCount)
         msg += "Avg: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) weighted-apps infected; " \
                "%.2f (%f%%) files infected; " \
-               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) user-apps infected; " \
+               "%.2f (%f%%) weighted-user-apps infected; " \
                "%.2f (%f%%) documents infected\n" % (
                 avgApps, 100* avgApps / appCount,
+                avgWApps, 100* avgWApps / instCount,
                 avgFiles, 100* avgFiles / fileCount,
                 avgUApps, 100* avgUApps / userAppCount,
+                avgWUApps, 100* avgWUApps / userInstCount,
                 avgDocs, 100* avgDocs / docCount)
         msg += "Med: %.2f (%f%%) apps infected; " \
+               "%.2f (%f%%) weighted-apps infected; " \
                "%.2f (%f%%) files infected; " \
-               "%.2f (%f%%) user apps infected; " \
+               "%.2f (%f%%) user-apps infected; " \
+               "%.2f (%f%%) weighted-user-apps infected; " \
                "%.2f (%f%%) documents infected\n" % (
                 medApps, 100* medApps / appCount,
+                medWApps, 100* medWApps / instCount,
                 medFiles, 100* medFiles / fileCount,
                 medUApps, 100* medUApps / userAppCount,
+                medWUApps, 100* medWUApps / userInstCount,
                 medDocs, 100* medDocs / docCount)
 
-        return msg
+        return (msg, avgOfProportions)
 
     def runAttacks(self,
                    policy: Policy,
@@ -365,6 +385,7 @@ class AttackSimulator(object):
         allowedCache = dict()
 
         msg = ""
+        results = []
 
         # Used for testing.
         # msg += self.performAttack(policy,
@@ -373,24 +394,34 @@ class AttackSimulator(object):
         #                           allowedCache=allowedCache,
         #                           "virus-photo",
         #                           filePattern="^.*?\.jpg$")
+        # msg += m
+        # if a:
+        #     results.append(a)
 
         # p6 downloaded a fake movie that contained a virus, through a Torrent
         # app. We test virus-containing movies, and corrupted torrent apps.
         movies = "^.*?@XDG_DOWNLOADS_DIR@.*?\.(mov|flv|avi|wav|mp4|qt|asf|" \
                  "swf|mpg|wmv|h264|webm|mkv|3gp|mpg4)$"
-        msg += self.performAttack(policy,
+        m, a = self.performAttack(policy,
                                   acListInst=acListInst,
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="torrent-virus-movie",
                                   filePattern=movies)
+        msg += m
+        if a:
+            results.append(a)
+
         torrents = ["qbittorrent", "transmission-gtk"]
-        msg += self.performAttack(policy,
+        m, a = self.performAttack(policy,
                                   acListInst=acListInst,
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="torrent-virus-app",
                                   startingApps=torrents)
+        msg += m
+        if a:
+            results.append(a)
 
         # Used a bogus document editor: P7 downloaded apps to unencrypt an
         # office document sent by a teacher, and ran a bogus app.
@@ -401,12 +432,15 @@ class AttackSimulator(object):
                 "libreoffice-draw", "libreoffice-impress", "libreoffice-math",
                 "libreoffice-startcenter", "libreoffice-writer",
                 "libreoffice-xsltfilter", "oosplash", "soffice.bin", "soffice"]
-        msg += self.performAttack(policy,
+        m, a = self.performAttack(policy,
                                   acListInst=acListInst,
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="bogus-document-editor",
                                   startingApps=docs)
+        msg += m
+        if a:
+            results.append(a)
 
         # p9 occasionally wanting to run application) but will not do so
         # if not understanding them and not trusting source. Test apps with
@@ -414,23 +448,29 @@ class AttackSimulator(object):
         # from outside app stores.
         # wildApps = ["telegram", "android", "ruby", "eclipse", "python",
         #             "cargo", "dropbox", "wine", "skype"]
-        # msg += self.performAttack(policy,
+        # m, a = self.performAttack(policy,
         #                           acListInst=acListInst,
         #                           lookUps=lookUps,
         #                           allowedCache=allowedCache,
         #                           "non-standard-apps",
         #                           startingApps=wildApps)
+        # msg += m
+        # if a:
+        #     results.append(a)
 
         # p4 forum story about being worried when he runs games downloaded
         # illegally. Wine, games and emulator invocations.
         emus = ["dolphin-emu", "fceux", "PCSX2", "pcsx", "playonlinux",
                 "ppsspp", "steam", "wine"]
-        msg += self.performAttack(policy,
+        m, a = self.performAttack(policy,
                                   acListInst=acListInst,
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="game-emulators",
                                   startingApps=emus)
+        msg += m
+        if a:
+            results.append(a)
 
         # p12 ransomware scenario: take any connected app at random.
         conn = ["acroread", "addatude", "banshee", "bash", "brackets", "bvnc",
@@ -450,31 +490,43 @@ class AttackSimulator(object):
                 "torbrowser", "totem", "transmission-gtk", "vlc",
                 "webbrowser-app", "weechat", "wget", "wine", "xchat",
                 "youtube-dl", "zotero"]
-        msg += self.performAttack(policy,
+        m, a = self.performAttack(policy,
                                   acListInst=acListInst,
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="ransomware-internet-exploit",
                                   startingApps=conn)
+        msg += m
+        if a:
+            results.append(a)
 
         # p12 ransomware file scenario: take any Downloaded file at random.
         dls = "^.*?@XDG_DOWNLOADS_DIR@.*?$"
-        msg += self.performAttack(policy,
+        m, a = self.performAttack(policy,
                                   acListInst=acListInst,
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="ransomware-downloaded-file",
                                   filePattern=dls)
+        msg += m
+        if a:
+            results.append(a)
 
         # p2 : permanent compromise of browser via browser plugins.
         # browsers = ["chromium", "firefox", "midori", "torbrowser",
         #             "webbrowser-app"]
-        # msg += self.performAttack(policy,
+        # m, a = self.performAttack(policy,
         #                           acListInst=acListInst,
         #                           lookUps=lookUps,
         #                           allowedCache=allowedCache,
         #                           "browser-extensions",
         #                           startingApps=browsers)
+        # msg += m
+        # if a:
+        #    results.append(a)
+
+        msg += "\nFinal results: " + ",".join((str(r) for r in results))
+        msg += "\nFinal average: " + str(sum(results) / len(results))
 
         # Save attack results.
         path = outputDir + "/attacks.out"
