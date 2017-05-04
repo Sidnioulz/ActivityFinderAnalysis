@@ -79,6 +79,17 @@ class ApplicationStore(object):
 
         return count
 
+    def getInstCountPerApp(self):
+        """Return the number of instances per application in a dictionary."""
+        if not self.nameStoreClean:
+            self._regenNameStore()
+
+        count = dict()
+        for (did, apps) in self.nameStore.items():
+            count[did] = len(apps)
+
+        return count
+
     def clear(self):
         """Empty the ApplicationStore."""
         self.pidStore = dict()   # type: dict
