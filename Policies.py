@@ -281,6 +281,44 @@ class OneFolderPolicy(FolderPolicy):
         return False
 
 
+class OneDistantFolderPolicy(OneFolderPolicy):
+    """Policy where apps access files in the same distant parent folders."""
+
+    def __init__(self,
+                 name: str='OneDistantFolderPolicy'):
+        """Construct a OneDistantFolderPolicy."""
+        super(OneDistantFolderPolicy, self).__init__(name)
+        self.desigCache = dict()
+        self.illegalCache = dict()
+        self.rootCache = dict()
+        self.roots = \
+          LibraryManager.get().getAllLibraryRoots(libMod=LibraryManager.Custom)
+
+    def _computeFolder(self, f: File):
+        """Return the folder used for a given file."""
+        parent = f.getParentName()
+
+        if parent not in self.rootCache:
+            # Find a matching root, and calculate the largest folder we can use
+            # to grant access to files based on that.
+            for root in self.roots:
+                if parent.startswith(root):
+                    nextSlash = parent.find('/', len(root) + 1)
+
+                    if nextSlash == -1:
+                        self.rootCache[parent] = parent
+                    else:
+                        self.rootCache[parent] = parent[:nextSlash]
+
+                    break
+
+            # No root folder among ~, /media and various libraries.
+            else:
+                self.rootCache[parent] = parent
+
+        return self.rootCache[parent]
+
+
 class DistantFolderPolicy(FolderPolicy):
     """Policy where apps access files in the same distant parent folders."""
 
@@ -942,6 +980,40 @@ class OneFFFSbPolicy(CompositionalPolicy):
         polArgs = [None, None, None,
                    dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),]
         super(OneFFFSbPolicy, self).__init__(policies, polArgs, name)
+
+
+class FolderSbFAPolicy(CompositionalPolicy):
+    """Folder v FutureAccessList v StickyBitPolicy."""
+
+    def __init__(self,
+                 name: str='FolderSbFAPolicy'):
+        """Construct a FolderSbFAPolicy."""
+        policies = [FolderPolicy, FutureAccessListPolicy, StickyBitPolicy]
+        polArgs = [None, None, dict(folders=["~", "/media", "/mnt"]),]
+        super(FolderSbFAPolicy, self).__init__(policies, polArgs, name)
+
+
+class FolderFilenamePolicy(CompositionalPolicy):
+    """Folder v Filename."""
+
+    def __init__(self,
+                 name: str='FolderFilenamePolicy'):
+        """Construct a FolderFilenamePolicy."""
+        policies = [FolderPolicy, FilenamePolicy]
+        polArgs = [None, None]
+        super(FolderFilenamePolicy, self).__init__(policies, polArgs, name)
+
+
+class FolderRestrictedAppsPolicy(CompositionalPolicy):
+    """Folder v Filename."""
+
+    def __init__(self,
+                 name: str='FolderRestrictedAppsPolicy'):
+        """Construct a FolderRestrictedAppsPolicy."""
+        policies = [FolderPolicy, RestrictedAppsPolicy]
+        polArgs = [None, dict(apps=["telegram", "android", "ruby",
+                   "eclipse", "python", "cargo", "dropbox", "wine", "skype"]),]
+        super(FolderRestrictedAppsPolicy, self).__init__(policies, polArgs, name)
 
 
 class ExclusionPolicy(Policy):

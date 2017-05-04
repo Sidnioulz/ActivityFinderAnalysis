@@ -11,12 +11,15 @@ from UserConfigLoader import UserConfigLoader
 from GraphEngine import GraphEngine
 from PolicyEngine import PolicyEngine
 from FrequentFileEngine import FrequentFileEngine
+from LibraryManager import LibraryManager
 from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
-                     OneFolderPolicy, FutureAccessListPolicy, \
-                     StickyBitPolicy, FilenamePolicy, ProtectedFolderPolicy, \
-                     Win8Policy, Win10Policy, FFFPolicy, OneFFFPolicy, \
-                     FFFSbPolicy, OneFFFSbPolicy
+                     OneFolderPolicy, DistantFolderPolicy, FilenamePolicy, \
+                     OneDistantFolderPolicy, FutureAccessListPolicy, \
+                     StickyBitPolicy, CustomLibraryPolicy, FolderSbFAPolicy, \
+                     Win8Policy, Win10Policy, ProtectedFolderPolicy, \
+                     LibraryFolderPolicy, RemovableMediaPolicy, \
+                     FolderFilenamePolicy, FolderRestrictedAppsPolicy
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
@@ -344,23 +347,51 @@ def main(argv):
     if scoreEnabled() or attacksEnabled():
         engine = PolicyEngine()
 
-        # policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
-        #             DesignationPolicy, FileTypePolicy, FolderPolicy,
-        #             OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy]
+        policies = [UnsecurePolicy,
+                    DesignationPolicy,
+                    OneLibraryPolicy,
+                    CompoundLibraryPolicy,
 
-        # policies = [FFFPolicy, FFFSbPolicy, OneFFFPolicy, OneFFFSbPolicy]
+                    CustomLibraryPolicy,
+                    OneFolderPolicy,
+                    FolderPolicy,
+                    OneDistantFolderPolicy,
 
-        policies = [OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy,
-                    DesignationPolicy, FileTypePolicy, FolderPolicy,
-                    OneFolderPolicy, FutureAccessListPolicy, FilenamePolicy,
-                    FFFPolicy, FFFSbPolicy, OneFFFPolicy, OneFFFSbPolicy,
-                    Win8Policy, Win10Policy]
+                    DistantFolderPolicy,
+                    LibraryFolderPolicy,
+                    FileTypePolicy,
+                    Win8Policy,
 
-        polArgs = [None, None, None,
-                   None, None, None,
-                   None, None, None,
-                   None, None, None, None,
-                   None, None]
+                    Win10Policy,
+                    FolderSbFAPolicy,
+                    FolderFilenamePolicy,
+                    RemovableMediaPolicy,
+
+                    FolderRestrictedAppsPolicy,
+                    ]
+
+        polArgs = [None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   dict(supportedLibraries=LibraryManager.CustomList),
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   ]
         # dict(folders=["~/Downloads", "/tmp"])
 
         skipList = skipEnabled()
