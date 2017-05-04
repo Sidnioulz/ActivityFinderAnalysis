@@ -61,7 +61,7 @@ class LibraryManager(object):
 
         # Cache for application policies.
         self.appPolicyCache = dict()
-        appPolicyCacheCustom = dict()
+        self.appPolicyCacheCustom = dict()
 
         # Cache for files.
         self.fileCacheDefault = dict()
