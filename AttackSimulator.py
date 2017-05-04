@@ -446,17 +446,17 @@ class AttackSimulator(object):
         # if not understanding them and not trusting source. Test apps with
         # binary files outside write-protected standard locations, and obtained
         # from outside app stores.
-        # wildApps = ["telegram", "android", "ruby", "eclipse", "python",
-        #             "cargo", "dropbox", "wine", "skype"]
-        # m, a = self.performAttack(policy,
-        #                           acListInst=acListInst,
-        #                           lookUps=lookUps,
-        #                           allowedCache=allowedCache,
-        #                           "non-standard-apps",
-        #                           startingApps=wildApps)
-        # msg += m
-        # if a:
-        #     results.append(a)
+        wildApps = ["telegram", "android", "ruby", "eclipse", "python",
+                    "cargo", "dropbox", "wine", "skype"]
+        m, a = self.performAttack(policy,
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="non-standard-apps",
+                                  startingApps=wildApps)
+        msg += m
+        if a:
+            results.append(a)
 
         # p4 forum story about being worried when he runs games downloaded
         # illegally. Wine, games and emulator invocations.
@@ -507,6 +507,18 @@ class AttackSimulator(object):
                                   lookUps=lookUps,
                                   allowedCache=allowedCache,
                                   attackName="ransomware-downloaded-file",
+                                  filePattern=dls)
+        msg += m
+        if a:
+            results.append(a)
+
+        # (not from participants) USB malware: file from USB is malicious
+        dls = "^/(media|mnt)/.*"
+        m, a = self.performAttack(policy,
+                                  acListInst=acListInst,
+                                  lookUps=lookUps,
+                                  allowedCache=allowedCache,
+                                  attackName="usb-malware-file",
                                   filePattern=dls)
         msg += m
         if a:
