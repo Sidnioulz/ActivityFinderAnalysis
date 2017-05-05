@@ -189,7 +189,7 @@ class AnalysisEngine(object):
                "  \\label{table:userland-usability-costs-%s}\n" \
                "\\end{table}\n" % (target, target)
 
-        with open(os.path.join(self.outputDir, filename), 'a') as f:
+        with open(os.path.join(self.outputDir, filename), 'ab') as f:
             print(msg, file=f)
 
         return msg
@@ -217,7 +217,7 @@ class AnalysisEngine(object):
                "  \\label{table:oe-costs-%s}\n" \
                "\\end{table}\n" % (target, target)
 
-        with open(os.path.join(self.outputDir, filename), 'a') as f:
+        with open(os.path.join(self.outputDir, filename), 'ab') as f:
             print(msg, file=f)
 
         return msg

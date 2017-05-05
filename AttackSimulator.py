@@ -543,6 +543,6 @@ class AttackSimulator(object):
         # Save attack results.
         path = outputDir + "/attacks.out"
         os.makedirs(File.getParentNameFromName(path), exist_ok=True)
-        with open(path, "w") as f:
+        with open(path, "wb") as f:
             print(msg, file=f)
 

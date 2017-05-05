@@ -153,7 +153,7 @@ class PolicyScores(object):
             filename = outputDir + '/' + filename
             os.makedirs(File.getParentNameFromName(filename),
                         exist_ok=True)
-            with open(filename, "a") as f:
+            with open(filename, "ab") as f:
                 print(msg, file=f)
 
         return [self.overEntitlements[2], self.overEntitlements[3]]
@@ -917,7 +917,7 @@ class Policy(object):
                         ".securityscore"
                     os.makedirs(File.getParentNameFromName(filename),
                                 exist_ok=True)
-                    with open(filename, "a") as f:
+                    with open(filename, "ab") as f:
                         print(msg, file=f)
 
         def _writeApps(appExclScoreDict):
@@ -945,7 +945,7 @@ class Policy(object):
                             ".exclscore"
                         os.makedirs(File.getParentNameFromName(filename),
                                     exist_ok=True)
-                        with open(filename, "a") as f:
+                        with open(filename, "ab") as f:
                             print(msg, file=f)
 
         _writeClusters(self.clusters, self.exclScores,
