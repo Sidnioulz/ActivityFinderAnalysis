@@ -320,7 +320,7 @@ class CommonGraph(object):
             path = self.outputDir + "/" + output + ".graphstats.txt"
             os.makedirs(File.getParentNameFromName(path),
                         exist_ok=True)
-            with open(path, "a") as f:
+            with open(path, "w") as f:
                 print(msg, file=f)
 
         self.editCount = editCount
@@ -417,7 +417,7 @@ class CommonGraph(object):
             path = self.outputDir + "/" + output + ".graphstats.txt"
             os.makedirs(File.getParentNameFromName(path),
                         exist_ok=True)
-            with open(path, "a") as f:
+            with open(path, "w") as f:
                 print(msg, file=f)
 
 
