@@ -297,6 +297,8 @@ class OneDistantFolderPolicy(OneFolderPolicy):
     def _computeFolder(self, f: File):
         """Return the folder used for a given file."""
         parent = f.getParentName()
+        if not parent:
+            return f.path
 
         if parent not in self.rootCache:
             # Find a matching root, and calculate the largest folder we can use
@@ -335,6 +337,8 @@ class DistantFolderPolicy(FolderPolicy):
     def _computeFolder(self, f: File):
         """Return the folder used for a given file."""
         parent = f.getParentName()
+        if not parent:
+            return f.path
 
         if parent not in self.rootCache:
             # Find a matching root, and calculate the largest folder we can use
@@ -377,6 +381,8 @@ class LibraryFolderPolicy(DistantFolderPolicy):
     def _computeFolder(self, f: File):
         """Return the folder used for a given file."""
         parent = f.getParentName()
+        if not parent:
+            return "FILETYPE"
 
         if parent not in self.rootCache:
             # Find a matching root, and calculate the largest folder we can use
@@ -500,6 +506,8 @@ class ProjectsPolicy(FolderPolicy):
     def _computeFolder(self, f: File):
         """Return the folder used for a given file."""
         parent = f.getParentName()
+        if not parent:
+            return None
 
         if parent not in self.projectsCache:
             found = False
