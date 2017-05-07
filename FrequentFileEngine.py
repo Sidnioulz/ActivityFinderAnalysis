@@ -64,7 +64,7 @@ class FrequentFileEngine(object):
                     accessedTypesPerApp[actor] = l
 
         # Write the other input file, for aggregation via Python API.
-        with open(self.outputDir + '/' + 'typesPerInstance.list', 'w') as f:
+        with open(self.outputDir + '/' + 'typesPerInstance.list', 'wb') as f:
             for app in apps:
                 msg = '%s\t' % (app.uid())
                 l = accessedTypesPerApp.get(app) or []
@@ -212,7 +212,7 @@ class FrequentFileEngine(object):
         #     displayPatterns[p] = disp
 
         # Print to files.
-        with open(self.outputDir + '/' + 'patterns.out', 'w') as f:
+        with open(self.outputDir + '/' + 'patterns.out', 'wb') as f:
             tprnt("\nMost commonly found types:")
             print("Most commonly found types:", file=f)
             for item in sorted(uniques,
@@ -269,11 +269,11 @@ class FrequentFileEngine(object):
                             ','.join(k), v, exclusiveCounterI[k]))
 
             # Print to files.
-            with open(self.outputDir + '/' + 'patterns.out', 'a') as f:
+            with open(self.outputDir + '/' + 'patterns.out', 'ab') as f:
                 print(msg, file=f)
                 print(summary, file=f)
 
-            with open(self.outputDir + '/' + 'patternsListing.out', 'a') as f:
+            with open(self.outputDir + '/' + 'patternsListing.out', 'ab') as f:
                 print(msg, file=f)
                 print(listing, file=f)
 
