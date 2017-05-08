@@ -269,11 +269,11 @@ class FrequentFileEngine(object):
                             ','.join(k), v, exclusiveCounterI[k]))
 
             # Print to files.
-            with open(self.outputDir + '/' + 'patterns.out', 'ab') as f:
+            with open(self.outputDir + '/' + 'patterns.out', 'a') as f:
                 print(msg, file=f)
                 print(summary, file=f)
 
-            with open(self.outputDir + '/' + 'patternsListing.out', 'ab') as f:
+            with open(self.outputDir + '/' + 'patternsListing.out', 'a') as f:
                 print(msg, file=f)
                 print(listing, file=f)
 
