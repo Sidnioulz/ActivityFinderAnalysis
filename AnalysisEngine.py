@@ -980,7 +980,9 @@ class AnalysisEngine(object):
             if dotsUsa[polName] < usaFront:
                 # Add initial point too.
                 if usaFront == math.inf:
-                    front.append((min(attackScore, 0.03), dotsUsa[polName]))
+                    # front.append((min(attackScore, 0.03), dotsUsa[polName]))
+                    front.append((min(attackScore, 0.03), maxY))
+                    front.append((attackScore-0.1, maxY))
 
                 usaFront = dotsUsa[polName]
                 front.append((attackScore, dotsUsa[polName]))
