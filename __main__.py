@@ -19,7 +19,8 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      StickyBitPolicy, CustomLibraryPolicy, FolderSbFAPolicy, \
                      Win8Policy, Win10Policy, ProtectedFolderPolicy, \
                      LibraryFolderPolicy, RemovableMediaPolicy, \
-                     FolderFilenamePolicy, FolderRestrictedAppsPolicy
+                     FolderFilenamePolicy, FolderRestrictedAppsPolicy, \
+                     CompositionalPolicy
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
@@ -347,47 +348,47 @@ def main(argv):
     if scoreEnabled() or attacksEnabled():
         engine = PolicyEngine()
 
-        policies = [OneLibraryPolicySb,
-                    OneLibraryPolicySbFa,
-                    OneLibraryPolicyFa,
-                    CustomLibraryPolicySb,
-                    CustomLibraryPolicySbFa,
-                    CustomLibraryPolicyFa,
+        policies = ['OneLibraryPolicySb',
+                    'OneLibraryPolicySbFa',
+                    'OneLibraryPolicyFa',
+                    'CustomLibraryPolicySb',
+                    'CustomLibraryPolicySbFa',
+                    'CustomLibraryPolicyFa',
 
-                    CustomLibraryPolicySb,
-                    CustomLibraryPolicySbFa,
-                    CustomLibraryPolicyFa,
-                    OneFolderPolicySb,
-                    OneFolderPolicySbFa,
-                    OneFolderPolicyFa,
+                    'CustomLibraryPolicySb',
+                    'CustomLibraryPolicySbFa',
+                    'CustomLibraryPolicyFa',
+                    'OneFolderPolicySb',
+                    'OneFolderPolicySbFa',
+                    'OneFolderPolicyFa',
 
-                    FolderPolicySb,
-                    FolderPolicySbFa,
-                    FolderPolicyFa,
-                    OneDistantFolderPolicySb,
-                    OneDistantFolderPolicySbFa,
-                    OneDistantFolderPolicyFa,
+                    'FolderPolicySb',
+                    'FolderPolicySbFa',
+                    'FolderPolicyFa',
+                    'OneDistantFolderPolicySb',
+                    'OneDistantFolderPolicySbFa',
+                    'OneDistantFolderPolicyFa',
 
-                    DistantFolderPolicySb,
-                    DistantFolderPolicySbFa,
-                    DistantFolderPolicyFa,
-                    LibraryFolderPolicySb,
-                    LibraryFolderPolicySbFa,
-                    LibraryFolderPolicyFa,
+                    'DistantFolderPolicySb',
+                    'DistantFolderPolicySbFa',
+                    'DistantFolderPolicyFa',
+                    'LibraryFolderPolicySb',
+                    'LibraryFolderPolicySbFa',
+                    'LibraryFolderPolicyFa',
 
-                    FileTypePolicySb,
-                    FileTypePolicySbFa,
-                    FileTypePolicyFa,
-                    FolderFilenamePolicySb,
-                    FolderFilenamePolicySbFa,
-                    FolderFilenamePolicyFa,
+                    'FileTypePolicySb',
+                    'FileTypePolicySbFa',
+                    'FileTypePolicyFa',
+                    'FolderFilenamePolicySb',
+                    'FolderFilenamePolicySbFa',
+                    'FolderFilenamePolicyFa',
 
-                    RemovableMediaPolicySb,
-                    RemovableMediaPolicySbFa,
-                    RemovableMediaPolicyFa,
-                    FolderRestrictedAppsPolicySb,
-                    FolderRestrictedAppsPolicySbFa,
-                    FolderRestrictedAppsPolicyFa,
+                    'RemovableMediaPolicySb',
+                    'RemovableMediaPolicySbFa',
+                    'RemovableMediaPolicyFa',
+                    'FolderRestrictedAppsPolicySb',
+                    'FolderRestrictedAppsPolicySbFa',
+                    'FolderRestrictedAppsPolicyFa',
                     ]
 
         polArgs = [None,
@@ -436,8 +437,32 @@ def main(argv):
 
         skipList = skipEnabled()
         for (polIdx, polName) in enumerate(policies):
-            if polArgs[polIdx]:
+
+            # Names with certain suffixes are dynamically generated policies.
+            if isinstance(polName, str):
+                if polName.endswith('Sb'):
+                    pols = [getattr(sys.modules[__name__], polName[:-2]),
+                            StickyBitPolicy]
+                    args = [polArgs[polIdx],
+                            dict(folders=["~", "/media", "/mnt"])]
+                elif polName.endswith('SbFa'):
+                    pols = [getattr(sys.modules[__name__], polName[:-4]),
+                            StickyBitPolicy,
+                            FutureAccessListPolicy]
+                    args = [polArgs[polIdx],
+                            dict(folders=["~", "/media", "/mnt"]),
+                            None]
+                elif polName.endswith('Fa'):
+                    pols = [getattr(sys.modules[__name__], polName[:-2]),
+                            FutureAccessListPolicy]
+                    args = [polArgs[polIdx],
+                            None]
+
+                pol = CompositionalPolicy(pols, args, polName)
+            # Existing policies, with arguments.
+            elif polArgs[polIdx]:
                 pol = polName(**polArgs[polIdx])
+            # Existing policies, without arguments.
             else:
                 pol = polName()
 
