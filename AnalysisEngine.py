@@ -165,8 +165,7 @@ class AnalysisEngine(object):
         ret = dict()
         try:
             with open(path) as f:
-                content = f.readlines()
-                for line in content:
+                for line in f:
                     if line.startswith("Simulated:"):
                         res = self.statsRe.match(line).groups()
                         ret['apps'] = int(res[0])
@@ -290,8 +289,7 @@ class AnalysisEngine(object):
                                   confCostDivider: int=1):
             try:
                 with open(filename) as f:
-                    content = f.readlines()
-                    for line in content:
+                    for line in f:
                         if line.startswith("\t* by designation"):
                             d = [int(s) for s in line[:-1].split(' ') if
                                  s.isdigit()]
@@ -354,8 +352,7 @@ class AnalysisEngine(object):
                               filterValues: list=["Application"]):
         try:
             with open(filename) as f:
-                content = f.readlines()
-                for line in content:
+                for line in f:
                     if filterKey and line.startswith(filterKey+":"):
                         v = line[len(filterKey)+2:-1]
                         return v in filterValues
@@ -369,8 +366,7 @@ class AnalysisEngine(object):
         def _parseClusterScores(self, filename: str):
             try:
                 with open(filename) as f:
-                    content = f.readlines()
-                    for line in content:
+                    for line in f:
                         if line.startswith("# of clusters violating exclusion"):
                             d = [int(s) for s in line[:-1].split(' ') if
                                  s.isdigit()]
@@ -397,8 +393,7 @@ class AnalysisEngine(object):
         def _parseOEScores(filename: str):
             try:
                 with open(filename) as f:
-                    content = f.readlines()
-                    for line in content:
+                    for line in f:
                         if line.startswith(prfx):
                             OEs = eval(line[len(prfx):])
                             return OEs
@@ -781,12 +776,10 @@ class AnalysisEngine(object):
             participant = folder[:folder.rfind("/")]
             try:
                 with open(filename) as f:
-                    content = f.readlines()
-
                     curAttack = None
                     curScores = None
 
-                    for line in content:
+                    for line in f:
                         if line.startswith("## Performing attack"):
                             if curAttack and curScores:
                                 _addToDict(docScores, curAttack, participant, curScores[0])
