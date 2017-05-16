@@ -1012,8 +1012,8 @@ class FolderFilenamePolicy(CompositionalPolicy):
         super(FolderFilenamePolicy, self).__init__(policies, polArgs, name)
 
 
-class FolderRestrictedAppsPolicy(CompositionalPolicy):
-    """Folder v Filename."""
+class FolderRestrictedAppsPolicy(StrictCompositionalPolicy):
+    """Folder v RestrictedAppsPolicy."""
 
     def __init__(self,
                  name: str='FolderRestrictedAppsPolicy'):
