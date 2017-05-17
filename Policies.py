@@ -84,7 +84,7 @@ class CustomLibraryPolicy(OneLibraryPolicy):
 #     def __init__(self,
 #                  name: str='OneLibraryPolicy'):
 #         """Construct a OneLibraryPolicy."""
-#         rm = ['removableMedia']
+#         rm = ['removable']
 #         super(OneLibraryPolicy, self).__init__(supportedLibraries=rm,
 #                                                name=name)
 
@@ -936,7 +936,7 @@ class Win10Policy(CompositionalPolicy):
                     StickyBitPolicy,
                     FutureAccessListPolicy]
         polArgs = [dict(supportedLibraries=["music", "image", "video"]),
-                   dict(supportedLibraries=["documents", "removableMedia"]),
+                   dict(supportedLibraries=["documents", "removable"]),
                    dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),
                    None]
         super(Win10Policy, self).__init__(policies, polArgs, name)
