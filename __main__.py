@@ -348,89 +348,11 @@ def main(argv):
     if scoreEnabled() or attacksEnabled():
         engine = PolicyEngine()
 
-        policies = ['OneLibraryPolicySb',
-                    'OneLibraryPolicySbFa',
-                    'OneLibraryPolicyFa',
-                    'CustomLibraryPolicySb',
-                    'CustomLibraryPolicySbFa',
-                    'CustomLibraryPolicyFa',
-
-                    'CustomLibraryPolicySb',
-                    'CustomLibraryPolicySbFa',
-                    'CustomLibraryPolicyFa',
-                    'OneFolderPolicySb',
-                    'OneFolderPolicySbFa',
-                    'OneFolderPolicyFa',
-
-                    'FolderPolicySb',
-                    'FolderPolicySbFa',
-                    'FolderPolicyFa',
-                    'OneDistantFolderPolicySb',
-                    'OneDistantFolderPolicySbFa',
-                    'OneDistantFolderPolicyFa',
-
-                    'DistantFolderPolicySb',
-                    'DistantFolderPolicySbFa',
-                    'DistantFolderPolicyFa',
-                    'LibraryFolderPolicySb',
-                    'LibraryFolderPolicySbFa',
-                    'LibraryFolderPolicyFa',
-
-                    'FileTypePolicySb',
-                    'FileTypePolicySbFa',
-                    'FileTypePolicyFa',
-                    'FolderFilenamePolicySb',
-                    'FolderFilenamePolicySbFa',
-                    'FolderFilenamePolicyFa',
-
-                    'RemovableMediaPolicySb',
-                    'RemovableMediaPolicySbFa',
-                    'RemovableMediaPolicyFa',
-                    'FolderRestrictedAppsPolicySb',
-                    'FolderRestrictedAppsPolicySbFa',
-                    'FolderRestrictedAppsPolicyFa',
+        policies = [Win10Policy,
+                    FilenamePolicy
                     ]
 
         polArgs = [None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-
-                   None,
-                   None,
-                   None,
-                   dict(supportedLibraries=LibraryManager.CustomList),
-                   dict(supportedLibraries=LibraryManager.CustomList),
-                   dict(supportedLibraries=LibraryManager.CustomList),
-
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
                    None,
                    ]
         # dict(folders=["~/Downloads", "/tmp"])
