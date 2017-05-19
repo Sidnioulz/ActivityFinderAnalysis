@@ -3,6 +3,7 @@ from File import File
 from utils import outputFsEnabled, tprnt, frequency
 import mimetypes
 import itertools
+import os
 
 
 class FrequentFileEngine(object):
@@ -200,6 +201,14 @@ class FrequentFileEngine(object):
             elif _multipleTypes(item):
                 patterns[item[0]] = item[1]
         tprnt("Done.")
+
+        # Make output directory.
+        if os.path.exists(self.outputDir):
+            backup = self.outputDir.rstrip("/") + ".backup"
+            if os.path.exists(backup):
+                shutil.rmtree(backup)
+            os.replace(self.outputDir, backup)
+        os.makedirs(self.outputDir, exist_ok=False)
         
         # displayPatterns = dict()
         # for p in patterns:
