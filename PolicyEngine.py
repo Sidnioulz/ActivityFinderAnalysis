@@ -189,6 +189,7 @@ class Policy(object):
 
         # Scores for each individual File
         self.perFileScores = dict()
+        self.perFileUserAppScores = dict()
 
         # Scores for libraries
         self.perLibScores = dict()
@@ -321,6 +322,7 @@ class Policy(object):
         # File scores.
         systemF = PolicyScores()
         userDocF = PolicyScores()
+        userDocUserAppF = PolicyScores()
         userHome = self.userConf.getHomeDir()
         fileStore = FileStore.get()
         for key in sorted(fileStore.nameStore, key=lambda s: s.lower()):
@@ -342,10 +344,16 @@ class Policy(object):
                 #                   filename=outfilename,
                 #                   quiet=True)
 
-                if last.isUserDocument(userHome, allowHiddenFiles=True):
+                isDoc = last.isUserDocument(userHome, allowHiddenFiles=True)
+                if isDoc:
                     userDocF += score
                 else:
                     systemF += score
+
+                score = self.perFileUserAppScores.get(last.inode)
+                if score and isDoc:
+                    userDocUserAppF += score
+
         print("\nALL SYSTEM FILES")
         systemF.printScores(outputDir=self.scoreDir,
                             filename="SystemFiles.score")
@@ -358,6 +366,9 @@ class Policy(object):
         print("\nALL USER DOCUMENTS")
         userDocF.printScores(outputDir=self.scoreDir,
                              filename="UserDocFiles.score")
+        print("\nUSER DOCUMENTS ACCESSED BY USER APPLICATIONS")
+        userDocUserAppF.printScores(outputDir=self.scoreDir,
+                                    filename="UserDocUserAppFiles.score")
         print("-------------------")
 
         # General scores.
@@ -428,6 +439,14 @@ class Policy(object):
             attr += increment
             fScore.__setattr__(score, attr)
             self.perFileScores[file.inode] = fScore
+
+            if actor and actor.isUserlandApp():
+                fScore = self.perFileUserAppScores.get(file.inode) or \
+                    PolicyScores()
+                attr = fScore.__getattribute__(score)
+                attr += increment
+                fScore.__setattr__(score, attr)
+                self.perFileUserAppScores[file.inode] = fScore
 
             # Library score
             libName = self.libMgr.getLibraryForFile(file,
@@ -1122,6 +1141,10 @@ class Policy(object):
         for (key, score) in self.perFileScores.items():
             score.configCost = gbScore
             self.perFileScores[key] = score
+
+        for (key, score) in self.perFileUserAppScores.items():
+            score.configCost = gbScore
+            self.perFileUserAppScores[key] = score
 
         for (key, score) in self.perLibScores.items():
             score.configCost = gbScore
