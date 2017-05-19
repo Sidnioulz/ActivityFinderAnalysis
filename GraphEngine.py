@@ -417,7 +417,7 @@ class CommonGraph(object):
             path = self.outputDir + "/" + output + ".graphstats.txt"
             os.makedirs(File.getParentNameFromName(path),
                         exist_ok=True)
-            with open(path, "w") as f:
+            with open(path, "a") as f:
                 print(msg, file=f)
 
 
