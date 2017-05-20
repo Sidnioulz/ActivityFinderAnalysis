@@ -3,7 +3,6 @@ from File import File
 from utils import outputFsEnabled, tprnt, frequency
 import mimetypes
 import itertools
-import os
 
 
 class FrequentFileEngine(object):
@@ -100,7 +99,8 @@ class FrequentFileEngine(object):
     def processFrequentItemLists(self, inputDirs: list):
         """Process frequent item lists found in a list of input folders."""
         from orangecontrib.associate.fpgrowth import frequent_itemsets
-        from os.path import isfile
+        from os.path import isfile, exists
+        from os import replace, makedirs
 
         inputPaths = [d + '/typesPerInstance.list' for d in 
             inputDirs.split(",")]
@@ -203,12 +203,12 @@ class FrequentFileEngine(object):
         tprnt("Done.")
 
         # Make output directory.
-        if os.path.exists(self.outputDir):
+        if exists(self.outputDir):
             backup = self.outputDir.rstrip("/") + ".backup"
-            if os.path.exists(backup):
+            if exists(backup):
                 shutil.rmtree(backup)
-            os.replace(self.outputDir, backup)
-        os.makedirs(self.outputDir, exist_ok=False)
+            replace(self.outputDir, backup)
+        makedirs(self.outputDir, exist_ok=False)
         
         # displayPatterns = dict()
         # for p in patterns:
