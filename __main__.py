@@ -74,6 +74,7 @@ def main(argv):
                                       "skip=",
                                       "user",
                                       "clusters",
+                                      "print-clusters",
                                       "graph",
                                       "graph-clusters",
                                       "disable-plotting"])
@@ -140,7 +141,7 @@ def main(argv):
                 __setRelatedFiles(True)
             elif opt in ('-s', '--score'):
                 __setScore(True)
-            elif opt in ('-p', '--print-clusters'):
+            elif opt in ('-p', '--print-clusters', '--clusters'):
                 __setPrintClusters(True)
             elif opt in ('-g', '--graph-clusters', '--graph'):
                 __setGraph(True)
