@@ -198,9 +198,9 @@ class Policy(object):
         self.clusters = None
         self.clustersInst = None
         self.accessLists = None
-        self.exclScores = None
-        self.exclScoresInst = None
-        self.exclScoresPerApp = None
+        self.exclScores = dict()
+        self.exclScoresInst = dict()
+        self.exclScoresPerApp = dict()
 
         self.scoreDir = None
 
@@ -746,16 +746,19 @@ class Policy(object):
         """Calculate cross-overs between exclusion lists for each cluster."""
 
         # Get, and compile, the exclusion lists from the user.
-        self.exclList = self.userConf.getSecurityExclusionLists()
+        self.exclLists = self.userConf.getSecurityExclusionLists()
         self.exclRegEx = dict()
-        for (listName, exclList) in self.exclList.items():
-            for pathList in exclList:
-                for path in pathList:
+        for (exclistType, exclLists) in self.exclLists.items():
+            for exclList in exclLists:
+                for path in exclList:
                     self.exclRegEx[path] = re.compile('^'+path)
 
         def _calculate(clusters, listName, exclList):
             """Calculate the cross-overs for a given cluster."""
+            print("\n\n\n\n\n\n\n\n\n==============================\nCALCULATING FOR ", listName)
             # Each cluster has its own list of scores.
+            print("Len of clusters: ", len(clusters))
+            print("Len of excl list: ", len(exclList))
             exclScores = [None] * len(clusters)
 
             for (cIndex, cluster) in enumerate(clusters):
@@ -815,19 +818,13 @@ class Policy(object):
 
             return appExclScores
 
-        self.exclScores = dict()
-        self.exclScoresInst = dict()
-        self.exclScoresPerApp = dict()
-        for (listName, exclList) in self.exclList.items():
-            self.exclScores[listName] = _calculate(self.clusters,
-                                                   listName,
-                                                   exclList)
-            self.exclScoresInst[listName] = _calculate(self.clustersInst,
-                                                       listName,
-                                                       exclList)
-            self.exclScoresPerApp[listName] = _calculateApps(self.accessLists,
-                                                             listName,
-                                                             exclList)
+        for (listName, exclList) in self.exclLists.items():
+            self.exclScores[listName] = \
+                _calculate(self.clusters, listName, exclList)
+            self.exclScoresInst[listName] = \
+                _calculate(self.clustersInst, listName, exclList)
+            self.exclScoresPerApp[listName] = \
+                _calculateApps(self.accessLists, listName, exclList)
 
     def printSecurityClusters(self,
                               outputDir: str=None,
@@ -864,7 +861,7 @@ class Policy(object):
 
         def _printExclViolations(exclScores):
             """Print cross-overs of exclusion lists in each cluster."""
-            if not self.exclList:
+            if not self.exclLists:
                 return ""
 
             msg = ""
@@ -873,7 +870,7 @@ class Policy(object):
             for (eIndex, listScores) in enumerate(exclScores):
                 msg += ("Exclusion list #%d: %s\n" % (
                         eIndex+1,
-                        self.exclList[eIndex].__str__()))
+                        self.exclLists[eIndex].__str__()))
 
                 matchSum = set()
                 for (path, match) in listScores.items():
@@ -898,7 +895,7 @@ class Policy(object):
 
         def _printClusterExclViolations(clusters, exclScores):
             """Print cross-overs of exclusion lists in each cluster."""
-            if not self.exclList:
+            if not self.exclLists:
                 return ""
 
             msg = ""
@@ -923,6 +920,7 @@ class Policy(object):
 
         def _writeClusters(clusters, scoreDict, forMsg, filename):
             """Write the output of the print function to a file and stdout."""
+            print("HLLEO", filename, scoreDict)
             for (sName, scores) in scoreDict.items():
                 msg = ("\nCONNECTED FILE CLUSTERS FOR %s\n" % forMsg)
                 msg += _printClusters(clusters)
@@ -939,9 +937,10 @@ class Policy(object):
                     with open(filename, "a") as f:
                         print(msg, file=f)
 
-        def _writeApps(appExclScoreDict):
+        def _writeApps(appExclScoreDict, exclType):
             """Write the output of the print function to a file and stdout."""
             appStore = ApplicationStore.get()
+            print("HELLLOO", appExclScoreDict)
             for (sName, appExclScores) in appExclScoreDict.items():
                 if not quiet:
                     print("\nEXCLUSION LIST SCORES FOR USER APP INSTANCES\n")
@@ -961,19 +960,21 @@ class Policy(object):
 
                     if outputDir:
                         filename = outputDir + '/' + app + "." + sName + \
-                            ".exclscore"
+                            "." + exclType + ".exclscore"
                         os.makedirs(File.getParentNameFromName(filename),
                                     exist_ok=True)
                         with open(filename, "a") as f:
                             print(msg, file=f)
-
-        _writeClusters(self.clusters, self.exclScores,
-                       "APPLICATIONS AND USER DOCUMENTS",
-                       "clustersPerApp")
-        _writeClusters(self.clustersInst, self.exclScoresInst,
-                       "APPLICATION INSTANCES AND USER DOCUMENTS",
-                       "clustersPerAppInstance")
-        _writeApps(self.exclScoresPerApp)
+        for (exclType, exclScores) in self.exclScores.items():
+            _writeClusters(self.clusters, exclScores,
+                           "APPLICATIONS AND USER DOCUMENTS",
+                           "clustersPerAppExcl." + exclType)
+        for (exclType, exclScoresInst) in self.exclScoresInst.items():
+            _writeClusters(self.clustersInst, exclScoresInst,
+                           "APPLICATION INSTANCES AND USER DOCUMENTS",
+                           "clustersPerAppInstanceExcl." + exclType)
+        for (exclType, exclScoresPerApp) in self.exclScoresPerApp.items():
+            _writeApps(exclScoresPerApp, exclType)
 
     def buildSecurityClusters(self,
                               engine: 'PolicyEngine',
@@ -1040,9 +1041,9 @@ class Policy(object):
         # Return our final list of clusters.
         if not quiet:
             print("\t\tMerging lists into clusters...")
-        return (_clusters(accessListsApp, accessListsLinks),
-                _clusters(accessListsInst, accessListsLinks),
-                accessListsInst)
+        self.clusters = _clusters(accessListsApp, accessListsLinks)
+        self.clustersInst = _clusters(accessListsInst, accessListsLinks)
+        self.accessLists = accessListsInst
 
     # @profile
     def calculateOverentitlements(self,
@@ -1098,9 +1099,7 @@ class Policy(object):
         # Build clusters of files with information flows to one another.
         if not quiet:
             print("\tBuilding security clusters...")
-        (self.clusters, self.clustersInst, self.accessLists) = \
-            self.buildSecurityClusters(engine,
-                                       quiet=quiet)
+        self.buildSecurityClusters(engine, quiet=quiet)
 
         # Calculate exclusion list violations in clusters and apps.
         if not quiet:
