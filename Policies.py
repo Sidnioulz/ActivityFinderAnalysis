@@ -1176,3 +1176,79 @@ class RemovableMediaPolicy(ExclusionPolicy):
                                                    countConfigCosts=False)
 
 
+class BlackListPolicy(CustomLibraryPolicy):
+    """Policy that blacklists some libraries."""
+
+    def __init__(self,
+                 supportedLibraries=LibraryManager.CustomList,
+                 name: str='BlackListPolicy'):
+        """Construct a BlackListPolicy."""
+        super(BlackListPolicy, self).__init__(supportedLibraries, name)
+
+    def _uaccFunCondDesignation(self,
+                                f: File,
+                                acc: FileAccess,
+                                composed: bool,
+                                data):
+        """Calculate condition for DESIGNATION_ACCESS to be returned."""
+        return False
+
+    def _uaccFunCondPolicy(self,
+                           f: File,
+                           acc: FileAccess,
+                           composed: bool,
+                           data):
+        """Calculate condition for POLICY_ACCESS to be returned."""
+        return False
+
+    def _allowedByPolicy(self, f: File, app: Application):
+        """Tell if a File can be accessed by an Application."""
+        return False
+
+    def accessAllowedByPolicy(self, f: File, acc: FileAccess):
+        """Tell if a File can be accessed by an Application."""
+        return False
+
+
+class BlackListOneDistantFolderPolicy(StrictCompositionalPolicy):
+    """OneDistantFolder applied to a subset of files (excludes libraries)."""
+
+    def __init__(self,
+                 supportedLibraries: list=["desktop"],
+                 name: str='BlackListOneDistantFolderPolicy'):
+        """Construct a BlackListOneDistantFolderPolicy."""
+        policies = [BlackListPolicy, OneDistantFolderPolicy]
+        polArgs = [dict(supportedLibraries=supportedLibraries), None]
+        super(BlackListOneDistantFolderPolicy, self).__init__(policies,
+                                                              polArgs,
+                                                              name)
+
+
+
+class HSecurePolicy(CompositionalPolicy):
+    """Secure hypothesis based on per-lib analysis of base policies."""
+
+    def __init__(self,
+                 name: str='HSecurePolicy'):
+        """Construct a HSecurePolicy."""
+        policies = [CustomLibraryPolicy,
+                    DesignationPolicy]
+        polArgs = [dict(supportedLibraries=["documents", "music",
+                                            "image", "programming"]),
+                   None]
+        super(HSecurePolicy, self).__init__(policies, polArgs, name)
+
+
+class HBalancedPolicy(CompositionalPolicy):
+    """Balanced hypothesis based on per-lib analysis of base policies."""
+
+    def __init__(self,
+                 name: str='HBalancedPolicy'):
+        """Construct a HBalancedPolicy."""
+        policies = [CustomLibraryPolicy,
+                    DocumentsFileTypePolicy,
+                    BlackListOneDistantFolderPolicy]
+        polArgs = [dict(supportedLibraries=["video", "music", "image"]),
+                   dict(supportedLibraries=["removable"]),
+                   dict(supportedLibraries=["video", "music", "image", "removable"]),]
+        super(HBalancedPolicy, self).__init__(policies, polArgs, name)

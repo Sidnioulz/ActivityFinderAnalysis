@@ -20,7 +20,7 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      Win8Policy, Win10Policy, ProtectedFolderPolicy, \
                      LibraryFolderPolicy, RemovableMediaPolicy, \
                      FolderFilenamePolicy, FolderRestrictedAppsPolicy, \
-                     CompositionalPolicy
+                     CompositionalPolicy, HSecurePolicy, HBalancedPolicy
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
@@ -349,11 +349,126 @@ def main(argv):
     if scoreEnabled() or attacksEnabled():
         engine = PolicyEngine()
 
-        policies = [Win10Policy,
-                    FilenamePolicy
+        policies = [CompoundLibraryPolicy,
+                    CustomLibraryPolicy,
+                    DesignationPolicy,
+                    DistantFolderPolicy,
+
+                    FilenamePolicy,
+                    FileTypePolicy,
+                    FolderPolicy,
+                    LibraryFolderPolicy,
+
+                    OneDistantFolderPolicy,
+                    OneFolderPolicy,
+                    OneLibraryPolicy,
+                    UnsecurePolicy,
+
+                    Win10Policy,
+                    Win8Policy,
+
+                    HSecurePolicy,
+                    HBalancedPolicy,
+
+                   'HSecurePolicySb',
+                   'HSecurePolicySbFa',
+                   'HSecurePolicyFa',
+
+                   'HBalancedPolicySb',
+                   'HBalancedPolicySbFa',
+                   'HBalancedPolicyFa',
+                   
+                   'OneDistantFolderPolicySb',
+                   'OneDistantFolderPolicySbFa',
+                   'OneDistantFolderPolicyFa',
+                   'DistantFolderPolicySb',
+                   'DistantFolderPolicySbFa',
+                   'DistantFolderPolicyFa',
+
+                   'LibraryFolderPolicySb',
+                   'LibraryFolderPolicySbFa',
+                   'LibraryFolderPolicyFa',
+                   'FileTypePolicySb',
+                   'FileTypePolicySbFa',
+                   'FileTypePolicyFa',
+
+                   'OneFolderPolicySb',
+                   'OneFolderPolicySbFa',
+                   'OneFolderPolicyFa',
+                   'FolderPolicySb',
+                   'FolderPolicySbFa',
+                   'FolderPolicyFa',
+
+                   'OneLibraryPolicySb',
+                   'OneLibraryPolicySbFa',
+                   'OneLibraryPolicyFa',
+                   'CompoundLibraryPolicySb',
+                   'CompoundLibraryPolicySbFa',
+                   'CompoundLibraryPolicyFa',
+
+                   'CustomLibraryPolicySb',
+                   'CustomLibraryPolicySbFa',
+                   'CustomLibraryPolicyFa',
                     ]
 
         polArgs = [None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   dict(supportedLibraries=LibraryManager.CustomList),
+
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
+
+                   None,
+                   None,
+                   None,
+                   None,
+                   None,
                    None,
                    ]
         # dict(folders=["~/Downloads", "/tmp"])
