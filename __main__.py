@@ -370,45 +370,45 @@ def main(argv):
                     HSecurePolicy,
                     HBalancedPolicy,
 
-                   'HSecurePolicySb',
-                   'HSecurePolicySbFa',
-                   'HSecurePolicyFa',
+                   'HSecureSbPolicy',
+                   'HSecureSbFaPolicy',
+                   'HSecureFaPolicy',
 
-                   'HBalancedPolicySb',
-                   'HBalancedPolicySbFa',
-                   'HBalancedPolicyFa',
+                   'HBalancedSbPolicy',
+                   'HBalancedSbFaPolicy',
+                   'HBalancedFaPolicy',
                    
-                   'OneDistantFolderPolicySb',
-                   'OneDistantFolderPolicySbFa',
-                   'OneDistantFolderPolicyFa',
-                   'DistantFolderPolicySb',
-                   'DistantFolderPolicySbFa',
-                   'DistantFolderPolicyFa',
+                   'OneDistantFolderSbPolicy',
+                   'OneDistantFolderSbFaPolicy',
+                   'OneDistantFolderFaPolicy',
+                   'DistantFolderSbPolicy',
+                   'DistantFolderSbFaPolicy',
+                   'DistantFolderFaPolicy',
 
-                   'LibraryFolderPolicySb',
-                   'LibraryFolderPolicySbFa',
-                   'LibraryFolderPolicyFa',
-                   'FileTypePolicySb',
-                   'FileTypePolicySbFa',
-                   'FileTypePolicyFa',
+                   'LibraryFolderSbPolicy',
+                   'LibraryFolderSbFaPolicy',
+                   'LibraryFolderFaPolicy',
+                   'FileTypeSbPolicy',
+                   'FileTypeSbFaPolicy',
+                   'FileTypeFaPolicy',
 
-                   'OneFolderPolicySb',
-                   'OneFolderPolicySbFa',
-                   'OneFolderPolicyFa',
-                   'FolderPolicySb',
-                   'FolderPolicySbFa',
-                   'FolderPolicyFa',
+                   'OneFolderSbPolicy',
+                   'OneFolderSbFaPolicy',
+                   'OneFolderFaPolicy',
+                   'FolderSbPolicy',
+                   'FolderSbFaPolicy',
+                   'FolderFaPolicy',
 
-                   'OneLibraryPolicySb',
-                   'OneLibraryPolicySbFa',
-                   'OneLibraryPolicyFa',
-                   'CompoundLibraryPolicySb',
-                   'CompoundLibraryPolicySbFa',
-                   'CompoundLibraryPolicyFa',
+                   'OneLibrarySbPolicy',
+                   'OneLibrarySbFaPolicy',
+                   'OneLibraryFaPolicy',
+                   'CompoundLibrarySbPolicy',
+                   'CompoundLibrarySbFaPolicy',
+                   'CompoundLibraryFaPolicy',
 
-                   'CustomLibraryPolicySb',
-                   'CustomLibraryPolicySbFa',
-                   'CustomLibraryPolicyFa',
+                   'CustomLibrarySbPolicy',
+                   'CustomLibrarySbFaPolicy',
+                   'CustomLibraryFaPolicy',
                     ]
 
         polArgs = [None,
@@ -478,20 +478,20 @@ def main(argv):
 
             # Names with certain suffixes are dynamically generated policies.
             if isinstance(polName, str):
-                if polName.endswith('Sb'):
-                    pols = [getattr(sys.modules[__name__], polName[:-2]),
+                if polName.endswith('SbPolicy'):
+                    pols = [getattr(sys.modules[__name__], polName[:-8]+'Policy'),
                             StickyBitPolicy]
                     args = [polArgs[polIdx],
                             dict(folders=["~", "/media", "/mnt"])]
-                elif polName.endswith('SbFa'):
-                    pols = [getattr(sys.modules[__name__], polName[:-4]),
+                elif polName.endswith('SbFaPolicy'):
+                    pols = [getattr(sys.modules[__name__], polName[:-10]+'Policy'),
                             StickyBitPolicy,
                             FutureAccessListPolicy]
                     args = [polArgs[polIdx],
                             dict(folders=["~", "/media", "/mnt"]),
                             None]
-                elif polName.endswith('Fa'):
-                    pols = [getattr(sys.modules[__name__], polName[:-2]),
+                elif polName.endswith('FaPolicy'):
+                    pols = [getattr(sys.modules[__name__], polName[:-8]+'Policy'),
                             FutureAccessListPolicy]
                     args = [polArgs[polIdx],
                             None]
