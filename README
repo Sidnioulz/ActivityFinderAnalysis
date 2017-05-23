@@ -22,3 +22,12 @@ Zeitgeist infrastructure. Thus, the paths:
  ../data/current/data/*.log
 Are assumed to exist. Note you will manually have to extract the .log.gz files
 made by PreloadLogger into .log files, using gunzip.
+
+
+
+
+
+
+## BETWEEN ANALYSIS AND POST-ANALYSIS
+* Make sure to edit the statistics.txt files to add the following line:
+Days: XX
