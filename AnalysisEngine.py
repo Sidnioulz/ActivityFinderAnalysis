@@ -162,13 +162,23 @@ class AnalysisEngine(object):
         # FIXME from here.
         # List exclusion scores.
         print("Collecting application exclusion scores...")
-        exclScores = set()
+        exclScoresPW = set()
+        exclScoresPROJ = set()
+        exclScoresEXCL = set()
         for pol in self.policyFolders:
-            polScores = glob.glob(os.path.join(pol, "App*.exclscore"))
+            polScores = glob.glob(os.path.join(pol, "App*.WorkPersonalSeparation.exclscore"))
             for p in polScores:
-                exclScores.add(p.replace(pol, "@POLICY@"))
-        self.exclScores = list(exclScores)
-        self.exclNames = list((a[a.rfind("/")+7:-6] for a in self.exclScores))
+                exclScoresPW.add(p.replace(pol, "@POLICY@"))
+            polScores = glob.glob(os.path.join(pol, "App*.ProjectSeparation.exclscore"))
+            for p in polScores:
+                exclScoresPROJ.add(p.replace(pol, "@POLICY@"))
+            polScores = glob.glob(os.path.join(pol, "App*.ExplicitExclusion.exclscore"))
+            for p in polScores:
+                exclScoresEXCL.add(p.replace(pol, "@POLICY@"))
+        self.exclScoresPW = list(exclScoresPW)
+        self.exclScoresPROJ = list(exclScoresPROJ)
+        self.exclScoresEXCL = list(exclScoresEXCL)
+        self.exclNames = list((a[a.rfind("/")+7:-len('.WorkPersonalSeparation.exclscore')] for a in self.exclScoresPW))
 
         print("Ready to analyse!\n")
 
@@ -206,13 +216,13 @@ class AnalysisEngine(object):
         if maxCost:
             for pol, s in costs.items():
                 t = dict()
-                for key in costKeys:
+                for key in costKeysNC:
                     t[key] = s[key] / maxCost
                 relCosts[pol] = t
         else:
             for pol, s in costs.items():
                 t = dict()
-                for key in costKeys:
+                for key in costKeysNC:
                     t[key] = 0
                 relCosts[pol] = t\
 
@@ -402,7 +412,7 @@ class AnalysisEngine(object):
             except (FileNotFoundError) as e:
                 return -2
 
-            return -1
+            return 0 # Now we have cases where there is no data available, must deal with it.
 
         for filename in filenames:
             d = _parseClusterScores(self, filename)
@@ -655,8 +665,6 @@ class AnalysisEngine(object):
                                                'securityCosts-simple.svg'))
 
     def plotClusterViolations(self, file: str, titleTag: str='', tag: str=''):
-        # TODO review this function.
-
         clusterScores = dict()
         for (name, folders) in sorted(self.foldersPerName.items()):
             paths = list(os.path.join(f, file) for f in folders)
@@ -672,15 +680,18 @@ class AnalysisEngine(object):
 
         lines = [[], [], [], []]
         labels = []
+        maxVal = 0
         for (s, pol) in sortable:
             lines[0].append(s)
             labels.append(pol)
+            maxVal = max(maxVal, s)
 
         lineChart.add("Cluster #", lines[0])
 
         lineChart.x_labels = labels
         lineChart.show_x_labels = True
         lineChart.show_y_guides = False
+        lineChart.y_labels = list(range(maxVal + 1))
 
         lineChart.render_to_file(os.path.join(self.outputDir,
                                               'exclusionLists-%s.svg' % tag))
@@ -1098,8 +1109,8 @@ class AnalysisEngine(object):
                 worstScore = 0
                 worstScoreNoG = 0
                 for (name, s) in perParticipantScores.items():
-                    sumScore = sum([s[key] for key in costKeys])
-                    sumScoreNoG = sum([s[key] for key in costKeysNoG])
+                    sumScore = sum([s[key] for key in costKeysNC])
+                    sumScoreNoG = sum([s[key] for key in costKeysNoGNC])
 
                     sumsForPol = sums.get(name) or dict()
                     sumsForPol[iD] = sumScore
@@ -1239,6 +1250,10 @@ class AnalysisEngine(object):
         sums = dict()
         sumsNoG = dict()
 
+        # Censoring (hard-coded) missing results.
+        libraries.remove("Ebooks")
+        libraries.remove("Scores")
+
         i = 1
         for lib in libraries:
             libScores = dict()
@@ -1255,8 +1270,8 @@ class AnalysisEngine(object):
             worstScore = 0
             worstScoreNoG = 0
             for (name, s) in libScores.items():
-                sumScore = sum([s[key] for key in costKeys])
-                sumScoreNoG = sum([s[key] for key in costKeysNoG])
+                sumScore = sum([s[key] for key in costKeysNC])
+                sumScoreNoG = sum([s[key] for key in costKeysNoGNC])
 
                 sumsForPol = sums.get(name) or dict()
                 sumsForPol[lib] = sumScore
@@ -1377,17 +1392,23 @@ class AnalysisEngine(object):
         print("Done.\n")
 
         # Plot policies' exclusion list scores across whole clusters.
-        # TODO FIXME
         print("Plot cluster violations per app for every policy...")
-        self.plotClusterViolations(file="clustersPerApp.securityscore",
-                                   titleTag="", tag="app")
+        self.plotClusterViolations(file="clustersPerAppExcl.WorkPersonalSeparation.securityscore",
+                                   titleTag=" for work-personal life separation", tag="work-app")
+        self.plotClusterViolations(file="clustersPerAppExcl.ProjectSeparation.securityscore",
+                                   titleTag=" for between-projects separation", tag="proj-app")
+        self.plotClusterViolations(file="clustersPerAppExcl.ExplicitExclusion.securityscore",
+                                   titleTag=" for explicitly excluded files", tag="excl-app")
         print("Done.\n")
 
         print("Plot cluster violations per app instance for every policy...")
-        self.plotClusterViolations(file="clustersPerAppInstance.securityscore",
-                                   titleTag=" (memoryless apps)", tag="inst")
+        self.plotClusterViolations(file="clustersPerAppInstanceExcl.WorkPersonalSeparation.securityscore",
+                                   titleTag=" for work-personal life separation (memoryless apps)", tag="work-inst")
+        self.plotClusterViolations(file="clustersPerAppInstanceExcl.ProjectSeparation.securityscore",
+                                   titleTag=" for between-projects separation (memoryless apps)", tag="proj-inst")
+        self.plotClusterViolations(file="clustersPerAppInstanceExcl.ExplicitExclusion.securityscore",
+                                   titleTag=" for explicitly excluded files (memoryless apps)", tag="excl-inst")
         print("Done.\n")
-        # End TODO FIXME
 
         # Plot over-entitlement whisker boxes.
         print("Plot over-entitlements for each user app...")
