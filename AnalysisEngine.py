@@ -84,6 +84,9 @@ class AnalysisEngine(object):
                                   "([0-9\.]+) events; "
                                   "([0-9\.]+) files; "
                                   "([0-9\.]+) user documents")
+        self.exclLineRe = re.compile("Exclusion list '(.*?)' defined.")
+        self.preSlashRe = re.compile("(.*?)/")
+        self.IntRe = re.compile(".*?([0-9]+).*")
 
         print("Collecting participant statistics...")
 
@@ -166,15 +169,16 @@ class AnalysisEngine(object):
         exclScoresPROJ = set()
         exclScoresEXCL = set()
         for pol in self.policyFolders:
+            polNP = pol[pol.find('/')+1:]
             polScores = glob.glob(os.path.join(pol, "App*.WorkPersonalSeparation.exclscore"))
             for p in polScores:
-                exclScoresPW.add(p.replace(pol, "@POLICY@"))
+                exclScoresPW.add(p.replace(polNP, "@POLICY@"))
             polScores = glob.glob(os.path.join(pol, "App*.ProjectSeparation.exclscore"))
             for p in polScores:
-                exclScoresPROJ.add(p.replace(pol, "@POLICY@"))
+                exclScoresPROJ.add(p.replace(polNP, "@POLICY@"))
             polScores = glob.glob(os.path.join(pol, "App*.ExplicitExclusion.exclscore"))
             for p in polScores:
-                exclScoresEXCL.add(p.replace(pol, "@POLICY@"))
+                exclScoresEXCL.add(p.replace(polNP, "@POLICY@"))
         self.exclScoresPW = list(exclScoresPW)
         self.exclScoresPROJ = list(exclScoresPROJ)
         self.exclScoresEXCL = list(exclScoresEXCL)
@@ -184,6 +188,7 @@ class AnalysisEngine(object):
 
     def parseParticipantStats(self, path: str):
         ret = dict()
+        ret['exclusionlists'] = []
         try:
             with open(path) as f:
                 for line in f:
@@ -198,6 +203,9 @@ class AnalysisEngine(object):
                         ret['udocs'] = int(res[6])
                     if line.startswith("Days: "):
                         ret['days'] = int(line[6:])
+                    if line.startswith("Exclusion list "):
+                        res = self.exclLineRe.match(line).groups()
+                        ret['exclusionlists'].append(res[0])
         except (FileNotFoundError) as e:
             raise ValueError("Statistics file '%s' is missing" % path)
 
@@ -274,7 +282,7 @@ class AnalysisEngine(object):
             a = sum(accessed) / len(accessed) if accessed else 0
             reached = list(e[1] for e in oe)
             r = sum(reached) / len(reached) if reached else 0
-            msg += "  %s&%d&%d&%d\\%% \\\\\n" % (pol, a, r, a/r if r else 0)
+            msg += "  %s&%d&%d&%d\\  \\\\\n" % (pol, a, r, a/r if r else 0)
 
         msg += "  \\cmidrule[\\heavyrulewidth]{2-3}\n" \
                "  \\end{tabular}\n" \
@@ -399,6 +407,9 @@ class AnalysisEngine(object):
 
     def parseClusterScores(self, filenames: list):
         score = 0
+        usersHaveScore = dict()
+
+        pNames = list(self.preSlashRe.match(f).groups()[0] for f in filenames)
 
         def _parseClusterScores(self, filename: str):
             try:
@@ -412,15 +423,18 @@ class AnalysisEngine(object):
             except (FileNotFoundError) as e:
                 return -2
 
-            return 0 # Now we have cases where there is no data available, must deal with it.
+            # Now we have cases where there is no data available, must deal with it.
+            return -1
 
-        for filename in filenames:
+        for (idx, filename) in enumerate(filenames):
             d = _parseClusterScores(self, filename)
             if d == -1:
-                return -1
-            score += d
+                usersHaveScore[pNames[idx]] = False
+            elif d >= 0:
+                usersHaveScore[pNames[idx]] = True
+                score += d
 
-        return score
+        return (score, sum(1 for x in usersHaveScore.values() if x is True))
 
 
     def parseOEScores(self, filenames: list):
@@ -671,12 +685,12 @@ class AnalysisEngine(object):
             clusterScores[name] = self.parseClusterScores(paths)
 
         sortable = sortedlist(key=lambda i: -i[0])
-        for (pol, rank) in clusterScores.items():
-            sortable.add((rank, pol))
+        for (pol, (rank, nbParticipants)) in clusterScores.items():
+            sortable.add((rank/nbParticipants if nbParticipants else 0, pol))
 
         lineChart = pygal.Bar()
         lineChart.title = 'Number of connected-files clusters with exclusion' \
-                          ' list violations%s, per policy.' % titleTag
+                          ' list violations%s per particpant for each policy.' % titleTag
 
         lines = [[], [], [], []]
         labels = []
@@ -691,10 +705,103 @@ class AnalysisEngine(object):
         lineChart.x_labels = labels
         lineChart.show_x_labels = True
         lineChart.show_y_guides = False
-        lineChart.y_labels = list(range(maxVal + 1))
+        lineChart.y_labels = list(range(int(maxVal) + 1))
+        lineChart.yrange = (0, int(maxVal) + 2)
+        lineChart.value_formatter = lambda y: "%d %s" % \
+          (y, "clusters" if y != 1 else "cluster")
 
         lineChart.render_to_file(os.path.join(self.outputDir,
                                               'exclusionLists-%s.svg' % tag))
+
+    def parseExclFiles(self, paths):
+        def _parseExclFile(path):
+            nExcls = 0
+            foundExcl = False
+
+            try:
+                with open(path) as f:
+                    for line in f:
+                        if line.startswith(" No"):
+                            continue
+                        elif "exclusive" in line:
+                            res = self.IntRe.match(line)
+                            lineStart = int(res.groups()[0])
+                            nExcls += 1 if lineStart > 1 else 0  # lineStart - 1
+                            foundExcl = lineStart > 1
+
+            except (FileNotFoundError) as e:
+                # Happens if policy forbad accesses that'd have generated a score.
+                return (0, None)
+
+            def _appid(path):
+                app = path.find("App - ")
+                if app < 0:
+                    return path
+
+                leftcut = path[app+6:]
+                return leftcut[:leftcut.find(" - ")]
+
+            return (nExcls, _appid(path) if foundExcl else None)
+
+        exclCounters = dict()
+        for (path, pid) in paths:
+            (nExcls, appid) = _parseExclFile(path)
+            exclCounter = exclCounters.get(pid) or 0
+            exclCounters[pid] = exclCounter + nExcls
+
+        counterSum = 0
+        for (pid, counter) in exclCounters.items():
+            counterSum += counter / self.stats[pid]['uinstances']
+
+        return counterSum * 100
+
+    def plotInstanceViolations(self, paths, exclName):
+        print("%s..." % exclName)
+        violations = dict()
+        sortable = sortedlist(key=lambda i: i[1])
+
+        participantCount = 0
+        for iD in self.inputDir:
+            exclLists = self.stats[iD]['exclusionlists']
+            if exclName in exclLists:
+                participantCount += 1
+
+        for (name, folders) in sorted(self.foldersPerName.items()):
+            folders = list(f[f.find('/')+1:] for f in folders)
+            parse = []
+            for path in paths:
+                fP = list((path.replace("@POLICY@", f), path[:path.find('/')])
+                          for f in set(folders))
+                parse.extend(fP)
+
+            violations[name] = self.parseExclFiles(parse) / participantCount
+
+        for (name, exclProportion) in violations.items():
+            sortable.add((name, exclProportion))
+
+        chart = pygal.HorizontalBar()
+        chart.title = 'Average proportion of user applications accessing ' \
+                      'files which are mutually exclusive.'
+
+        lines = []
+        maxVal = 0
+        labels = []
+        for (polName, app) in sortable:
+            lines.append(app)
+            if maxVal < app:
+                maxVal = app
+            labels.append(polName)
+
+        chart.add("Applications", lines)
+
+        chart.x_labels = labels
+        chart.show_x_labels = True
+        chart.show_minor_x_labels = False
+        chart.show_y_guides = False
+        chart.value_formatter = lambda y: "%d%%" % y if int(y) == y else "%f%%" % y
+
+        chart.render_to_file(os.path.join(self.outputDir,
+                                          'exclViolations-inst-%s.svg' % exclName))
 
     def plotAttackHistogram(self, docAttacks: dict, appAttacks: dict):
         sortable = sortedlist(key=lambda i: - (i[0] + i[1]) / 2)
@@ -740,10 +847,12 @@ class AnalysisEngine(object):
         chart = pygal.HorizontalBar()
         chart.title = 'Percentage of infected user files and applications on' \
                       ' average, per policy.'
+        chart.value_formatter = lambda y: "%d%%" % y if int(y) == y else "%f%%" % y
 
         chartw = pygal.HorizontalBar()
         chartw.title = 'Percentage of infected user files and applications ' \
                        'in the worst case scenario, per policy.'
+        chartw.value_formatter = lambda y: "%d%%" % y if int(y) == y else "%f%%" % y
 
         lines = [[], []]
         maxVal = 0
@@ -904,6 +1013,17 @@ class AnalysisEngine(object):
                          y_labels_major_count=4,
                          include_x_axis=True,
                          include_y_axis=True)
+
+        # TODO filter out base not also in Fa (save Fa names and then purge bases not in fa names list before the .add loop)
+        colorsFa = ['#333333', '#a6dba0', '#c2a5cf', '#008837', "#cccccc"]
+        colorsFa = ['#333333', '#7570b3', '#1b9e77', '#e7298a', "#cccccc"]
+        chartFa = pygal.XY(stroke=False,
+                           print_labels=True,
+                           style=Style(colors=colorsFa),
+                           show_minor_y_labels=False,
+                           y_labels_major_count=4,
+                           include_x_axis=True,
+                           include_y_axis=True)
         # FIXME improve label (more top-left)
 
         chart.title = 'Usability and Security Scoring of Policies'
@@ -929,7 +1049,13 @@ class AnalysisEngine(object):
         else:
             outname = 'pareto.svg'
 
+        chart.x_value_formatter = lambda y: "%d%%" % y if int(y) == y else "%f%%" % y
         chart.y_title = 'User actions required per day on average'
+
+        chartFa.title = chart.title
+        chartFa.x_title = chart.x_title
+        chartFa.y_title = chart.y_title
+        chartFa.x_value_formatter = chart.x_value_formatter
 
         # Manage policy labels.
         polNames = dict()
@@ -940,6 +1066,7 @@ class AnalysisEngine(object):
             maxX = max(maxX, attackScore)
         maxX += 0.000001  # Ensure the item with maximal value isn't isolated.
         chart.xrange = (0, maxX)
+        chartFa.xrange = chart.xrange
 
         maxY = 0
         yRanges = 18
@@ -947,6 +1074,7 @@ class AnalysisEngine(object):
             maxY = max(maxY, sum([usabScore[key] for key in costKeysNC]))
         maxY += 0.000001
         chart.yrange = (0, maxY)
+        chartFa.yrange = chart.yrange
 
         def _getRegion(sec, usa):
             return (int(sec / (maxX / xRanges)) * (maxX / xRanges),
@@ -990,6 +1118,16 @@ class AnalysisEngine(object):
             labels = polNames.get(rKey) or []
             return ', '.join(sorted(tuple(labels)))
 
+        def _getFaLabel(polName):
+            if polName.endswith("SbFa"):
+                return 'Future & Sticky'
+            elif polName.endswith("Fa"):
+                return 'Future Access'
+            elif polName.endswith("Sb"):
+                return 'Sticky Bit'
+            else:
+                return 'Base only'
+
         # We cannot normalise costs per user instance since we already aggregated
         # costs for each user.
         ## Get normalisation factor for usability costs.
@@ -1006,6 +1144,7 @@ class AnalysisEngine(object):
 
         # Pre-compute policy dots.
         chart.x_labels = []
+        chartFa.x_labels = []
         for (polName, attackScore) in attackScores.items():
             usabScore = usabScores[polName]
             sumScore = sum([usabScore[key] for key in costKeysNC])
@@ -1034,6 +1173,8 @@ class AnalysisEngine(object):
                     front.append((attackScore, dotsUsa[polName]))
 
         # Add policy dots.
+        chartFaData = dict()
+        chartFaPoliciesWithFa = set()
         for (polName, attackScore) in attackScores.items():
             usabScore = usabScores[polName]
             sumScore = sum([usabScore[key] for key in costKeysNC])
@@ -1044,11 +1185,36 @@ class AnalysisEngine(object):
                       [{'value': key,
                         'label': _getPolNameLabel(key, polName)}],
                       dots_size=dots_size)
-    
+
+            faLabel = _getFaLabel(polName)
+            dataList = chartFaData.get(faLabel) or []
+            dataList.append((polName, key))
+            chartFaData[faLabel] = dataList
+
+            if polName.endswith("Fa"):
+                chartFaPoliciesWithFa.add(polName)
+
+        for (faLabel, dataList) in chartFaData.items():
+
+            # Filter out base policies without a Fa version.
+            finalDataList = []
+            for (polName, key) in dataList:
+                if not polName.endswith("Fa") and \
+                        not polName.endswith("Sb") and \
+                        polName + "Fa" not in chartFaPoliciesWithFa:
+                    continue
+
+                finalDataList.append(key)
+
+            # Chart the other ones for the Fa/SbFa/Sb/base comparison.
+            chartFa.add(faLabel, finalDataList, dots_size=dots_size)
+
         # Add Pareto front.
         chart.add(None, front, stroke=True, show_dots=False, fill=True)
+        chartFa.add(None, front, stroke=True, show_dots=False, fill=True)
 
         chart.render_to_file(os.path.join(self.outputDir, outname))
+        chartFa.render_to_file(os.path.join(self.outputDir, outname.replace(".svg", "-color-fa.svg")))
 
     def analyse(self):
         """Perform the post-analysis."""
@@ -1132,8 +1298,8 @@ class AnalysisEngine(object):
                 leastUsable[iD] = worstScore
                 leastUsableNoG[iD] = worstScoreNoG
 
-            for (iD, (name, s)) in mostUsable.items():
-                print("Participant '%s': Policy %s scoring %d" % (iD, name, s))
+            # for (iD, (name, s)) in mostUsable.items():
+            #     print("Participant '%s': Policy %s scoring %d" % (iD, name, s))
 
             # Plot dots for all costs with graphs, and without.
             self.plotMostUsableDots(sums,
@@ -1147,6 +1313,13 @@ class AnalysisEngine(object):
                                     " optimisation costs",
                                     "nograph")
             print("Done.\n")
+
+        # Generate exclusion list plots for app instances.
+        print("Generating exclusion list plots for app instances...")
+        self.plotInstanceViolations(self.exclScoresPW, 'WorkPersonalSeparation')
+        self.plotInstanceViolations(self.exclScoresPROJ, 'ProjectSeparation')
+        self.plotInstanceViolations(self.exclScoresEXCL, 'ExplicitExclusion')
+        print("Done.\n")
 
         # Get usability scores for all userland apps.
         print("Generating table of usability scores for all userland apps...")
