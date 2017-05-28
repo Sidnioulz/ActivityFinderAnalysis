@@ -1003,6 +1003,98 @@ class AnalysisEngine(object):
 
         return (appScores, polRelScores, polAbsScores)
 
+    def _getFaLabel(self, polName):
+        if polName.endswith("SbFa"):
+            return 'Future & Sticky'
+        elif polName.endswith("Fa"):
+            return 'Future Access'
+        elif polName.endswith("Sb"):
+            return 'Sticky Bit'
+        else:
+            return 'Base only'
+
+    def _reverseOEScores(self, oeScores):
+        from copy import deepcopy
+        newScores = deepcopy(oeScores)
+        for (key, val) in newScores.items():
+            newScores[key] = (1 - val) * 100
+        return newScores
+
+    def plotOptimisations(self, oeScores, attackScores, usabScores):
+        oeScores = self._reverseOEScores(oeScores)
+        sortable = sortedlist(key=lambda i: -i[0])
+
+        # Only policies with Fa / SbFa / Sb versions (assuming all Fa have a
+        # SbFa and a Sb equivalent).
+        policiesWithFa = set()
+        for polName in usabScores:
+            if polName.endswith("SbFa"):
+                policiesWithFa.add(polName)
+
+        # Aggregate per policy type (base, Fb, FbSa, Sa).
+        oeScoreSummed = dict()
+        attackScoreSummed = dict()
+        usabScoreSummed = dict()
+        polCount = 0
+        for (polName, uScore) in usabScores.items():
+            if not polName.endswith("Fa") and \
+                    not polName.endswith("Sb") and \
+                    polName + "SbFa" not in policiesWithFa:
+                continue
+
+            if polName.endswith("SbFa"):
+                polCount += 1
+
+            faLabel = self._getFaLabel(polName)
+
+            oeScore = (oeScoreSummed.get(faLabel) or 0) + oeScores[polName]
+            oeScoreSummed[faLabel] = oeScore
+
+            attackScore = (attackScoreSummed.get(faLabel) or 0) + attackScores[polName]
+            attackScoreSummed[faLabel] = attackScore
+
+            uScoreSum = sum([uScore[key] for key in costKeysNC])
+            usabScore = (usabScoreSummed.get(faLabel) or 0) + uScoreSum
+            usabScoreSummed[faLabel] = usabScore
+
+        # Normalise data (divide by number of policies of each type).
+        for (faLabel, oeScore) in oeScoreSummed.items():
+            oeScoreSummed[faLabel] = oeScore / polCount
+        for (faLabel, attackScore) in attackScoreSummed.items():
+            attackScoreSummed[faLabel] = attackScore / polCount
+        for (faLabel, usabScore) in usabScoreSummed.items():
+            usabScoreSummed[faLabel] = usabScore / polCount
+
+        # Now make up the lists. We first sort by usability score.
+        for (faLabel, usabScore) in usabScoreSummed.items():
+            sortable.add((usabScore, faLabel))
+
+        # Once sorting is done, we can generate the data lists.
+        orderedOE = []
+        orderedAttacks = []
+        orderedUsab = []
+        orderedLabels = []
+        for (usabScore, faLabel) in sortable:
+            orderedOE.append(oeScoreSummed[faLabel])
+            orderedAttacks.append(attackScoreSummed[faLabel])
+            orderedUsab.append(usabScore)
+            orderedLabels.append(faLabel)
+
+        chart = pygal.Bar()
+        chart.title = 'Security and usability comparison of policies with ' \
+                      'and without usability optimisations'
+        chart.value_formatter=lambda y: "%d" % y
+
+        chart.add("Overentitlement", orderedOE, formatter=lambda y: "%d%%" % y if int(y) == y else "%f%%" % y)
+        chart.add("Attack penetration rates", orderedAttacks, formatter=lambda y: "%d%%" % y if int(y) == y else "%f%%" % y)
+        chart.add("Usability scores", orderedUsab, formatter=lambda y: "%d" % y if int(y) == y else "%.02f" % y, secondary=True)
+
+        chart.x_labels = orderedLabels
+        chart.show_x_labels = True
+
+        chart.render_to_file(os.path.join(self.outputDir,
+                                          'optimisation-comparison.svg'))
+
     def pareto(self, attackScores, usabScores, dataType):
         """Plot a Pareto front graph."""
 
@@ -1046,11 +1138,7 @@ class AnalysisEngine(object):
             chart.x_title = 'Average percentage of user documents reachable ' \
                             'but not accessed, per applications'
             outname = 'pareto-%s.svg' % dataType
-            from copy import deepcopy
-            oeScores = deepcopy(attackScores)
-            for (key, val) in oeScores.items():
-                oeScores[key] = (1 - val) * 100
-            attackScores = oeScores
+            attackScores = self._reverseOEScores(attackScores)
         elif dataType:
             chart.x_title += ' in worst-case attack, %s' % dataType
             outname = 'pareto-%s.svg' % dataType
@@ -1126,16 +1214,6 @@ class AnalysisEngine(object):
             labels = polNames.get(rKey) or []
             return ', '.join(sorted(tuple(labels)))
 
-        def _getFaLabel(polName):
-            if polName.endswith("SbFa"):
-                return 'Future & Sticky'
-            elif polName.endswith("Fa"):
-                return 'Future Access'
-            elif polName.endswith("Sb"):
-                return 'Sticky Bit'
-            else:
-                return 'Base only'
-
         # We cannot normalise costs per user instance since we already aggregated
         # costs for each user.
         ## Get normalisation factor for usability costs.
@@ -1194,12 +1272,12 @@ class AnalysisEngine(object):
                         'label': _getPolNameLabel(key, polName)}],
                       dots_size=dots_size)
 
-            faLabel = _getFaLabel(polName)
+            faLabel = self._getFaLabel(polName)
             dataList = chartFaData.get(faLabel) or []
             dataList.append((polName, key))
             chartFaData[faLabel] = dataList
 
-            if polName.endswith("Fa"):
+            if polName.endswith("SbFa"):
                 chartFaPoliciesWithFa.add(polName)
 
         for (faLabel, dataList) in chartFaData.items():
@@ -1209,7 +1287,7 @@ class AnalysisEngine(object):
             for (polName, key) in dataList:
                 if not polName.endswith("Fa") and \
                         not polName.endswith("Sb") and \
-                        polName + "Fa" not in chartFaPoliciesWithFa:
+                        polName + "SbFa" not in chartFaPoliciesWithFa:
                     continue
 
                 finalDataList.append(key)
@@ -1623,5 +1701,9 @@ class AnalysisEngine(object):
         self.pareto(sumOEScores, libProgrammingScores, "oe-lib-programming")
         self.pareto(sumOEScores, libUnclassifiedScores, "oe-lib-unclassified")
         self.pareto(sumOEScores, libVideoScores, "oe-lib-video")
+        print("Done.\n")
+
+        print("Plotting delta between unoptimised and FbSa/Fb/Sa policies...")
+        self.plotOptimisations(sumOEScores, secScoresWorst, userlandUserdocScores)
         print("Done.\n")
 
