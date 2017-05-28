@@ -334,6 +334,9 @@ def main(argv):
                    " instances; %d events; %d files; %d user documents\n" % \
                   (appCount, instCount, userAppCount, userInstCount,
                    evCount, fileCount, docCount)
+            exclLists = userConf.getDefinedSecurityExclusionLists()
+            for l in exclLists:
+                msg += "Exclusion list '%s' defined.\n" % l
             print(msg, file=f)
 
     # Build a general access graph.

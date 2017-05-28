@@ -109,6 +109,14 @@ class UserConfigLoader(object):
 
         return exclLists
 
+    def getDefinedSecurityExclusionLists(self):
+        """Get the security exclusion lists setting."""
+        if not self.ini:
+            return []
+
+        exclLists = self.getSecurityExclusionLists()
+        return list(key for (key, dic) in exclLists.items() if len(dic))
+
     def getProjects(self):
         """Get the projects of a participant."""
         if not self.ini:
