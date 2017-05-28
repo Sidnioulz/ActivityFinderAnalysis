@@ -54,10 +54,11 @@ USAGE_STRING = 'Usage: __main__.py [--user=<NAME> --check-excluded-files ' \
 def main(argv):
     __opt_inode_query = None
     __opt_post_analysis = None
+    __opt_quick_pol = None
 
     # Parse command-line parameters
     try:
-        (opts, args) = getopt.getopt(argv, "hta:cedf:o:skrpgGi:u:x",
+        (opts, args) = getopt.getopt(argv, "hta:cedf:o:q:sk:rpgGi:u:x",
                                      ["help",
                                       "attacks",
                                       "post-analysis=",
@@ -71,6 +72,7 @@ def main(argv):
                                       "output=",
                                       "output-fs=",
                                       "score",
+                                      "quick-pol=",
                                       "skip=",
                                       "user",
                                       "clusters",
@@ -117,6 +119,8 @@ def main(argv):
                       "Uses the value pointed to"
                       " by --output in order to produce graphs and\n\t"
                       "statistics.\n")
+                print("--quick-pol=Policy:\n\tReplace the default policies "
+                      "with this one single Policy.\n")
                 print("--related-files:\n\tMines for files that are frequently"
                       " accessed together by apps. Produces\n\toutput files in"
                       " scoring mode, and an analysis output in post-analysis"
@@ -178,6 +182,11 @@ def main(argv):
                     print(USAGE_STRING)
                     sys.exit(2)
                 __opt_post_analysis = (arg[1:] if arg[0] == '=' else arg)
+            elif opt in ('-q', '--quick-pol'):
+                if not arg:
+                    print(USAGE_STRING)
+                    sys.exit(2)
+                __opt_quick_pol = (arg[1:] if arg[0] == '=' else arg)
             elif opt in ('-k', '--skip'):
                 if not arg:
                     print(USAGE_STRING)
@@ -352,129 +361,133 @@ def main(argv):
     if scoreEnabled() or attacksEnabled():
         engine = PolicyEngine()
 
-        policies = [CompoundLibraryPolicy,
-                    CustomLibraryPolicy,
-                    DesignationPolicy,
-                    DistantFolderPolicy,
+        if __opt_quick_pol:
+            policies = [__opt_quick_pol]
+            polArgs = [None]
+        else:
+            policies = [CompoundLibraryPolicy,
+                        CustomLibraryPolicy,
+                        DesignationPolicy,
+                        DistantFolderPolicy,
 
-                    FilenamePolicy,
-                    FileTypePolicy,
-                    FolderPolicy,
-                    LibraryFolderPolicy,
+                        FilenamePolicy,
+                        FileTypePolicy,
+                        FolderPolicy,
+                        LibraryFolderPolicy,
 
-                    OneDistantFolderPolicy,
-                    OneFolderPolicy,
-                    OneLibraryPolicy,
-                    UnsecurePolicy,
+                        OneDistantFolderPolicy,
+                        OneFolderPolicy,
+                        OneLibraryPolicy,
+                        UnsecurePolicy,
 
-                    Win10Policy,
-                    Win8Policy,
+                        Win10Policy,
+                        Win8Policy,
 
-                    HSecurePolicy,
-                    HBalancedPolicy,
+                        HSecurePolicy,
+                        HBalancedPolicy,
 
-                   'HSecureSbPolicy',
-                   'HSecureSbFaPolicy',
-                   'HSecureFaPolicy',
+                       'HSecureSbPolicy',
+                       'HSecureSbFaPolicy',
+                       'HSecureFaPolicy',
 
-                   'HBalancedSbPolicy',
-                   'HBalancedSbFaPolicy',
-                   'HBalancedFaPolicy',
-                   
-                   'OneDistantFolderSbPolicy',
-                   'OneDistantFolderSbFaPolicy',
-                   'OneDistantFolderFaPolicy',
-                   'DistantFolderSbPolicy',
-                   'DistantFolderSbFaPolicy',
-                   'DistantFolderFaPolicy',
+                       'HBalancedSbPolicy',
+                       'HBalancedSbFaPolicy',
+                       'HBalancedFaPolicy',
+                       
+                       'OneDistantFolderSbPolicy',
+                       'OneDistantFolderSbFaPolicy',
+                       'OneDistantFolderFaPolicy',
+                       'DistantFolderSbPolicy',
+                       'DistantFolderSbFaPolicy',
+                       'DistantFolderFaPolicy',
 
-                   'LibraryFolderSbPolicy',
-                   'LibraryFolderSbFaPolicy',
-                   'LibraryFolderFaPolicy',
-                   'FileTypeSbPolicy',
-                   'FileTypeSbFaPolicy',
-                   'FileTypeFaPolicy',
+                       'LibraryFolderSbPolicy',
+                       'LibraryFolderSbFaPolicy',
+                       'LibraryFolderFaPolicy',
+                       'FileTypeSbPolicy',
+                       'FileTypeSbFaPolicy',
+                       'FileTypeFaPolicy',
 
-                   'OneFolderSbPolicy',
-                   'OneFolderSbFaPolicy',
-                   'OneFolderFaPolicy',
-                   'FolderSbPolicy',
-                   'FolderSbFaPolicy',
-                   'FolderFaPolicy',
+                       'OneFolderSbPolicy',
+                       'OneFolderSbFaPolicy',
+                       'OneFolderFaPolicy',
+                       'FolderSbPolicy',
+                       'FolderSbFaPolicy',
+                       'FolderFaPolicy',
 
-                   'OneLibrarySbPolicy',
-                   'OneLibrarySbFaPolicy',
-                   'OneLibraryFaPolicy',
-                   'CompoundLibrarySbPolicy',
-                   'CompoundLibrarySbFaPolicy',
-                   'CompoundLibraryFaPolicy',
+                       'OneLibrarySbPolicy',
+                       'OneLibrarySbFaPolicy',
+                       'OneLibraryFaPolicy',
+                       'CompoundLibrarySbPolicy',
+                       'CompoundLibrarySbFaPolicy',
+                       'CompoundLibraryFaPolicy',
 
-                   'CustomLibrarySbPolicy',
-                   'CustomLibrarySbFaPolicy',
-                   'CustomLibraryFaPolicy',
-                    ]
+                       'CustomLibrarySbPolicy',
+                       'CustomLibrarySbFaPolicy',
+                       'CustomLibraryFaPolicy',
+                        ]
 
-        polArgs = [None,
-                   None,
-                   None,
-                   None,
+            polArgs = [None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
-                   dict(supportedLibraries=LibraryManager.CustomList),
+                       None,
+                       None,
+                       None,
+                       dict(supportedLibraries=LibraryManager.CustomList),
 
-                   None,
-                   None,
-                   None,
-                   None,
+                       None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
+                       None,
+                       None,
 
-                   None,
-                   None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
 
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   None,
-                   ]
-        # dict(folders=["~/Downloads", "/tmp"])
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       None,
+                       ]
+            # dict(folders=["~/Downloads", "/tmp"])
 
         skipList = skipEnabled()
         for (polIdx, polName) in enumerate(policies):
@@ -498,6 +511,9 @@ def main(argv):
                             FutureAccessListPolicy]
                     args = [polArgs[polIdx],
                             None]
+                else:
+                    pols = [getattr(sys.modules[__name__], polName)]
+                    args = [polArgs[polIdx]]
 
                 pol = CompositionalPolicy(pols, args, polName)
             # Existing policies, with arguments.
