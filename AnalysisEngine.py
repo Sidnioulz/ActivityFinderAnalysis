@@ -759,6 +759,7 @@ class AnalysisEngine(object):
         print("%s..." % exclName)
         violations = dict()
         sortable = sortedlist(key=lambda i: i[1])
+        noData = False
 
         participantCount = 0
         for iD in self.inputDir:
@@ -774,10 +775,14 @@ class AnalysisEngine(object):
                           for f in set(folders))
                 parse.extend(fP)
 
+        try:
             violations[name] = self.parseExclFiles(parse) / participantCount
+        except(ZeroDivisionError):
+            noData = True
 
-        for (name, exclProportion) in violations.items():
-            sortable.add((name, exclProportion))
+        if not noData:
+            for (name, exclProportion) in violations.items():
+                sortable.add((name, exclProportion))
 
         chart = pygal.HorizontalBar()
         chart.title = 'Average proportion of user applications accessing ' \
@@ -792,7 +797,10 @@ class AnalysisEngine(object):
                 maxVal = app
             labels.append(polName)
 
-        chart.add("Applications", lines)
+        if not noData:
+            chart.add("Applications", lines)
+        else:
+            chart.no_data_text = "No exclusion lists defined among participants."
 
         chart.x_labels = labels
         chart.show_x_labels = True
