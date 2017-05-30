@@ -123,6 +123,7 @@ class AnalysisEngine(object):
             l.append(self.policyFolders[idx])
             self.foldersPerName[name] = l
         self.policyCount = len(self.foldersPerName)
+        self.policyNames = policyNames
 
         print("Collecting applications...")
 
@@ -162,7 +163,6 @@ class AnalysisEngine(object):
         if debugEnabled():
             print("%d/%d instances" % (self.uInstCount, len(self.instScores)))
 
-        # FIXME from here.
         # List exclusion scores.
         print("Collecting application exclusion scores...")
         exclScoresPW = set()
@@ -486,9 +486,12 @@ class AnalysisEngine(object):
                                 polAbsCosts: dict):
         boxPlot = pygal.Box(box_mode="tukey")  # , range=(0, 30))
         absPlot = pygal.Box(box_mode="tukey")  # , range=(0, 30))
-        boxPlot.title = "Distribution of costs for each user app, per " \
+        squishedPlot = pygal.Box(box_mode="tukey", range=(0, 10))  # FIXME hardcoded
+        boxPlot.title = "Distribution of daily costs for each user app, per " \
                         "policy, normalised."
-        absPlot.title = "Distribution of costs for each user app, per policy."
+        absPlot.title = "Distribution of daily costs for each user app, per policy."
+        squishedPlot.title ="Distribution of daily costs for each user app, " \
+                            "per policy, outliers hidden."
         for (pol, costList) in sorted(polRelCosts.items()):
             sumList = list((s["configuration"] + s["granting"] +
                             s["isolating"] + s["splitting"] for s in costList))
@@ -497,11 +500,14 @@ class AnalysisEngine(object):
             sumList = list((s["configuration"] + s["granting"] +
                             s["isolating"] + s["splitting"] for s in costList))
             absPlot.add(pol, sumList)
+            squishedPlot.add(pol, sumList)
 
         boxPlot.render_to_file(os.path.join(self.outputDir,
                                             'appRelCostPerPol.svg'))
         absPlot.render_to_file(os.path.join(self.outputDir,
                                             'appAbsCostPerPol.svg'))
+        squishedPlot.render_to_file(os.path.join(self.outputDir,
+                                            'appAbsCostPerPol-truncated.svg'))
 
     def plotCostDistribution(self,
                              polName: str,
@@ -707,8 +713,9 @@ class AnalysisEngine(object):
         lineChart.show_y_guides = False
         lineChart.y_labels = list(range(int(maxVal) + 1))
         lineChart.yrange = (0, int(maxVal) + 2)
-        lineChart.value_formatter = lambda y: "%d %s" % \
-          (y, "clusters" if y != 1 else "cluster")
+        lineChart.value_formatter = lambda y: "%s %s" % \
+          ("%d" % y if int(y) == y else "%.02f" % y,
+           "clusters" if y != 1 else "cluster")
 
         lineChart.render_to_file(os.path.join(self.outputDir,
                                               'exclusionLists-%s.svg' % tag))
@@ -756,6 +763,7 @@ class AnalysisEngine(object):
         return counterSum * 100
 
     def plotInstanceViolations(self, paths, exclName):
+        # FIXME TODO has bug, only shows Win8
         print("%s..." % exclName)
         violations = dict()
         sortable = sortedlist(key=lambda i: i[1])
@@ -1031,7 +1039,7 @@ class AnalysisEngine(object):
             if polName.endswith("SbFa"):
                 policiesWithFa.add(polName)
 
-        # Aggregate per policy type (base, Fb, FbSa, Sa).
+        # Aggregate per policy type (base, Sb, SbFa, Fa).
         oeScoreSummed = dict()
         attackScoreSummed = dict()
         usabScoreSummed = dict()
@@ -1114,7 +1122,6 @@ class AnalysisEngine(object):
                          include_x_axis=True,
                          include_y_axis=True)
 
-        # TODO filter out base not also in Fa (save Fa names and then purge bases not in fa names list before the .add loop)
         colorsFa = ['#333333', '#a6dba0', '#c2a5cf', '#008837', "#cccccc"]
         colorsFa = ['#333333', '#7570b3', '#1b9e77', '#e7298a', "#cccccc"]
         chartFa = pygal.XY(stroke=False,
@@ -1157,7 +1164,7 @@ class AnalysisEngine(object):
         polNames = dict()
         labelForRegion = dict()
         maxX = 0
-        xRanges = 10
+        xRanges = 50
         for (polName, attackScore) in attackScores.items():
             maxX = max(maxX, attackScore)
         maxX += 0.000001  # Ensure the item with maximal value isn't isolated.
@@ -1165,7 +1172,7 @@ class AnalysisEngine(object):
         chartFa.xrange = chart.xrange
 
         maxY = 0
-        yRanges = 18
+        yRanges = 50
         for (polName, usabScore) in usabScores.items():
             maxY = max(maxY, sum([usabScore[key] for key in costKeysNC]))
         maxY += 0.000001
@@ -1703,7 +1710,12 @@ class AnalysisEngine(object):
         self.pareto(sumOEScores, libVideoScores, "oe-lib-video")
         print("Done.\n")
 
-        print("Plotting delta between unoptimised and FbSa/Fb/Sa policies...")
-        self.plotOptimisations(sumOEScores, secScoresWorst, userlandUserdocScores)
-        print("Done.\n")
+        hasSbFa = False
+        for pol in self.policyNames:
+            if pol.endswith("SbFaPolicy"):
+                hasSbFa = True
+        if hasSbFa:
+            print("Plotting delta between unoptimised and SbFa/Sb/Fa policies...")
+            self.plotOptimisations(sumOEScores, secScoresWorst, userlandUserdocScores)
+            print("Done.\n")
 
