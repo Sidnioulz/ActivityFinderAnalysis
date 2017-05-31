@@ -20,7 +20,8 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      Win8Policy, Win10Policy, ProtectedFolderPolicy, \
                      LibraryFolderPolicy, RemovableMediaPolicy, \
                      FolderFilenamePolicy, FolderRestrictedAppsPolicy, \
-                     CompositionalPolicy, HSecurePolicy, HBalancedPolicy
+                     CompositionalPolicy, HSecurePolicy, HBalancedPolicy, \
+                     HBalancedSecuredPolicy, FolderSecuredPolicy
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
@@ -491,37 +492,39 @@ def main(argv):
 
         skipList = skipEnabled()
         for (polIdx, polName) in enumerate(policies):
+            pol = None
+            arg = polArgs[polIdx]
 
             # Names with certain suffixes are dynamically generated policies.
             if isinstance(polName, str):
                 if polName.endswith('SbPolicy'):
                     pols = [getattr(sys.modules[__name__], polName[:-8]+'Policy'),
                             StickyBitPolicy]
-                    args = [polArgs[polIdx],
+                    args = [arg,
                             dict(folders=["~", "/media", "/mnt"])]
+                    pol = CompositionalPolicy(pols, args, polName)
                 elif polName.endswith('SbFaPolicy'):
                     pols = [getattr(sys.modules[__name__], polName[:-10]+'Policy'),
                             StickyBitPolicy,
                             FutureAccessListPolicy]
-                    args = [polArgs[polIdx],
+                    args = [arg,
                             dict(folders=["~", "/media", "/mnt"]),
                             None]
+                    pol = CompositionalPolicy(pols, args, polName)
                 elif polName.endswith('FaPolicy'):
                     pols = [getattr(sys.modules[__name__], polName[:-8]+'Policy'),
                             FutureAccessListPolicy]
-                    args = [polArgs[polIdx],
+                    args = [arg,
                             None]
+                    pol = CompositionalPolicy(pols, args, polName)
+                # A normal policy, just invoke it directly.
                 else:
-                    pols = [getattr(sys.modules[__name__], polName)]
-                    args = [polArgs[polIdx]]
+                    polName = getattr(sys.modules[__name__], polName)
 
-                pol = CompositionalPolicy(pols, args, polName)
-            # Existing policies, with arguments.
-            elif polArgs[polIdx]:
-                pol = polName(**polArgs[polIdx])
-            # Existing policies, without arguments.
-            else:
-                pol = polName()
+            # Existing policies, with arguments / or normal policies passed as
+            # strings, including via the --quick flag.
+            if not pol:
+                pol = polName(**arg) if arg else polName()
 
             tprnt("\nRunning %s..." % pol.name)
 

@@ -204,6 +204,10 @@ class Policy(object):
 
         self.scoreDir = None
 
+    def getLastAccessDecisionStrength(self):
+        """Tell if last access decision is valid enough for Folder policies."""
+        return True
+
     def getOutputDir(self, parent: str=None):
         if parent:
             return parent + "/Policy - %s" % self.name
@@ -722,7 +726,7 @@ class Policy(object):
         """Blob for policies to update their state on DESIGNATION_ACCESS."""
         pass
 
-    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None, strong=True):
         """Blob for policies to update their state on POLICY_ACCESS."""
         pass
 

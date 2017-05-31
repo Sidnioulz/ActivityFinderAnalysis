@@ -170,11 +170,13 @@ class FolderPolicy(Policy):
     """Policy where whole folders can be accessed after a designation event."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='FolderPolicy'):
         """Construct a FolderPolicy."""
         super(FolderPolicy, self).__init__(name)
         self.desigCache = dict()
         self.illegalCache = dict()
+        self.secure = secure
 
     def _computeFolder(self, f: File):
         """Return the folder used for a given file."""
@@ -210,9 +212,10 @@ class FolderPolicy(Policy):
             data = self._accFunPreCompute(f, acc)
         self.addToCache(self.desigCache, data, acc.actor)
 
-    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None, strong=True):
         """Blob for policies to update their state on POLICY_ACCESS."""
-        self.updateDesignationState(f, acc, data)
+        if strong or not self.secure:
+            self.updateDesignationState(f, acc, data)
 
     def updateIllegalState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on ILLEGAL_ACCESS."""
@@ -249,9 +252,10 @@ class OneFolderPolicy(FolderPolicy):
     """Policy where apps can access a single folder only."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='OneFolderPolicy'):
         """Construct a OneFolderPolicy."""
-        super(OneFolderPolicy, self).__init__(name)
+        super(OneFolderPolicy, self).__init__(secure, name)
         self.desigCache = dict()
         self.illegalCache = dict()
 
@@ -285,9 +289,10 @@ class OneDistantFolderPolicy(OneFolderPolicy):
     """Policy where apps access files in the same distant parent folders."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='OneDistantFolderPolicy'):
         """Construct a OneDistantFolderPolicy."""
-        super(OneDistantFolderPolicy, self).__init__(name)
+        super(OneDistantFolderPolicy, self).__init__(secure, name)
         self.desigCache = dict()
         self.illegalCache = dict()
         self.rootCache = dict()
@@ -325,9 +330,10 @@ class DistantFolderPolicy(FolderPolicy):
     """Policy where apps access files in the same distant parent folders."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='DistantFolderPolicy'):
         """Construct a DistantFolderPolicy."""
-        super(DistantFolderPolicy, self).__init__(name)
+        super(DistantFolderPolicy, self).__init__(secure, name)
         self.desigCache = dict()
         self.illegalCache = dict()
         self.rootCache = dict()
@@ -366,9 +372,10 @@ class LibraryFolderPolicy(DistantFolderPolicy):
 
     def __init__(self,
                  supportedLibraries=['downloads', 'desktop'],
+                 secure: bool=False,
                  name: str='LibraryFolderPolicy'):
         """Construct a LibraryFolderPolicy."""
-        super(LibraryFolderPolicy, self).__init__(name)
+        super(LibraryFolderPolicy, self).__init__(secure, name)
         self.desigCache = dict()
         self.illegalCache = dict()
         self.rootCache = dict()
@@ -444,7 +451,7 @@ class LibraryFolderPolicy(DistantFolderPolicy):
         else:
             self.addToCache(self.desigCache, data, acc.actor)
 
-    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None, strong=True):
         """Blob for policies to update their state on POLICY_ACCESS."""
         self.updateDesignationState(f, acc, data)
 
@@ -489,9 +496,10 @@ class ProjectsPolicy(FolderPolicy):
     """Policy where apps access files in the same project folders."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='ProjectsPolicy'):
         """Construct a ProjectsPolicy."""
-        super(ProjectsPolicy, self).__init__(name)
+        super(ProjectsPolicy, self).__init__(secure, name)
         self.desigCache = dict()
         self.illegalCache = dict()
         self.projectsCache = dict()
@@ -541,6 +549,10 @@ class FutureAccessListPolicy(FolderPolicy):
                           acc: FileAccess):
         """Precompute a data structure about the file or access."""
         return f.inode
+
+    def getLastAccessDecisionStrength(self):
+        """Tell if last access decision is valid enough for Folder policies."""
+        return False
 
     def appWideRecords(self):
         """Return True if access records are across instances, False else."""
@@ -611,7 +623,12 @@ class CompositionalPolicy(Policy):
                 pol = polClass()
             self.policies.append(pol)
 
+        self.lastAccessDecisionStrong = False
         super(CompositionalPolicy, self).__init__(cname)
+
+    def getLastAccessDecisionStrength(self):
+        """Tell if last access decision is valid enough for Folder policies."""
+        return self.lastAccessDecisionStrong
 
     def accessFunc(self,
                    engine: 'PolicyEngine',
@@ -637,17 +654,50 @@ class CompositionalPolicy(Policy):
                     return OWNED_PATH_ACCESS
 
         # Loop through policies until we find a decision we can return.
+        self.lastAccessDecisionStrong = False
+        decision = None
         for pol in self.policies:
-            decision = pol.accessFunc(engine, f, acc, composed=True)
-            if dbgPrint:
-                print(f.path, pol.name, decision)
-            finished = self._selectAccessFuncDecision(decision)
-            if finished:
-                break
-        # If all policies return the weak decision (illegal for this policy,
-        # legal for the strict policy), then we return that weak decision.
+            polStrong = pol.getLastAccessDecisionStrength()
+
+            # We are still looking for a final decision.
+            if not decision:
+                # Check for a final decision.
+                polDecision = pol.accessFunc(engine, f, acc, composed=True)
+                decision = self._selectAccessFuncDecision(polDecision)
+
+                # We have found a strong decision, we can leave the loop.
+                if decision and polStrong:
+                    self.lastAccessDecisionStrong = True
+                    break
+
+                # A conclusive decision was taken, but it's not strong (i.e. it
+                # comes from policies which, combined with some contextual
+                # policies like FolderPolicy, introduce structural insecurity).
+                # We continue looking for a decision that is strong, though we
+                # already have a final decision for the policy.
+                elif decision and not polStrong:
+                    pass
+
+            # We have a final decision, but we need a strong policy to confirm
+            # it in order to say the policy decision we made is strong. If the
+            # current policy is also weak, it is not worth wasting CPU time
+            # computing a decision for it, so we jump to the next one.
+            elif decision and polStrong:
+                polDecision = pol.accessFunc(engine, f, acc, composed=True)
+                if polDecision == decision:
+                    self.lastAccessDecisionStrong = True
+                    break
+
+        # If all policies return the inconclusive decision (illegal for this
+        # policy, legal for the strict policy), then we return that decision.
         else:
-            decision = self._returnWeakAccessFuncDecision(f, acc)
+            # If there was a decision made and we reach this point, it means
+            # the decision was not strong. In that case, we do nothing, we just
+            # have a weak decision. Else, we use the default decision and we
+            # state the decision is strong since all policies agree on it.
+            if not decision:
+                decision = self._returnDefaultAccessFuncDecision(f, acc)
+                self.lastAccessDecisionStrong = True
 
         # Now, we update scores and return the decision.
         if decision == ILLEGAL_ACCESS:
@@ -669,7 +719,10 @@ class CompositionalPolicy(Policy):
         else:
             if not composed:
                 self.incrementScore('policyAccess', f, acc.actor)
-                self.updateAllowedState(f, acc)
+                self.updateAllowedState(f,
+                                        acc,
+                                        data=None,
+                                        strong=self.getLastAccessDecisionStrength())
 
             return POLICY_ACCESS
 
@@ -686,16 +739,16 @@ class CompositionalPolicy(Policy):
 
         return True
 
-    def _returnWeakAccessFuncDecision(self, f: File, acc: FileAccess):
+    def _returnDefaultAccessFuncDecision(self, f: File, acc: FileAccess):
         """Return the default decision for this compositional policy."""
         return ILLEGAL_ACCESS
 
     def _selectAccessFuncDecision(self, decision: int):
         """Choose if a sub-policy's accessFunc output should be selected."""
         if decision in (DESIGNATION_ACCESS, OWNED_PATH_ACCESS, POLICY_ACCESS):
-            return True
+            return decision
         else:
-            return False
+            return None
 
     def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
@@ -710,10 +763,10 @@ class CompositionalPolicy(Policy):
         for pol in self.policies:
             pol.updateDesignationState(f, acc)
 
-    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None, strong=True):
         """Blob for policies to update their state on POLICY_ACCESS."""
         for pol in self.policies:
-            pol.updateAllowedState(f, acc)
+            pol.updateAllowedState(f, acc, data=None, strong=strong)
 
     def updateIllegalState(self, f: File, acc: FileAccess, data=None):
         """Blob for policies to update their state on ILLEGAL_ACCESS."""
@@ -739,16 +792,16 @@ class StrictCompositionalPolicy(CompositionalPolicy):
                                                         polArgs,
                                                         name)
 
-    def _returnWeakAccessFuncDecision(self, f: File, acc: FileAccess):
+    def _returnDefaultAccessFuncDecision(self, f: File, acc: FileAccess):
         """Return the default decision for this compositional policy."""
         return POLICY_ACCESS
 
     def _selectAccessFuncDecision(self, decision: int):
         """Choose if a sub-policy's accessFunc output should be selected."""
         if decision in (DESIGNATION_ACCESS, OWNED_PATH_ACCESS, ILLEGAL_ACCESS):
-            return True
+            return decision
         else:
-            return False
+            return None
 
     def _allowedByPolicy(self, f: File, app: Application):
         """Tell if a File can be accessed by an Application."""
@@ -784,6 +837,10 @@ class StickyBitPolicy(Policy):
             f = f.replace('@HOSTNAME@', host)
             f = f.replace('~', home)
             self.folders.append(f)
+
+    def getLastAccessDecisionStrength(self):
+        """Tell if last access decision is valid enough for Folder policies."""
+        return False
 
     def _accFunPreCompute(self,
                           f: File,
@@ -827,7 +884,7 @@ class StickyBitPolicy(Policy):
         if (data or self._accFunPreCompute(f, acc))[0]:
             self.addCreatedFile(f, acc.actor)
 
-    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None, strong=True):
         """Blob for policies to update their state on POLICY_ACCESS."""
         self.updateDesignationState(f, acc, data)
 
@@ -841,9 +898,10 @@ class ProtectedFolderPolicy(Policy):
 
     def __init__(self,
                  folders: list=["~/Protected", "~/.ssh", "~/.pki"],
+                 secure: bool=False,
                  name: str='ProtectedFolderPolicy'):
         """Construct a ProtectedFolderPolicy."""
-        super(ProtectedFolderPolicy, self).__init__(name)
+        super(ProtectedFolderPolicy, self).__init__(secure, name)
 
         self.folders = list()
 
@@ -880,9 +938,10 @@ class FilenamePolicy(FolderPolicy):
     """Policy where files with the same filename can be accessed."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='FilenamePolicy'):
         """Construct a FilenamePolicy."""
-        super(FilenamePolicy, self).__init__(name)
+        super(FilenamePolicy, self).__init__(secure, name)
 
     def _accFunPreCompute(self,
                           f: File,
@@ -1114,7 +1173,7 @@ class ExclusionPolicy(Policy):
         if key not in self.currentPath and data:
             self.currentPath[key] = data
 
-    def updateAllowedState(self, f: File, acc: FileAccess, data=None):
+    def updateAllowedState(self, f: File, acc: FileAccess, data=None, strong=True):
         """Blob for policies to update their state on POLICY_ACCESS."""
         self.updateDesignationState(f, acc, data)
 
@@ -1215,14 +1274,16 @@ class BlackListOneDistantFolderPolicy(StrictCompositionalPolicy):
 
     def __init__(self,
                  supportedLibraries: list=["desktop"],
+                 secure: bool=False,
                  name: str='BlackListOneDistantFolderPolicy'):
         """Construct a BlackListOneDistantFolderPolicy."""
-        policies = [BlackListPolicy, OneDistantFolderPolicy]
-        polArgs = [dict(supportedLibraries=supportedLibraries), None]
+        policies = [BlackListPolicy,
+                    OneDistantFolderPolicy]
+        polArgs = [dict(supportedLibraries=supportedLibraries),
+                   dict(secure=secure)]
         super(BlackListOneDistantFolderPolicy, self).__init__(policies,
                                                               polArgs,
                                                               name)
-
 
 
 class HSecurePolicy(CompositionalPolicy):
@@ -1243,6 +1304,7 @@ class HBalancedPolicy(CompositionalPolicy):
     """Balanced hypothesis based on per-lib analysis of base policies."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='HBalancedPolicy'):
         """Construct a HBalancedPolicy."""
         policies = [CustomLibraryPolicy,
@@ -1250,5 +1312,45 @@ class HBalancedPolicy(CompositionalPolicy):
                     BlackListOneDistantFolderPolicy]
         polArgs = [dict(supportedLibraries=["video", "music", "image"]),
                    dict(supportedLibraries=["removable"]),
-                   dict(supportedLibraries=["video", "music", "image", "removable"]),]
+                   dict(supportedLibraries=["video", "music", "image", "removable"], secure=secure),]
         super(HBalancedPolicy, self).__init__(policies, polArgs, name)
+
+
+class HBalancedSecuredPolicy(HBalancedPolicy):
+
+    def __init__(self,
+                 name: str='HBalancedSecuredPolicy'):
+        """Construct a HBalancedSecuredPolicy."""
+        super(HBalancedSecuredPolicy, self).__init__(secure=True, name=name)
+
+
+class FolderSecuredPolicy(FolderPolicy):
+
+    def __init__(self,
+                 name: str='FolderSecuredPolicy'):
+        """Construct a FolderSecuredPolicy."""
+        super(FolderSecuredPolicy, self).__init__(secure=True, name=name)
+
+
+class OneFolderSecuredPolicy(OneFolderPolicy):
+
+    def __init__(self,
+                 name: str='OneFolderSecuredPolicy'):
+        """Construct a OneFolderSecuredPolicy."""
+        super(OneFolderSecuredPolicy, self).__init__(secure=True, name=name)
+
+
+class DistantFolderSecuredPolicy(DistantFolderPolicy):
+
+    def __init__(self,
+                 name: str='DistantFolderSecuredPolicy'):
+        """Construct a DistantFolderSecuredPolicy."""
+        super(DistantFolderSecuredPolicy, self).__init__(secure=True, name=name)
+
+
+class OneDistantFolderSecuredPolicy(OneDistantFolderPolicy):
+
+    def __init__(self,
+                 name: str='OneDistantFolderSecuredPolicy'):
+        """Construct a OneDistantFolderSecuredPolicy."""
+        super(OneDistantFolderSecuredPolicy, self).__init__(secure=True, name=name)
