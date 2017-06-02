@@ -16,7 +16,7 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      FileTypePolicy, DesignationPolicy, FolderPolicy, \
                      OneFolderPolicy, DistantFolderPolicy, FilenamePolicy, \
                      OneDistantFolderPolicy, FutureAccessListPolicy, \
-                     StickyBitPolicy, CustomLibraryPolicy, FolderSbFAPolicy, \
+                     StickyBitPolicy, CustomLibraryPolicy, \
                      Win8Policy, Win10Policy, ProtectedFolderPolicy, \
                      LibraryFolderPolicy, RemovableMediaPolicy, \
                      FolderFilenamePolicy, FolderRestrictedAppsPolicy, \

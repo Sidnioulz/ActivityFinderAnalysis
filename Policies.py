@@ -542,7 +542,7 @@ class FutureAccessListPolicy(FolderPolicy):
     def __init__(self,
                  name: str='FutureAccessListPolicy'):
         """Construct a FutureAccessListPolicy."""
-        super(FutureAccessListPolicy, self).__init__(name)
+        super(FutureAccessListPolicy, self).__init__(secure=False, name=name)
 
     def _accFunPreCompute(self,
                           f: File,
@@ -898,10 +898,9 @@ class ProtectedFolderPolicy(Policy):
 
     def __init__(self,
                  folders: list=["~/Protected", "~/.ssh", "~/.pki"],
-                 secure: bool=False,
                  name: str='ProtectedFolderPolicy'):
         """Construct a ProtectedFolderPolicy."""
-        super(ProtectedFolderPolicy, self).__init__(secure, name)
+        super(ProtectedFolderPolicy, self).__init__(name)
 
         self.folders = list()
 
@@ -1001,73 +1000,15 @@ class Win10Policy(CompositionalPolicy):
         super(Win10Policy, self).__init__(policies, polArgs, name)
 
 
-class FFFPolicy(CompositionalPolicy):
-    """Folder v FutureAccessList v FileTypeAssoc."""
-
-    def __init__(self,
-                 name: str='FFFPolicy'):
-        """Construct a FFFPolicy."""
-        policies = [FolderPolicy, FileTypePolicy, FutureAccessListPolicy]
-        polArgs = [None, None, None]
-        super(FFFPolicy, self).__init__(policies, polArgs, name)
-
-
-class OneFFFPolicy(CompositionalPolicy):
-    """OneFolder v FutureAccessList v FileTypeAssoc."""
-
-    def __init__(self,
-                 name: str='OneFFFPolicy'):
-        """Construct a OneFFFPolicy."""
-        policies = [OneFolderPolicy, FileTypePolicy, FutureAccessListPolicy]
-        polArgs = [None, None, None]
-        super(OneFFFPolicy, self).__init__(policies, polArgs, name)
-
-
-class FFFSbPolicy(CompositionalPolicy):
-    """Folder v FutureAccessList v FileTypeAssoc v StickyBitPolicy."""
-
-    def __init__(self,
-                 name: str='FFFSbPolicy'):
-        """Construct a FFFSbPolicy."""
-        policies = [FolderPolicy, FileTypePolicy, FutureAccessListPolicy,
-                    StickyBitPolicy]
-        polArgs = [None, None, None,
-                   dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),]
-        super(FFFSbPolicy, self).__init__(policies, polArgs, name)
-
-
-class OneFFFSbPolicy(CompositionalPolicy):
-    """OneFolder v FutureAccessList v FileTypeAssoc v StickyBitPolicy."""
-
-    def __init__(self,
-                 name: str='OneFFFSbPolicy'):
-        """Construct a OneFFFSbPolicy."""
-        policies = [OneFolderPolicy, FileTypePolicy, FutureAccessListPolicy,
-                    StickyBitPolicy]
-        polArgs = [None, None, None,
-                   dict(folders=["@XDG_DOWNLOADS_DIR@", "/tmp"]),]
-        super(OneFFFSbPolicy, self).__init__(policies, polArgs, name)
-
-
-class FolderSbFAPolicy(CompositionalPolicy):
-    """Folder v FutureAccessList v StickyBitPolicy."""
-
-    def __init__(self,
-                 name: str='FolderSbFAPolicy'):
-        """Construct a FolderSbFAPolicy."""
-        policies = [FolderPolicy, FutureAccessListPolicy, StickyBitPolicy]
-        polArgs = [None, None, dict(folders=["~", "/media", "/mnt"]),]
-        super(FolderSbFAPolicy, self).__init__(policies, polArgs, name)
-
-
 class FolderFilenamePolicy(CompositionalPolicy):
     """Folder v Filename."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='FolderFilenamePolicy'):
         """Construct a FolderFilenamePolicy."""
         policies = [FolderPolicy, FilenamePolicy]
-        polArgs = [None, None]
+        polArgs = [dict(secure=secure), None]
         super(FolderFilenamePolicy, self).__init__(policies, polArgs, name)
 
 
@@ -1075,11 +1016,13 @@ class FolderRestrictedAppsPolicy(StrictCompositionalPolicy):
     """Folder v RestrictedAppsPolicy."""
 
     def __init__(self,
+                 secure: bool=False,
                  name: str='FolderRestrictedAppsPolicy'):
         """Construct a FolderRestrictedAppsPolicy."""
         policies = [FolderPolicy, RestrictedAppsPolicy]
-        polArgs = [None, dict(apps=["telegram", "android", "ruby",
-                   "eclipse", "python", "cargo", "dropbox", "wine", "skype"]),]
+        polArgs = [dict(secure=secure),
+                   dict(apps=["telegram", "android", "ruby", "eclipse",
+                              "python", "cargo", "dropbox", "wine", "skype"]),]
         super(FolderRestrictedAppsPolicy, self).__init__(policies, polArgs, name)
 
 
@@ -1244,28 +1187,16 @@ class BlackListPolicy(CustomLibraryPolicy):
         """Construct a BlackListPolicy."""
         super(BlackListPolicy, self).__init__(supportedLibraries, name)
 
-    def _uaccFunCondDesignation(self,
-                                f: File,
-                                acc: FileAccess,
-                                composed: bool,
-                                data):
-        """Calculate condition for DESIGNATION_ACCESS to be returned."""
-        return False
+    def _allowedByPolicy(self, file: File, actor: Application):
+        """Tell if a File is allowed to be accessed by a Policy."""
+        lib = self.mgr.getLibraryForFile(file, libMod=self.libMode)
 
-    def _uaccFunCondPolicy(self,
-                           f: File,
-                           acc: FileAccess,
-                           composed: bool,
-                           data):
-        """Calculate condition for POLICY_ACCESS to be returned."""
-        return False
+        if not lib:
+            return True
 
-    def _allowedByPolicy(self, f: File, app: Application):
-        """Tell if a File can be accessed by an Application."""
-        return False
+        if lib not in self.supportedLibraries:
+            return True
 
-    def accessAllowedByPolicy(self, f: File, acc: FileAccess):
-        """Tell if a File can be accessed by an Application."""
         return False
 
 
@@ -1284,7 +1215,6 @@ class BlackListOneDistantFolderPolicy(StrictCompositionalPolicy):
         super(BlackListOneDistantFolderPolicy, self).__init__(policies,
                                                               polArgs,
                                                               name)
-
 
 class HSecurePolicy(CompositionalPolicy):
     """Secure hypothesis based on per-lib analysis of base policies."""

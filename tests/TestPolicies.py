@@ -12,9 +12,10 @@ from Policies import OneLibraryPolicy, UnsecurePolicy, DesignationPolicy, \
                      FileTypePolicy, FolderPolicy, OneFolderPolicy, \
                      FutureAccessListPolicy, CompositionalPolicy, \
                      StrictCompositionalPolicy, StickyBitPolicy, \
-                     FilenamePolicy, ProtectedFolderPolicy, FFFPolicy, \
+                     FilenamePolicy, ProtectedFolderPolicy, \
                      DistantFolderPolicy, ProjectsPolicy, ExclusionPolicy, \
-                     RemovableMediaPolicy, LibraryFolderPolicy
+                     RemovableMediaPolicy, LibraryFolderPolicy, \
+                     HBalancedSecuredPolicy, HBalancedPolicy
 
 class TestOneLibraryPolicy(unittest.TestCase):
     def setUp(self):
@@ -189,6 +190,9 @@ class TestPolicies(unittest.TestCase):
         e012 = Event(actor=self.a1, time=10, syscallStr=s012)
         e012.evflags |= EventFileFlags.designation  # this event by designation
         self.eventStore.append(e012)
+        e012b = Event(actor=self.a3, time=22, syscallStr=s012)
+        e012b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e012b)
 
         self.p013 = "/home/user/Images/Scotland/DSC13.jpg"
         s013 = "open64|%s|fd 10: with flag 524288, e0|" % self.p013
@@ -228,12 +232,18 @@ class TestPolicies(unittest.TestCase):
         e018 = Event(actor=self.a1, time=18, syscallStr=s018)
         e018.evflags |= EventFileFlags.designation  # this by designation
         self.eventStore.append(e018)
+        e018b = Event(actor=self.a3, time=22, syscallStr=s018)
+        e018b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e018b)
 
         self.p019 = "/home/user/Desktop/Folder_A/other.file"
         s019 = "open64|%s|fd 10: with flag 524288, e0|" % self.p019
         e019 = Event(actor=self.a1, time=19, syscallStr=s019)
         e019.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e019)
+        e019b = Event(actor=self.a3, time=24, syscallStr=s019)
+        e019b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e019b)
 
         self.p020 = "/home/user/Desktop/Folder_B/other.file"
         s020 = "open64|%s|fd 10: with flag 524288, e0|" % self.p020
@@ -672,6 +682,14 @@ class TestPolicies(unittest.TestCase):
         accs = f003b.getAccesses()
         next(accs)  # pass accs[0]
         pol.accessFunc(None, f003b, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f012 = self.fileFactory.getFile(name=self.p012, time=20)
+        accs = f012.getAccesses()
+        pol.accessFunc(None, f012, next(accs))
+        self.desig += 1
+        pol.accessFunc(None, f012, next(accs))
         self.policy += 1
         self._assert(pol)
 
@@ -1321,6 +1339,59 @@ class TestPolicies(unittest.TestCase):
         self.illegal += 1
         self._assert(pol)
 
+    def test_balanced(self):
+        pols = [HBalancedPolicy, FutureAccessListPolicy]
+        args = [None, None]
+        pol = CompositionalPolicy(pols, args, "HBalancedFaPolicy")
+        self._reset()
+
+        f018 = self.fileFactory.getFile(name=self.p018, time=40)
+        accs = f018.getAccesses()
+        pol.accessFunc(None, f018, next(accs))
+        self.desig += 1
+        self._assert(pol)
+        pol.accessFunc(None, f018, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f019 = self.fileFactory.getFile(name=self.p019, time=40)
+        accs = f019.getAccesses()
+        next(accs)  # skip first access, from another app.
+        pol.accessFunc(None, f019, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        # Check that without a folder designation access, we get rejected.
+        pol = CompositionalPolicy(pols, args, "HBalancedFaPolicy")
+        self._reset()
+        f018 = self.fileFactory.getFile(name=self.p018, time=40)
+        accs = f018.getAccesses()
+        next(accs)
+        pol.accessFunc(None, f018, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        # Check that the secured balanced policy works.
+        pols = [HBalancedSecuredPolicy, FutureAccessListPolicy]
+        args = [None, None]
+        pol = CompositionalPolicy(pols, args, "HBalancedSecuredFaPolicy")
+        self._reset()
+
+        f018 = self.fileFactory.getFile(name=self.p018, time=40)
+        accs = f018.getAccesses()
+        pol.accessFunc(None, f018, next(accs))
+        self.desig += 1
+        self._assert(pol)
+        pol.accessFunc(None, f018, next(accs))
+        self.policy += 1
+        self._assert(pol)
+
+        f019 = self.fileFactory.getFile(name=self.p019, time=40)
+        accs = f019.getAccesses()
+        next(accs)  # skip first access, from another app.
+        pol.accessFunc(None, f019, next(accs))
+        self.illegal += 1
+        self._assert(pol)
 
     def _test_folder_costs(self, pol):
         f001 = self.fileFactory.getFile(name=self.p001, time=20)
@@ -1410,76 +1481,6 @@ class TestPolicies(unittest.TestCase):
                                   polArgs=[None, None])
         self._reset()
         self._test_folder_costs(pol)
-
-    def test_fff_granting_costs(self):
-        pol = FFFPolicy()
-        self._reset()
-        f001 = self.fileFactory.getFile(name=self.p001, time=20)
-        accs = f001.getAccesses()
-        pol.accessFunc(None, f001, next(accs))
-        self.grantingCost += 1
-        self.cumulGrantingCost += 1
-        self._assertCosts(pol)
-
-        f002 = self.fileFactory.getFile(name=self.p002, time=20)
-        accs = f002.getAccesses()
-        pol.accessFunc(None, f002, next(accs))
-        self._assertCosts(pol)
-
-        f003 = self.fileFactory.getFile(name=self.p003, time=20)
-        accs = f003.getAccesses()
-        pol.accessFunc(None, f003, next(accs))
-        self._assertCosts(pol)
-
-        f004 = self.fileFactory.getFile(name=self.p004, time=20)
-        accs = f004.getAccesses()
-        pol.accessFunc(None, f004, next(accs))
-        self._assertCosts(pol)
-
-        f005 = self.fileFactory.getFile(name=self.p005, time=20)
-        accs = f005.getAccesses()
-        pol.accessFunc(None, f005, next(accs))
-        self._assertCosts(pol)
-        pol.accessFunc(None, f005, next(accs))
-        self._assertCosts(pol)
-
-        f006 = self.fileFactory.getFile(name=self.p006, time=20)
-        accs = f006.getAccesses()
-        pol.accessFunc(None, f006, next(accs))
-        self._assertCosts(pol)
-
-        f007 = self.fileFactory.getFile(name=self.p007, time=20)
-        accs = f007.getAccesses()
-        pol.accessFunc(None, f007, next(accs))
-        self._assertCosts(pol)
-
-        f008 = self.fileFactory.getFile(name=self.p008, time=20)
-        accs = f008.getAccesses()
-        pol.accessFunc(None, f008, next(accs))
-        self._assertCosts(pol)
-
-        f003b = self.fileFactory.getFile(name=self.p003, time=3000)
-        accs = f003b.getAccesses()
-        next(accs)  # pass accs[0]
-        pol.accessFunc(None, f003b, next(accs))
-        self._assertCosts(pol)
-
-        # f003 made f003b legal which made this call legal.
-        f009 = self.fileFactory.getFile(name=self.p009, time=3010)
-        accs = f009.getAccesses()
-        pol.accessFunc(None, f009, next(accs))
-
-        f010 = self.fileFactory.getFile(name=self.p010, time=20)
-        accs = f010.getAccesses()
-        pol.accessFunc(None, f010, next(accs))
-        self._assertCosts(pol)
-
-        f011 = self.fileFactory.getFile(name=self.p011, time=20)
-        accs = f011.getAccesses()
-        pol.accessFunc(None, f011, next(accs))
-        self.grantingCost += 1
-        self.cumulGrantingCost += 1  # f003b authorised folder
-        self._assertCosts(pol)
 
     def test_exclusion(self):
         excl = ['^/home/user/Downloads/.*', '^/home/user/Dropbox/.*']
