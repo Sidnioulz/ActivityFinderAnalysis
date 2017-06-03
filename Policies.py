@@ -1239,7 +1239,7 @@ class HBalancedPolicy(CompositionalPolicy):
         """Construct a HBalancedPolicy."""
         policies = [CustomLibraryPolicy,
                     FileTypePolicy,
-                    BlacklistOneDistantFolderPolicy]
+                    BlackListOneDistantFolderPolicy]
         polArgs = [dict(supportedLibraries=["video", "music", "image"]),
                    None,
                    dict(secure=secure),]
