@@ -1238,12 +1238,15 @@ class HBalancedPolicy(CompositionalPolicy):
                  name: str='HBalancedPolicy'):
         """Construct a HBalancedPolicy."""
         policies = [CustomLibraryPolicy,
-                    DocumentsFileTypePolicy,
-                    BlackListOneDistantFolderPolicy]
+                    FileTypePolicy,
+                    BlacklistOneDistantFolderPolicy]
         polArgs = [dict(supportedLibraries=["video", "music", "image"]),
-                   dict(supportedLibraries=["removable"]),
-                   dict(supportedLibraries=["video", "music", "image", "removable"], secure=secure),]
+                   None,
+                   dict(secure=secure),]
         super(HBalancedPolicy, self).__init__(policies, polArgs, name)
+        self.policies[1].scope = tuple(LibraryManager.get().getLibraryRoots(
+            ["removable"], libMod=LibraryManager.Custom))
+        self.policies[1].unscopedDefAllowed = False
 
 
 class HBalancedSecuredPolicy(HBalancedPolicy):

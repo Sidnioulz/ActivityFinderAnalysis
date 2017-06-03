@@ -118,6 +118,9 @@ class TestPolicies(unittest.TestCase):
         e002b = Event(actor=self.ac, time=30, syscallStr=s002)
         e002b.evflags &= ~EventFileFlags.designation  # not by designation
         self.eventStore.append(e002b)
+        e002b = Event(actor=self.a2, time=31, syscallStr=s002)
+        e002b.evflags &= ~EventFileFlags.designation  # not by designation
+        self.eventStore.append(e002b)
 
         self.p003 = "/home/user/Downloads/logo.jpg"
         s003 = "open64|%s|fd 10: with flag 524288, e0|" % self.p003
@@ -1361,13 +1364,25 @@ class TestPolicies(unittest.TestCase):
         self.policy += 1
         self._assert(pol)
 
-        # Check that without a folder designation access, we get rejected.
+        # Check that individual bits return illegal when expected to.
         pol = CompositionalPolicy(pols, args, "HBalancedFaPolicy")
         self._reset()
         f018 = self.fileFactory.getFile(name=self.p018, time=40)
         accs = f018.getAccesses()
         next(accs)
         pol.accessFunc(None, f018, next(accs))
+        self.illegal += 1
+        self._assert(pol)
+
+        f002 = self.fileFactory.getFile(name=self.p002, time=40)
+        accs = f002.getAccesses()
+        pol.accessFunc(None, f002, next(accs))
+        self.policy += 1
+        self._assert(pol)
+        pol.accessFunc(None, f002, next(accs))
+        self.policy += 1
+        self._assert(pol)
+        pol.accessFunc(None, f002, next(accs))
         self.illegal += 1
         self._assert(pol)
 
