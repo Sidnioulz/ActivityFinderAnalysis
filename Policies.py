@@ -1257,6 +1257,14 @@ class HBalancedSecuredPolicy(HBalancedPolicy):
         super(HBalancedSecuredPolicy, self).__init__(secure=True, name=name)
 
 
+class HUsableSecuredPolicy(OneDistantFolderPolicy):
+
+    def __init__(self,
+                 name: str='HUsableSecuredPolicy'):
+        """Construct a HUsableSecuredPolicy."""
+        super(HUsableSecuredPolicy, self).__init__(secure=True, name=name)
+
+
 class FolderSecuredPolicy(FolderPolicy):
 
     def __init__(self,

@@ -21,7 +21,8 @@ from Policies import OneLibraryPolicy, CompoundLibraryPolicy, UnsecurePolicy, \
                      LibraryFolderPolicy, RemovableMediaPolicy, \
                      FolderFilenamePolicy, FolderRestrictedAppsPolicy, \
                      CompositionalPolicy, HSecurePolicy, HBalancedPolicy, \
-                     HBalancedSecuredPolicy, FolderSecuredPolicy
+                     HBalancedSecuredPolicy, FolderSecuredPolicy, \
+                     HUsableSecuredPolicy
 from constants import DATABASENAME, USERCONFIGNAME
 from utils import __setCheckMissing, __setDebug, __setOutputFs, \
                   __setRelatedFiles, __setScore, __setGraph, __setAttacks, \
