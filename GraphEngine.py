@@ -14,6 +14,36 @@ import sys
 import os
 
 
+def applyCommunities(graph, membership, names, intersect=False):
+    """Apply the communities passed as a parameter to this Graph."""
+    # membership = parent.clusters.membership
+    # names = parent.g.vs['name']
+
+    members = [0] * len(membership)
+    assigned = [0] * len(membership)
+    maxM = 0
+
+    for idx, n in enumerate(membership):
+        members[graph.idgen[names[idx]]] = n
+        assigned[graph.idgen[names[idx]]] = 1
+        maxM = max(maxM, n)
+
+    if intersect:
+        oldMembership = graph.g.clusters().membership
+        newMembership = members[:len(graph.g.vs)]
+
+        uniquePairs = set(zip(oldMembership, newMembership))
+        mapper = dict()
+        for (i, pair) in enumerate(uniquePairs):
+            mapper[pair] = i
+
+        graph.membership = list(mapper[(oldMembership[i], e)] for i, e in enumerate(newMembership))
+    else:
+        graph.membership = members[:len(graph.g.vs)]
+
+    graph.clusters = VertexClustering(graph.g, membership=graph.membership)
+
+
 class CommonGraph(object):
     """A graph representation of document accesses by userland apps."""
 
@@ -117,17 +147,16 @@ class CommonGraph(object):
     def _construct(self):
         """Construct the graph after it was populated."""
         self.g = None
-        idgen = UniqueIdGenerator()
+        self.idgen = UniqueIdGenerator()
 
         self._linkInstances()
 
-        edgelist = [(idgen[s], idgen[d]) for s, d in self.edges]
+        edgelist = [(self.idgen[s], self.idgen[d]) for s, d in self.edges]
         self.g = Graph(edgelist)
         del edgelist
         self.g.es["weight"] = list((self.weights[e] for e in self.edges))
         del self.edges
-        self.g.vs["name"] = idgen.values()
-        del idgen
+        self.g.vs["name"] = self.idgen.values()
         self.g.vs["type"] = list((self.vertices[n] for n in self.g.vs["name"]))
         del self.vertices
 
@@ -433,6 +462,7 @@ class FlatGraph(object):
                             parent.__class__.__name__)
 
         self.g = None
+        self.clusters = None
         self.outputDir = parent.outputDir
         self.vertices = dict()
         self.edges = set()
@@ -474,7 +504,7 @@ class FlatGraph(object):
 
         edges = set()
         # weights = dict()
-        idgen = UniqueIdGenerator()
+        self.idgen = UniqueIdGenerator()
 
         fileNodeCount = len(fileNodes)
         if not quiet:
@@ -513,7 +543,7 @@ class FlatGraph(object):
             for p in vPaths:
                 if len(p) <= 1:
                     continue
-                key = (idgen[names[p[0]]], idgen[names[p[-1]]])
+                key = (self.idgen[names[p[0]]], self.idgen[names[p[-1]]])
                 edges.add(key)
                 # weights[key] = 1 / (len(p) - 1)
 
@@ -521,7 +551,7 @@ class FlatGraph(object):
         if not quiet:
             tprnt("\t\t\t\tRe-add file-file direct nodes into graph...")
         for (src, dest) in namesRemoved:
-            edges.add((idgen[src], idgen[dest]))
+            edges.add((self.idgen[src], self.idgen[dest]))
 
         # Step 3. construct a graph with only file nodes.
         if not quiet:
@@ -530,20 +560,12 @@ class FlatGraph(object):
         self.g = Graph(edges)
         del edges
         # self.g.es["weight"] = list((weights[e] for e in edges))
-        self.g.vs["name"] = idgen.values()
+        self.g.vs["name"] = self.idgen.values()
 
         # Steph 4. apply community information to the nodes.
         if not quiet:
             tprnt("\t\t\tStep 4: apply communities to flat graph...")
-        parentMembers = parent.clusters.membership
-        members = [0] * len(parentMembers)
-        assigned = [0] * len(parentMembers)
-        for idx, n in enumerate(parentMembers):
-            members[idgen[names[idx]]] = n
-            assigned[idgen[names[idx]]] = 1
-        self.membership = members[:len(self.g.vs)]
-        self.clusters = VertexClustering(self.g,
-                                         membership=self.membership)
+        applyCommunities(self, parent.clusters.membership, names)
 
     def plot(self, output: str=None):
         """Plot the graph and its communities to an output file."""
@@ -787,9 +809,24 @@ class UnifiedGraph(CommonGraph):
 class GraphEngine(object):
     """An engine for creating graphs given a file AC policy."""
 
+    __engine = None
+
+    @staticmethod
+    def get():
+        """Return the GraphEngine for the entire application."""
+        if GraphEngine.__engine is None:
+            GraphEngine.__engine = GraphEngine()
+        return GraphEngine.__engine
+
+    @staticmethod
+    def reset():
+        GraphEngine.__engine = None
+
     def __init__(self):
         """Construct a GraphEngine."""
         super(GraphEngine, self).__init__()
+        self.globMembership = None
+        self.globNames = None
 
     def runGraph(self,
                  policy: Policy=None,
@@ -815,7 +852,22 @@ class GraphEngine(object):
           g.plot(output=output)
         if not quiet:
             tprnt("\tComputing community clusters...")
-        g.computeClusters()
+        if not policy:
+            g.computeClusters()
+            self.globMembership = g.clusters.membership
+            self.globNames = g.g.vs['name']
+        else:
+            if not self.globMembership:
+                if not quiet:
+                    tprnt("\t\tWarning: cannot re-use global communities as "
+                          "they aren't computed yet, computing local ones "
+                          "instead.")
+                g.computeClusters()
+            else:
+                if not quiet:
+                    tprnt("\t\tUsing global community memberships to refine "
+                          "clusters.")
+                applyCommunities(g, self.globMembership, self.globNames, True)
         if not plottingDisabled():
           if not quiet:
               tprnt("\tPlotting communities...")

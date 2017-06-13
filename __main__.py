@@ -111,8 +111,7 @@ def main(argv):
                       "frequent-itemsets algorithm in the\n\t--related-files "
                       "post-analysis. Requires the --related-files option.\n")
                 print("--graph:\n\tFind communities in file/app "
-                      "accesses using graph theory methods.\n\tRequires the "
-                      "--score and --cluster options for per-policy graphs.\n")
+                      "accesses using graph theory methods.\n")
                 print("--help:\n\tPrints this help information and exits.\n")
                 print("--output=<DIR>:\n\tSaves a copy of the simulated "
                       "files, and some information on events\n\trelated to "
@@ -356,11 +355,11 @@ def main(argv):
         if skipList and 'graphs' in skipList:
             tprnt("\nGraphs in skip list, skipping global graph generation.")
         else:
-            engine = GraphEngine()
+            engine = GraphEngine.get()
             engine.runGraph(policy=None)
 
     # Policy engine. Create a policy and run a simulation to score it.
-    if scoreEnabled() or attacksEnabled():
+    if scoreEnabled() or attacksEnabled() or graphEnabled():
         engine = PolicyEngine()
 
         if __opt_quick_pol:

@@ -1207,8 +1207,22 @@ class PolicyEngine(object):
         if policy.globalConfigCost():
             policy.configCostCarryover()
 
+        # Make the output directory as we will produce output files!
+        if not quiet:
+            print("Creating output directory...")
+        policy.makeOutputDir(outputDir)
+
+        # Graph printing, if enabled.
+        if graphEnabled():
+            if not quiet:
+                print("Starting graph computations...")
+            from GraphEngine import GraphEngine
+            engine = GraphEngine.get()
+            engine.runGraph(policy=policy, outputDir=outputDir)
+
         # We were only running the access function to prepare for attack
-        # simulation (which requires allowedByPolicy to be initialised).
+        # simulation (which requires allowedByPolicy to be initialised) or for
+        # graph simulation.
         if not scoreEnabled():
             return
 
@@ -1216,18 +1230,6 @@ class PolicyEngine(object):
         if not quiet:
             print("Starting security computations...")
         policy.securityRun(self, quiet=quiet)
-
-        if not quiet:
-            print("Creating output directory...")
-            policy.makeOutputDir(outputDir)
-
-        # Graph printing, if enabled.
-        if graphEnabled():
-            if not quiet:
-                print("Starting graph computations...")
-            from GraphEngine import GraphEngine
-            engine = GraphEngine()
-            engine.runGraph(policy=policy, outputDir=outputDir)
 
         if not quiet:
             policy.printScores(outputDir, printClusters=printClusters)
