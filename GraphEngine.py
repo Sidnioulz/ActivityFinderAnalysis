@@ -101,6 +101,7 @@ class CommonGraph(object):
         # Add all user documents.
         if not quiet:
             tprnt("\t\tAdding user documents...")
+        self.docCount = 0
         for f in fileStore:
             if not f.isUserDocument(userHome=userConf.getHomeDir(),
                                     allowHiddenFiles=True):
@@ -117,6 +118,7 @@ class CommonGraph(object):
 
             # And then add such userland apps to user document accesses.
             if hasUserlandAccesses:
+                self.docCount += 1
                 self._addFileNode(f)
                 for acc in f.getAccesses():
                     if _allowed(policy, f, acc):
@@ -354,7 +356,10 @@ class CommonGraph(object):
 
         self.editCount = editCount
 
-    def calculateReachability(self, output: str=None, quiet: bool=False):
+    def calculateReachability(self,
+                              output: str=None,
+                              quiet: bool=False,
+                              nodeCount: int=0):
         """Model the reachability improvement of community finding."""
         if self.clusters is None:
             raise ValueError("Clusters for a graph must be computed "
@@ -376,16 +381,23 @@ class CommonGraph(object):
 
             sizes = [x for x in sorted(list((len(x) for x in clusters)))
                      if x != 0]
+            vertexSum = sum(sizes)
+            isolatedNC = nodeCount - self.docCount
             msg += ("* %s-size distribution: %s\n" % (tag,
                                                       sizes.__str__()))
             msg += ("* %s-cluster count: %d\n" % (tag, len(sizes)))
+            msg += ("* %s-isolated nodes: %d\n" % (tag, isolatedNC))
             msg += ("* %s-smallest cluster: %d\n" % (tag, min(sizes)))
             msg += ("* %s-largest cluster: %d\n" % (tag, max(sizes)))
-            avgSize = sum(sizes) / len(sizes)
+            avgSize = vertexSum / len(sizes)
             msg += ("* %s-average size: %f\n" % (tag, avgSize))
-            vertexSum = sum(sizes)
+
             reach = sum([i ** 2 for i in sizes]) / vertexSum
             msg += ("* %s-average reachability: %f\n" % (tag, reach))
+
+            reach = (sum([i ** 2 for i in sizes]) + isolatedNC) / \
+                    (vertexSum + isolatedNC)
+            msg += ("* %s-adjusted reachability: %f\n" % (tag, reach))
 
             return (msg, avgSize, reach)
 
@@ -417,10 +429,10 @@ class CommonGraph(object):
                 deltaReach = 1 - (postReach / preReach)
                 reachEfficiency = deltaReach / editCount if editCount else 1
                 msg += "\nEvol. of reachability: {:.2%}\n".format(deltaReach)
-                msg += ("Efficiency of edits wrt. reachability: %f\n" %
+                msg += ("Efficiency of edits wrt. adj. reachability: %f\n" %
                         reachEfficiency)
             else:
-                msg += "\nEvol. of reachability: N/A\n"
+                msg += "\nEvol. of adj. reachability: N/A\n"
 
             return msg
 
@@ -510,15 +522,17 @@ class FlatGraph(object):
         if not quiet:
             tprnt("\t\t\t\tGet shortest paths for each of %d file nodes..." %
                    fileNodeCount)
-        threshold = int(fileNodeCount / 100)
+        threshold = fileNodeCount / 100
         nodeI = 0
+        lastNodePct = 0
         nodePct = 0
         for v in fileNodes:
             nodeI += 1
-            if nodeI == threshold:
-                nodeI = 0
-                nodePct += 1
-                print("\t\t\t\t\t... (%d%% done)" % nodePct)
+            if nodeI >= (threshold * nodePct):
+                nodePct = int(nodeI / threshold)
+                if nodePct >= lastNodePct + 5:
+                    print("\t\t\t\t\t... (%d%% done)" % nodePct)
+                    lastNodePct = nodePct
 
             # Get shortest paths.
             vPaths = copy.get_shortest_paths(v, to=fileNodes)
@@ -828,6 +842,22 @@ class GraphEngine(object):
         self.globMembership = None
         self.globNames = None
 
+        self.docCount = 0
+        fileStore = FileStore.get()
+        userConf = UserConfigLoader.get()
+        for f in fileStore:
+            if f.isUserDocument(userConf.getHomeDir(), allowHiddenFiles=True) \
+                    and not f.isFolder():
+
+                hasUserlandAccesses = False
+                for acc in f.getAccesses():
+                    if acc.actor.isUserlandApp():
+                        hasUserlandAccesses = True
+                        break
+
+                if hasUserlandAccesses:
+                    self.docCount += 1
+
     def runGraph(self,
                  policy: Policy=None,
                  outputDir: str=None,
@@ -841,21 +871,26 @@ class GraphEngine(object):
         if not quiet:
             tprnt("\tMaking graph...")
         g = UnifiedGraph(outputDir=outputDir)
+
         if not quiet:
             tprnt("\tPopulating graph...")
         g.populate(policy=policy, quiet=quiet)
         output = policy.name+"-graph-unified" if policy else \
             "graph-unified"
+
         if not plottingDisabled():
-          if not quiet:
-              tprnt("\tPlotting graph...")
-          g.plot(output=output)
+            if not quiet:
+                tprnt("\tPlotting graph...")
+            g.plot(output=output)
+
         if not quiet:
             tprnt("\tComputing community clusters...")
+        # We are computing the global graph with all the information.
         if not policy:
             g.computeClusters()
             self.globMembership = g.clusters.membership
             self.globNames = g.g.vs['name']
+        # We are computing a policy graph to compare to the global graph.
         else:
             if not self.globMembership:
                 if not quiet:
@@ -868,15 +903,19 @@ class GraphEngine(object):
                     tprnt("\t\tUsing global community memberships to refine "
                           "clusters.")
                 applyCommunities(g, self.globMembership, self.globNames, True)
+
         if not plottingDisabled():
           if not quiet:
               tprnt("\tPlotting communities...")
           g.plotClusters(output=output)
+
         if not quiet:
             tprnt("\tCalculating costs to optimal communities...")
         g.calculateCosts(output=output, policy=policy, quiet=quiet)
+
         if not quiet:
             tprnt("\tCalculating potential reachability improvement...")
-        g.calculateReachability(output=output, quiet=quiet)
+        g.calculateReachability(output=output, quiet=quiet, nodeCount=self.docCount)
+
         if not quiet:
             tprnt("Done.")
