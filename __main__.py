@@ -374,7 +374,6 @@ def main(argv):
                         FilenamePolicy,
                         FileTypePolicy,
                         FolderPolicy,
-                        LibraryFolderPolicy,
 
                         OneDistantFolderPolicy,
                         OneFolderPolicy,
@@ -398,6 +397,13 @@ def main(argv):
                        'OneDistantFolderSbPolicy',
                        'OneDistantFolderSbFaPolicy',
                        'OneDistantFolderFaPolicy',
+                       'HUsableSecuredSbPolicy',
+                       'HUsableSecuredSbFaPolicy',
+                       'HUsableSecuredFaPolicy',
+
+                       'HBalancedSecuredSbPolicy',
+                       'HBalancedSecuredSbFaPolicy',
+                       'HBalancedSecuredFaPolicy',
                        'DistantFolderSbPolicy',
                        'DistantFolderSbFaPolicy',
                        'DistantFolderFaPolicy',
@@ -436,7 +442,6 @@ def main(argv):
                        None,
                        None,
                        None,
-                       dict(supportedLibraries=LibraryManager.CustomList),
 
                        None,
                        None,
@@ -449,6 +454,13 @@ def main(argv):
                        None,
                        None,
 
+                       None,
+                       None,
+                       None,
+
+                       None,
+                       None,
+                       None,
                        None,
                        None,
                        None,
