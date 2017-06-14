@@ -84,7 +84,7 @@ class FileStore(object):
 
             # Print only user documents, if we have a home to compare to
             if showDocumentsOnly and userHome:
-                if not last.isUserDocument(userHome):
+                if not last.isUserDocument(userHome, allowHiddenFiles=True):
                     continue
 
             # Ensure we print folders with a /, and files with leading space
@@ -159,7 +159,7 @@ class FileStore(object):
 
                 # Print only user documents, if we have a home to compare to
                 if showDocumentsOnly and userHome:
-                    if not last.isUserDocument(userHome):
+                    if not last.isUserDocument(userHome, allowHiddenFiles=True):
                         continue
 
                 # Ensure all parent folders exist
@@ -211,11 +211,11 @@ class FileStore(object):
                                 os.utime(outpath+"/.ucl-metadata", None)
                                 last.writeStatistics(f)
 
-    def getUserDocumentCount(self, userHome: str):
+    def getUserDocumentCount(self, userHome: str, allowHiddenFiles: bool=False):
         """Return the number of user documents in the FileStore."""
         count = 0
         for f in self:
-            if f.isUserDocument(userHome):
+            if f.isUserDocument(userHome, allowHiddenFiles=allowHiddenFiles):
                 count += 1
         return count
 
