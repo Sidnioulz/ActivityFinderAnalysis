@@ -460,6 +460,37 @@ class AnalysisEngine(object):
 
         return [item for sublist in retScores for item in sublist]
 
+    def parseGraphScores(self, filenames: list):
+        s = dict()
+        s['pre-count'] = 0
+        s['pre-size'] = 0
+        s['pre-reachability'] = 0
+        s['post-count'] = 0
+        s['post-size'] = 0
+        s['post-reachability'] = 0
+
+        countPrfx = "* flat-pre-size distribution"
+
+        def _parseGraphScores(filename: str):
+            try:
+                with open(filename) as f:
+                    for line in f:
+                        if line.startswith(countPrfx):
+                            counts = eval(line[len(countPrfx):])
+                            s['pre-count'] += sum(counts)
+
+            except (FileNotFoundError) as e:
+                return []
+
+            return []
+
+        retScores = []
+        for filename in filenames:
+            fScores = _parseGraphScores(filename)
+            retScores.append(fScores)
+
+        return [item for sublist in retScores for item in sublist]
+
     def analyseOE(self):
         overallOEScores = dict()
         for (adx, app) in enumerate(self.userScores):
@@ -763,11 +794,12 @@ class AnalysisEngine(object):
         return counterSum * 100
 
     def plotInstanceViolations(self, paths, exclName):
-        # FIXME TODO has bug, only shows Win8
-        print("%s..." % exclName)
         violations = dict()
         sortable = sortedlist(key=lambda i: i[1])
-        noData = False
+
+        chart = pygal.HorizontalBar()
+        chart.title = 'Average proportion of user applications accessing ' \
+                      'files which are mutually exclusive.'
 
         participantCount = 0
         for iD in self.inputDir:
@@ -775,38 +807,32 @@ class AnalysisEngine(object):
             if exclName in exclLists:
                 participantCount += 1
 
-        for (name, folders) in sorted(self.foldersPerName.items()):
-            folders = list(f[f.find('/')+1:] for f in folders)
-            parse = []
-            for path in paths:
-                fP = list((path.replace("@POLICY@", f), path[:path.find('/')])
-                          for f in set(folders))
-                parse.extend(fP)
+        if participantCount:
+            for (name, folders) in sorted(self.foldersPerName.items()):
+                folders = list(f[f.find('/')+1:] for f in folders)
+                parse = []
+                for path in paths:
+                    fP = list((path.replace("@POLICY@", f), path[:path.find('/')])
+                              for f in set(folders))
+                    parse.extend(fP)
 
-        try:
-            violations[name] = self.parseExclFiles(parse) / participantCount
-        except(ZeroDivisionError):
-            noData = True
+                violations[name] = self.parseExclFiles(parse) / participantCount
 
-        if not noData:
             for (name, exclProportion) in violations.items():
                 sortable.add((name, exclProportion))
 
-        chart = pygal.HorizontalBar()
-        chart.title = 'Average proportion of user applications accessing ' \
-                      'files which are mutually exclusive.'
+            lines = []
+            maxVal = 0
+            labels = []
+            for (polName, app) in sortable:
+                lines.append(app)
+                if maxVal < app:
+                    maxVal = app
+                labels.append(polName)
 
-        lines = []
-        maxVal = 0
-        labels = []
-        for (polName, app) in sortable:
-            lines.append(app)
-            if maxVal < app:
-                maxVal = app
-            labels.append(polName)
-
-        if not noData:
             chart.add("Applications", lines)
+
+        # participantCount == 0
         else:
             chart.no_data_text = "No exclusion lists defined among participants."
 
@@ -964,6 +990,122 @@ class AnalysisEngine(object):
             _parseAttacks(docScores, appScores, avgScores, folder)
 
         return (docScores, appScores, avgScores)
+
+    def parseAllGraphs(self):
+        """Parse graphstats.txt file."""
+        # Final scores for each policy.
+        reachResult = dict()
+        optimResult = dict()
+
+        # General values for each participant, used for normalising.
+        genReach = dict()
+
+        reachKey = "* flat-pre-adjusted reachability:"
+        rcfpKey = "* flat-post-adjusted reachability:"
+
+        def _parseGraphs(folder, name, reachNorm):
+            optim = 0
+            rcfp = 0
+            rfp = 0
+            reach = 0
+            filename = os.path.join(folder,
+                                    name + "Policy-graph-unified.graphstats.txt" if
+                                    name else "graph-unified.graphstats.txt")
+            try:
+                with open(filename) as f:
+
+                    for line in f:
+                        if line.startswith(reachKey):
+                            reach = float(line[len(reachKey)+1:-1])
+                            rfp = reach
+                            if reachNorm:
+                                reach = reach / reachNorm
+                        elif line.startswith(rcfpKey):
+                            rcfp = float(line[len(rcfpKey)+1:-1])
+
+                    if rcfp and rfp:
+                        optim = rcfp / rfp
+
+            except (FileNotFoundError) as e:
+                pass
+
+            return (reach, optim)
+
+        # Collect all participants' global graph statistics.
+        for iD in self.inputDir:
+            (genReach[iD], __) = \
+                _parseGraphs(iD, None, None)
+
+        # Then browse folders and parse files.
+        optimParticipantCount = dict()
+        for (name, folders) in sorted(self.foldersPerName.items()):
+            reachSum = 0
+            optimSum = 0
+            for folder in folders:
+                iD = folder[:folder.rfind("/")]
+                reachNorm = genReach[iD]
+                (reach, optim) = _parseGraphs(folder, name, reachNorm)
+
+                reachSum += reach
+                optimSum += optim
+
+                if optim:
+                    opc = optimParticipantCount.get(name) or 0
+                    optimParticipantCount[name] = opc + 1
+
+            reachResult[name] = reachSum / self.participantCount
+            if optimParticipantCount[name]:
+                optimResult[name] = optimSum / optimParticipantCount[name]
+            else:
+                optimResult[name] = 0
+
+            print("POLICY", name, reachSum / self.participantCount, optimSum / self.participantCount)
+
+        return (reachResult, optimResult)
+
+    def plotAllGraphs(self, reachResult, optimResult):
+        def _plot(self, filename, tag, result):
+
+            sortable = sortedlist(key=lambda i: i[0])
+            for (pol, score) in result.items():
+                sortable.add((score, pol))
+
+            chart = pygal.HorizontalBar()
+            chart.x_title = tag
+            chart.show_legend = False
+
+            lines = [[], [], [], []]
+            labels = []
+            maxVal = 0
+            for (s, pol) in sortable:
+                lines[0].append(s)
+                labels.append(pol)
+                maxVal = max(maxVal, s)
+
+            chart.add(tag, lines[0])
+
+            chart.x_labels = labels
+            chart.show_x_guides = True
+            chart.show_x_labels = True
+            chart.show_minor_x_labels = True
+            chart.show_y_guides = True
+            chart.show_y_labels = True
+            chart.yrange = (0, int(maxVal) + 2)
+            chart.value_formatter = lambda y: "%s" % \
+              ("%d" % y if int(y) == y else "%.02f" % y)
+
+            chart.render_to_file(os.path.join(self.outputDir, filename))
+
+        _plot(self, "graph-reachability.svg", "Reachability", reachResult)
+        _plot(self, "graph-optimality.svg", "Optimality", optimResult)
+
+        adjOpResult = dict()
+        for (name, val) in optimResult.items():
+            if reachResult[name] != 1:
+                adjOpResult[name] = val / (1 - reachResult[name])
+            else:
+                adjOpResult[name] = -1
+        _plot(self, "graph-adj.svg", "Adjusted Optimality", adjOpResult)
 
     def genUsabilityScoreTablesPerApp(self):
         # Get usability scores for each app individually.
@@ -1312,6 +1454,11 @@ class AnalysisEngine(object):
     def analyse(self):
         """Perform the post-analysis."""
 
+        print("Plotting community finding results...")
+        (reachResult, optimResult) = self.parseAllGraphs()
+        self.plotAllGraphs(reachResult, optimResult)
+        print("Done.\n")
+
         if self.participantCount > 1:
             print("Generating plot of most usable policy per participant...")
             # FIXME reconsider how I normalise this data. I could normalise in
@@ -1323,7 +1470,6 @@ class AnalysisEngine(object):
             sumsNoG = dict()
 
             i = 1
-
             for iD in sorted(self.inputDir):  # MUST BE SORTED! plot fn x label
                 print("\t%d/%d: %s" % (i, self.participantCount, iD))
                 i += 1
